@@ -50,6 +50,7 @@ Used for the hosted shared-state runtime and for validating spec-level sync beha
 - Mutable state is persisted in Supabase tables and hydrated into the shared `UserState` model.
 - Realtime sync is driven by `src/components/app/sync-status.tsx`.
 - Quiet connectivity state is surfaced as `Sync reconnecting` or `No connection`.
+- Midnight and weekly automation run through authenticated cron routes in this mode.
 
 ## Commands
 
@@ -68,6 +69,17 @@ Supabase schema apply:
 
 ```bash
 supabase db push
+```
+
+Cron validation:
+
+```bash
+curl -X POST http://localhost:3000/api/cron/midnight \
+  -H "Authorization: Bearer $CRON_SECRET"
+curl -X POST http://localhost:3000/api/cron/weekly \
+  -H "Authorization: Bearer $CRON_SECRET"
+curl http://localhost:3000/api/keep-alive \
+  -H "Authorization: Bearer $CRON_SECRET"
 ```
 
 ## Local Credentials
@@ -118,9 +130,21 @@ Defaults:
 
 - `src/lib/supabase/client.ts`: browser Supabase client
 - `src/lib/supabase/server.ts`: server Supabase client
+- `src/lib/supabase/admin.ts`: service-role client for hosted automation
 - `src/lib/supabase/proxy.ts`: request-time session refresh for `proxy.ts`
 - `supabase/migrations/0001_initial_schema.sql`: base schema
 - `supabase/migrations/0002_runtime_rls_realtime.sql`: runtime metadata, RLS, uniqueness, and realtime publication coverage
+- `supabase/migrations/0003_automation_job_runs.sql`: hosted job ledger for cron telemetry and idempotence
+- `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
+
+### Server Automation
+
+- `src/lib/server/automation-jobs.ts`: hosted midnight, weekly, and keep-alive job runners
+- `src/lib/server/cron-auth.ts`: bearer-token auth guard for cron routes
+- `src/app/api/cron/midnight/route.ts`: midnight rollover route
+- `src/app/api/cron/weekly/route.ts`: weekly summary route
+- `src/app/api/keep-alive/route.ts`: lightweight health route used by keep-alive scheduling
+- `vercel.json`: keep-alive schedule
 
 ### Client Sync / Runtime UX
 
@@ -214,6 +238,8 @@ Supabase runtime pass:
 4. Open a second browser window or device.
 5. Confirm traffic-light, block-progress, MCQ, GT, and settings updates sync within seconds.
 6. Disconnect and reconnect the network once and confirm the degraded-sync badge behavior is quiet and recoverable.
+7. Call the cron routes with `CRON_SECRET` and confirm midnight and weekly jobs return success.
+8. Confirm repeated cron calls are idempotent by checking the app state or `automation_job_runs`.
 
 ## Preferred Engineering Patterns
 
@@ -236,4 +262,5 @@ Supabase runtime pass:
 
 - Local mode still exists because it keeps the repo fully runnable without hosted infra.
 - Supabase mode is now implemented for auth, persistence, and realtime sync, but later production gates still remain in `todos/`.
+- Local mode still simulates scheduled behavior with dev routes, while Supabase mode relies on the hosted cron path for midnight and weekly jobs.
 - Conflict policy is last-write-wins via server persistence plus authoritative refresh rather than client-side record merging.

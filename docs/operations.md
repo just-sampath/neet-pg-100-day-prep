@@ -18,6 +18,33 @@ This must include:
 
 - `supabase/migrations/0001_initial_schema.sql`
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
+- `supabase/migrations/0003_automation_job_runs.sql`
+
+## Hosted Automation
+
+Hosted automation uses three routes:
+
+- `POST /api/cron/midnight`
+- `POST /api/cron/weekly`
+- `GET /api/keep-alive`
+
+All three require:
+
+- `Authorization: Bearer <CRON_SECRET>`
+
+Scheduling is aligned to IST:
+
+- midnight rollover: `00:00` IST / `18:30` UTC daily
+- weekly summary: `23:30` IST Sunday / `18:00` UTC Sunday
+
+Provision the schedules by running:
+
+- `supabase/sql/005_setup_cron.sql`
+
+This SQL expects Supabase Vault secrets for:
+
+- `app_base_url`
+- `cron_secret`
 
 ## Update The Schedule
 
@@ -55,3 +82,17 @@ npm run generate:data
 
 - UI: Weekly page or dev toolbar
 - API: `POST /api/dev/weekly`
+
+## Force Midnight Processing
+
+- UI: dev toolbar time travel to next day `00:01`
+- API: `POST /api/dev/midnight`
+
+## Inspect Automation Runs
+
+Use the `automation_job_runs` table to investigate:
+
+- duplicate-run prevention
+- processed IST dates
+- per-user midnight and weekly metadata
+- failed hosted job attempts

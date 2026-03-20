@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
-import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import { DEFAULT_LOCAL_USER } from "@/lib/domain/constants";
 import type {
@@ -133,6 +133,15 @@ function createSessionScopedStore(user: LocalUser): LocalStore {
   };
 }
 
+export function createRemoteUser(userId: string, overrides?: Partial<Pick<LocalUser, "email" | "displayName">>): LocalUser {
+  return {
+    id: userId,
+    email: overrides?.email ?? "",
+    password: "",
+    displayName: overrides?.displayName ?? "Aspirant",
+  };
+}
+
 function asSupabaseUser(user: User): LocalUser {
   const displayName =
     typeof user.user_metadata?.display_name === "string"
@@ -188,11 +197,10 @@ async function requireSupabaseRequestUser() {
   return { supabase, user };
 }
 
-async function loadSupabaseStore(): Promise<LocalStore> {
-  const { supabase, user } = await requireSupabaseRequestUser();
-  const scopedUser = asSupabaseUser(user);
+async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): Promise<LocalStore> {
+  const scopedUser = user;
   const store = createSessionScopedStore(scopedUser);
-  const userState = store.userState[user.id];
+  const userState = store.userState[scopedUser.id];
 
   const [
     settingsResult,
@@ -205,15 +213,15 @@ async function loadSupabaseStore(): Promise<LocalStore> {
     gtLogsResult,
     weeklySummariesResult,
   ] = await Promise.all([
-    supabase.from("app_settings").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase.from("day_states").select("*").eq("user_id", user.id),
-    supabase.from("block_progress").select("*").eq("user_id", user.id),
-    supabase.from("revision_completions").select("*").eq("user_id", user.id),
-    supabase.from("backlog_items").select("*").eq("user_id", user.id),
-    supabase.from("mcq_bulk_logs").select("*").eq("user_id", user.id),
-    supabase.from("mcq_item_logs").select("*").eq("user_id", user.id),
-    supabase.from("gt_logs").select("*").eq("user_id", user.id),
-    supabase.from("weekly_summaries").select("*").eq("user_id", user.id),
+    supabase.from("app_settings").select("*").eq("user_id", scopedUser.id).maybeSingle(),
+    supabase.from("day_states").select("*").eq("user_id", scopedUser.id),
+    supabase.from("block_progress").select("*").eq("user_id", scopedUser.id),
+    supabase.from("revision_completions").select("*").eq("user_id", scopedUser.id),
+    supabase.from("backlog_items").select("*").eq("user_id", scopedUser.id),
+    supabase.from("mcq_bulk_logs").select("*").eq("user_id", scopedUser.id),
+    supabase.from("mcq_item_logs").select("*").eq("user_id", scopedUser.id),
+    supabase.from("gt_logs").select("*").eq("user_id", scopedUser.id),
+    supabase.from("weekly_summaries").select("*").eq("user_id", scopedUser.id),
   ]);
 
   const errors = [
@@ -371,6 +379,15 @@ async function loadSupabaseStore(): Promise<LocalStore> {
   return store;
 }
 
+export async function readSupabaseStoreForUser(user: LocalUser, supabase: SupabaseClient) {
+  return hydrateSupabaseStore(user, supabase);
+}
+
+async function loadSupabaseStore(): Promise<LocalStore> {
+  const { supabase, user } = await requireSupabaseRequestUser();
+  return hydrateSupabaseStore(asSupabaseUser(user), supabase);
+}
+
 type SyncTableInput = {
   table: string;
   rows: Record<string, unknown>[];
@@ -385,11 +402,7 @@ async function syncUserRows({
   onConflict,
   previousCount,
   userId,
-}: SyncTableInput) {
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) {
-    throw new Error("Supabase runtime is active, but the Supabase server client is unavailable.");
-  }
+}: SyncTableInput, supabase: SupabaseClient) {
 
   if (rows.length > 0) {
     const { error } = await supabase.from(table).upsert(rows, {
@@ -456,7 +469,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         traffic_light: entry.trafficLight,
         updated_at: entry.updatedAt,
       })),
-    }),
+    }, supabase),
     syncUserRows({
       table: "block_progress",
       userId,
@@ -473,7 +486,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         source_tag: entry.sourceTag,
         note: entry.note,
       })),
-    }),
+    }, supabase),
     syncUserRows({
       table: "revision_completions",
       userId,
@@ -485,7 +498,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         revision_type: entry.revisionType,
         completed_at: entry.completedAt,
       })),
-    }),
+    }, supabase),
     syncUserRows({
       table: "backlog_items",
       userId,
@@ -509,7 +522,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         completed_at: entry.completedAt,
         dismissed_at: entry.dismissedAt,
       })),
-    }),
+    }, supabase),
     syncUserRows({
       table: "mcq_bulk_logs",
       userId,
@@ -526,7 +539,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         source: entry.source,
         created_at: entry.createdAt,
       })),
-    }),
+    }, supabase),
     syncUserRows({
       table: "mcq_item_logs",
       userId,
@@ -549,7 +562,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         tags: entry.tags,
         created_at: entry.createdAt,
       })),
-    }),
+    }, supabase),
     syncUserRows({
       table: "gt_logs",
       userId,
@@ -581,7 +594,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         change_before_next_gt: entry.changeBeforeNextGt,
         created_at: entry.createdAt,
       })),
-    }),
+    }, supabase),
     syncUserRows({
       table: "weekly_summaries",
       userId,
@@ -596,7 +609,192 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         payload: entry,
         generated_at: entry.generatedAt,
       })),
-    }),
+    }, supabase),
+  ]);
+}
+
+export async function persistSupabaseStoreForUser(nextStore: LocalStore, previousStore: LocalStore, supabase: SupabaseClient) {
+  const userId = Object.keys(nextStore.userState)[0];
+  if (!userId) {
+    return;
+  }
+
+  const nextState = nextStore.userState[userId] ?? createEmptyUserState();
+  const previousState = previousStore.userState[userId] ?? createEmptyUserState();
+
+  const { error: settingsError } = await supabase.from("app_settings").upsert(
+    {
+      user_id: userId,
+      day_one_date: nextState.settings.dayOneDate,
+      theme: nextState.settings.theme,
+      schedule_shift_days: nextState.settings.scheduleShiftDays,
+      shift_applied_at: nextState.settings.shiftAppliedAt,
+      processed_dates: nextState.processedDates,
+      simulated_now_iso: nextStore.dev.simulatedNowIso,
+    },
+    {
+      onConflict: "user_id",
+      ignoreDuplicates: false,
+    },
+  );
+
+  if (settingsError) {
+    throw new Error(`app_settings: ${settingsError.message}`);
+  }
+
+  await Promise.all([
+    syncUserRows({
+      table: "day_states",
+      userId,
+      onConflict: "user_id,day_number",
+      previousCount: Object.keys(previousState.dayStates).length,
+      rows: Object.values(nextState.dayStates).map((entry) => ({
+        user_id: userId,
+        day_number: entry.dayNumber,
+        traffic_light: entry.trafficLight,
+        updated_at: entry.updatedAt,
+      })),
+    }, supabase),
+    syncUserRows({
+      table: "block_progress",
+      userId,
+      onConflict: "user_id,day_number,block_key",
+      previousCount: Object.keys(previousState.blockProgress).length,
+      rows: Object.values(nextState.blockProgress).map((entry) => ({
+        user_id: userId,
+        day_number: entry.dayNumber,
+        block_key: entry.blockKey,
+        status: entry.status,
+        actual_start: entry.actualStart,
+        actual_end: entry.actualEnd,
+        completed_at: entry.completedAt,
+        source_tag: entry.sourceTag,
+        note: entry.note,
+      })),
+    }, supabase),
+    syncUserRows({
+      table: "revision_completions",
+      userId,
+      onConflict: "user_id,source_day,revision_type",
+      previousCount: Object.keys(previousState.revisionCompletions).length,
+      rows: Object.values(nextState.revisionCompletions).map((entry) => ({
+        user_id: userId,
+        source_day: entry.sourceDay,
+        revision_type: entry.revisionType,
+        completed_at: entry.completedAt,
+      })),
+    }, supabase),
+    syncUserRows({
+      table: "backlog_items",
+      userId,
+      onConflict: "id",
+      previousCount: Object.keys(previousState.backlogItems).length,
+      rows: Object.values(nextState.backlogItems).map((entry) => ({
+        id: entry.id,
+        user_id: userId,
+        original_day: entry.originalDay,
+        original_block_key: entry.originalBlockKey,
+        topic_description: entry.topicDescription,
+        subject: entry.subject,
+        source_tag: entry.sourceTag,
+        status: entry.status,
+        suggested_day: entry.suggestedDay,
+        suggested_block_key: entry.suggestedBlockKey,
+        suggested_note: entry.suggestedNote,
+        rescheduled_to_day: entry.rescheduledToDay,
+        rescheduled_to_block_key: entry.rescheduledToBlockKey,
+        created_at: entry.createdAt,
+        completed_at: entry.completedAt,
+        dismissed_at: entry.dismissedAt,
+      })),
+    }, supabase),
+    syncUserRows({
+      table: "mcq_bulk_logs",
+      userId,
+      onConflict: "id",
+      previousCount: Object.keys(previousState.mcqBulkLogs).length,
+      rows: Object.values(nextState.mcqBulkLogs).map((entry) => ({
+        id: entry.id,
+        user_id: userId,
+        entry_date: entry.entryDate,
+        total_attempted: entry.totalAttempted,
+        correct: entry.correct,
+        wrong: entry.wrong,
+        subject: entry.subject,
+        source: entry.source,
+        created_at: entry.createdAt,
+      })),
+    }, supabase),
+    syncUserRows({
+      table: "mcq_item_logs",
+      userId,
+      onConflict: "id",
+      previousCount: Object.keys(previousState.mcqItemLogs).length,
+      rows: Object.values(nextState.mcqItemLogs).map((entry) => ({
+        id: entry.id,
+        user_id: userId,
+        entry_date: entry.entryDate,
+        mcq_id: entry.mcqId,
+        result: entry.result,
+        subject: entry.subject,
+        topic: entry.topic,
+        source: entry.source,
+        cause_code: entry.causeCode,
+        priority: entry.priority,
+        correct_rule: entry.correctRule,
+        what_fooled_me: entry.whatFooledMe,
+        fix_codes: entry.fixCodes,
+        tags: entry.tags,
+        created_at: entry.createdAt,
+      })),
+    }, supabase),
+    syncUserRows({
+      table: "gt_logs",
+      userId,
+      onConflict: "id",
+      previousCount: Object.keys(previousState.gtLogs).length,
+      rows: Object.values(nextState.gtLogs).map((entry) => ({
+        id: entry.id,
+        user_id: userId,
+        gt_number: entry.gtNumber,
+        gt_date: entry.gtDate,
+        day_number: entry.dayNumber,
+        score: entry.score,
+        correct: entry.correct,
+        wrong: entry.wrong,
+        unattempted: entry.unattempted,
+        air_percentile: entry.airPercentile,
+        device: entry.device,
+        attempted_live: entry.attemptedLive,
+        overall_feeling: entry.overallFeeling,
+        section_a: entry.sectionA,
+        section_b: entry.sectionB,
+        section_c: entry.sectionC,
+        section_d: entry.sectionD,
+        section_e: entry.sectionE,
+        error_types: entry.errorTypes,
+        recurring_topics: entry.recurringTopics,
+        knowledge_vs_behaviour: entry.knowledgeVsBehaviour,
+        unsure_right_count: entry.unsureRightCount,
+        change_before_next_gt: entry.changeBeforeNextGt,
+        created_at: entry.createdAt,
+      })),
+    }, supabase),
+    syncUserRows({
+      table: "weekly_summaries",
+      userId,
+      onConflict: "id",
+      previousCount: Object.keys(previousState.weeklySummaries).length,
+      rows: Object.values(nextState.weeklySummaries).map((entry) => ({
+        id: entry.id,
+        user_id: userId,
+        week_key: entry.weekKey,
+        week_start_date: entry.weekStartDate,
+        week_end_date: entry.weekEndDate,
+        payload: entry,
+        generated_at: entry.generatedAt,
+      })),
+    }, supabase),
   ]);
 }
 

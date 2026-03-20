@@ -37,6 +37,7 @@ BESIDE_YOU_RUNTIME=supabase
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...
+CRON_SECRET=...
 ```
 
 5. Log in with the active runtime credentials.
@@ -53,6 +54,8 @@ Default local credentials:
 - Today view, traffic light system, backlog queue, schedule browser, MCQ logging, GT logging, weekly summaries, export
 - Dev-only time travel controls for 22:30 / 23:00 / 23:15 / midnight behavior
 - Supabase auth, persistence, RLS, and Realtime integration path for shared-state deployment
+- Production cron routes for IST midnight rollover and weekly summary automation
+- Job telemetry in `automation_job_runs` plus manual cron setup SQL for Supabase
 
 ## Core Commands
 

@@ -35,7 +35,8 @@ import type {
 } from "@/lib/domain/types";
 import { scheduleData } from "@/lib/generated/schedule-data";
 import { getEffectiveNow } from "@/lib/data/local-store";
-import { addDaysToDateOnly, toDateOnly, weekBounds } from "@/lib/utils/date";
+import { getRuntimeMode } from "@/lib/runtime/mode";
+import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE, toDateOnlyInTimeZone, weekBounds } from "@/lib/utils/date";
 
 function progressKey(dayNumber: number, blockKey: BlockKey) {
   return `${dayNumber}:${blockKey}`;
@@ -165,7 +166,7 @@ export function applyTrafficLightToDay(userState: UserState, dayNumber: number, 
   }
 }
 
-function autoSweepLateNight(userState: UserState, settings: AppSettings, todayDate: string, todayDayNumber: number, nowMinutes: number) {
+export function runLateNightSweep(userState: UserState, settings: AppSettings, todayDate: string, todayDayNumber: number, nowMinutes: number) {
   if (!settings.dayOneDate || todayDayNumber < 1 || todayDayNumber > 100 || nowMinutes < 23 * 60 + 15) {
     return;
   }
@@ -185,29 +186,61 @@ function autoSweepLateNight(userState: UserState, settings: AppSettings, todayDa
   userState.processedDates.lateNightSweepDates.push(todayDate);
 }
 
-function autoProcessMidnight(userState: UserState, settings: AppSettings, todayDate: string, todayDayNumber: number) {
+export function getRevisionRolloverSnapshot(userState: UserState, settings: AppSettings, todayDate: string) {
+  const revisionPlan = buildDailyRevisionPlan(todayDate, userState, settings);
+  return {
+    due: revisionPlan.queue.length,
+    overflow: revisionPlan.overflow.length,
+    catchUp: revisionPlan.catchUp.length,
+    restudyFlags: revisionPlan.restudyFlags.length,
+  };
+}
+
+export function runMidnightRollover(userState: UserState, settings: AppSettings, todayDate: string, todayDayNumber: number) {
   if (!settings.dayOneDate || todayDayNumber <= 1) {
-    return;
+    return {
+      processedDate: null,
+      missedBlocks: 0,
+      backlogCreated: 0,
+      revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate),
+    };
   }
 
   const previousDate = addDaysToDateOnly(todayDate, -1);
   if (userState.processedDates.midnightDates.includes(previousDate)) {
-    return;
+    return {
+      processedDate: previousDate,
+      missedBlocks: 0,
+      backlogCreated: 0,
+      revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate),
+    };
   }
 
   const previousDayNumber = todayDayNumber - 1;
+  let missedBlocks = 0;
+  let backlogCreated = 0;
   if (previousDayNumber >= 1 && previousDayNumber <= 100) {
     for (const blockKey of getVisibleBlockKeys(getDayState(userState, previousDayNumber).trafficLight)) {
       const progress = getOrCreateProgress(userState, previousDayNumber, blockKey);
       if (progress.status === "pending") {
         progress.status = "missed";
         progress.sourceTag = "missed";
-        upsertBacklogItem(userState, previousDayNumber, blockKey, "missed");
+        missedBlocks += 1;
+        if (blockKey !== "morning_revision") {
+          upsertBacklogItem(userState, previousDayNumber, blockKey, "missed");
+          backlogCreated += 1;
+        }
       }
     }
   }
 
   userState.processedDates.midnightDates.push(previousDate);
+  return {
+    processedDate: previousDate,
+    missedBlocks,
+    backlogCreated,
+    revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate),
+  };
 }
 
 export function generateWeeklySummary(userState: UserState, settings: AppSettings, weekStartDate: string): WeeklySummary {
@@ -334,32 +367,57 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
   };
 }
 
-function autoGenerateWeeklySummary(userState: UserState, settings: AppSettings, todayDate: string) {
-  const previousDate = addDaysToDateOnly(todayDate, -1);
-  const week = weekBounds(previousDate);
-  if (previousDate !== week.end) {
-    return;
+export function runWeeklySummaryAutomation(userState: UserState, settings: AppSettings, todayDate: string) {
+  const week = weekBounds(todayDate);
+  if (todayDate !== week.end) {
+    return {
+      generated: false,
+      weekStart: week.start,
+      summaryId: null,
+    };
   }
   if (userState.processedDates.weeklySummaryDates.includes(week.start)) {
-    return;
+    return {
+      generated: false,
+      weekStart: week.start,
+      summaryId: null,
+    };
+  }
+
+  const existingSummary = Object.values(userState.weeklySummaries).find((entry) => entry.weekKey === week.start);
+  if (existingSummary) {
+    userState.processedDates.weeklySummaryDates.push(week.start);
+    return {
+      generated: false,
+      weekStart: week.start,
+      summaryId: existingSummary.id,
+    };
   }
 
   const summary = generateWeeklySummary(userState, settings, week.start);
   userState.weeklySummaries[summary.id] = summary;
   userState.processedDates.weeklySummaryDates.push(week.start);
+  return {
+    generated: true,
+    weekStart: week.start,
+    summaryId: summary.id,
+  };
 }
 
 export function applyAutomations(store: LocalStore, userId: string) {
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
-  const todayDate = toDateOnly(now);
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const settings = userState.settings;
   const todayDayNumber = getCurrentDayNumber(settings, todayDate);
-  const minutes = now.getHours() * 60 + now.getMinutes();
+  const minutes = getMinutesInTimeZone(now, IST_TIME_ZONE);
 
-  autoSweepLateNight(userState, settings, todayDate, todayDayNumber, minutes);
-  autoProcessMidnight(userState, settings, todayDate, todayDayNumber);
-  autoGenerateWeeklySummary(userState, settings, todayDate);
+  runLateNightSweep(userState, settings, todayDate, todayDayNumber, minutes);
+
+  if (getRuntimeMode() === "local") {
+    runMidnightRollover(userState, settings, todayDate, todayDayNumber);
+    runWeeklySummaryAutomation(userState, settings, todayDate);
+  }
 }
 
 export function getHomeData(store: LocalStore, userId: string) {
@@ -367,7 +425,7 @@ export function getHomeData(store: LocalStore, userId: string) {
 
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
-  const todayDate = toDateOnly(now);
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const settings = userState.settings;
   const todayDayNumber = getCurrentDayNumber(settings, todayDate);
   const todayScheduleDay = getScheduleDay(todayDayNumber);
@@ -416,7 +474,7 @@ export function getScheduleListData(store: LocalStore, userId: string) {
   applyAutomations(store, userId);
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
-  const todayDate = toDateOnly(now);
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
 
   return scheduleData.days.map((day) => {

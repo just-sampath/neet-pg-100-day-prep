@@ -77,8 +77,23 @@ Then verify:
 8. Reconnect and confirm the app recovers without logout or manual reload.
 9. Export JSON and confirm the exported data reflects the persisted Supabase state.
 
+## Hosted Automation Pass
+
+In Supabase mode, with `CRON_SECRET` configured:
+
+1. Run `supabase db push`.
+2. Start the app locally or deploy it with the same env vars.
+3. Call `POST /api/cron/midnight` with `Authorization: Bearer <CRON_SECRET>`.
+4. Confirm backlog/revision rollover runs once for the processed IST date.
+5. Call the same endpoint again and confirm it does not duplicate state.
+6. Call `POST /api/cron/weekly` with `Authorization: Bearer <CRON_SECRET>`.
+7. Confirm the eligible weekly summary is created once for the correct IST week.
+8. Call `GET /api/keep-alive` and confirm a lightweight success payload.
+9. Inspect `automation_job_runs` and confirm run records exist for each invocation.
+
 ## Runtime-Specific Expectations
 
 - Local mode may still use the lightweight refresh loop.
 - Supabase mode should not rely on the fixed polling loop for core sync.
 - Conflict policy is last-write-wins through authoritative server persistence and refresh on Realtime events.
+- In Supabase mode, midnight and weekly automation should come from cron routes, not page-open refresh behavior.

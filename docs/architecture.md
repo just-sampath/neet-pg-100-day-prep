@@ -42,6 +42,7 @@ This layer decides whether the app is operating in `local` or `supabase` mode an
 - `.data/local-store.json`
 - `supabase/migrations/0001_initial_schema.sql`
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
+- `supabase/migrations/0003_automation_job_runs.sql`
 
 `src/lib/data/local-store.ts` is now the runtime-aware persistence boundary.
 
@@ -64,6 +65,17 @@ Additional runtime metadata is stored in `app_settings`:
 
 This keeps the current automation model compatible across both runtimes.
 
+`0003_automation_job_runs.sql` adds a job-run ledger for hosted automation:
+
+- `job_name`
+- `run_key`
+- `scheduled_date`
+- `status`
+- `processed_users`
+- `metadata`
+- `started_at`
+- `finished_at`
+
 ### Read Model / Automation Layer
 
 - `src/lib/data/app-state.ts`
@@ -76,6 +88,23 @@ This layer:
 - generates weekly summaries
 
 It remains storage-agnostic because it only works on the shared `UserState` model.
+
+### Server Automation Layer
+
+- `src/lib/server/automation-jobs.ts`
+- `src/lib/server/cron-auth.ts`
+- `src/app/api/cron/midnight/route.ts`
+- `src/app/api/cron/weekly/route.ts`
+- `src/app/api/keep-alive/route.ts`
+- `src/lib/supabase/admin.ts`
+
+This layer owns hosted scheduled work in `supabase` mode.
+
+- Midnight rollover runs at `00:00` IST and is keyed idempotently by the processed IST date.
+- Weekly summary generation runs at `23:30` IST each Sunday and is keyed idempotently by the processed IST date.
+- Keep-alive exists as a lightweight hosting reliability path.
+- Cron routes are protected by `Authorization: Bearer ${CRON_SECRET}`.
+- Job runs are recorded in `automation_job_runs` for safe re-run detection and failure investigation.
 
 ### Mutation Layer
 
@@ -117,6 +146,7 @@ Sync is runtime-aware:
 2. Pages call `requireCurrentUser()`.
 3. Reads and writes go through `.data/local-store.json`.
 4. UI refresh is driven by visibility changes plus the lightweight polling loop.
+5. Midnight and weekly automation can still be triggered through the dev toolbar or `/api/dev/*`.
 
 ### Supabase Mode
 
@@ -126,6 +156,7 @@ Sync is runtime-aware:
 4. Reads hydrate the in-memory `LocalStore` shape from Supabase rows.
 5. Mutations update the in-memory store and persist back to Supabase.
 6. Realtime events trigger `router.refresh()` on connected sessions.
+7. Midnight and weekly automation run through authenticated cron routes instead of page-open side effects.
 
 ## Conflict Policy
 
@@ -148,6 +179,20 @@ Supabase mode subscribes to changes on:
 - `weekly_summaries`
 
 `0002_runtime_rls_realtime.sql` adds these tables to the `supabase_realtime` publication and enforces user-scoped RLS.
+
+## Automation Scheduling
+
+Hosted scheduling is aligned to IST:
+
+- Midnight rollover: `00:00` IST, which is `18:30` UTC on the previous day
+- Weekly summary: `23:30` IST Sunday, which is `18:00` UTC Sunday
+
+The repo includes:
+
+- `supabase/sql/005_setup_cron.sql` for `pg_cron` + `net.http_post`
+- `vercel.json` keep-alive configuration
+
+In `local` mode, time-based behavior remains manually testable without waiting for wall-clock time.
 
 ## Export Path
 
