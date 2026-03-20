@@ -28,6 +28,13 @@ npm run build:webpack
   - 22:45 one-time reappearance
   - 23:00 night recall handling
   - 23:15 safety-net auto-move states
+- Backlog/traffic-light branch coverage for:
+  - exact yellow and red visible sets
+  - same-day traffic-light restoration
+  - manual skip metadata
+  - midnight miss creation with morning-revision exclusion
+  - wind-down backlog creation with morning-revision exclusion
+  - overrun preview and forced-sleep backlog branches
 
 ## Local Mode Manual Pass
 
@@ -47,15 +54,17 @@ Then verify:
 6. Confirm the Today view exposes the MCQ quick-log entry point.
 7. Complete a block and refresh.
 8. Skip a block and verify backlog entry appears.
-9. Edit a block time and trigger sleep protection.
-10. Mark a revision item complete.
-11. Complete `block_a` or `block_b` late and confirm future revision anchors move.
-12. Open a past schedule day and complete a block with a retroactive date.
-13. Confirm the old planned revision placement disappears and the new anchor date gains the item.
-14. Log MCQ bulk and item data.
-15. Log a GT entry.
-16. Generate a weekly summary.
-17. Export JSON.
+9. Skip `morning_revision` and confirm it does not create a backlog entry.
+10. Edit `block_a` later into `block_b` and confirm the overrun decision path appears.
+11. Edit a late block so it would breach `23:00` and confirm the forced backlog path appears.
+12. Mark a revision item complete.
+13. Complete `block_a` or `block_b` late and confirm future revision anchors move.
+14. Open a past schedule day and complete a block with a retroactive date.
+15. Confirm the old planned revision placement disappears and the new anchor date gains the item.
+16. Log MCQ bulk and item data.
+17. Log a GT entry.
+18. Generate a weekly summary.
+19. Export JSON.
 
 ## Time-Based Manual Pass
 
@@ -66,8 +75,9 @@ Then verify:
 5. Confirm the night recall prompt appears.
 6. Set simulated time to `23:15`.
 7. Confirm remaining work is swept to backlog and the safety-net message appears.
-8. Trigger `/api/dev/midnight` or set next day `00:01`.
-9. Confirm missed blocks are marked and weekly automation can run.
+8. Confirm `morning_revision` does not enter the backlog queue from the wind-down or midnight path.
+9. Trigger `/api/dev/midnight` or set next day `00:01`.
+10. Confirm missed blocks are marked and weekly automation can run.
 
 ## Supabase Runtime Pass
 

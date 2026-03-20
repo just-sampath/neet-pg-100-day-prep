@@ -7,14 +7,16 @@ import { redirect } from "next/navigation";
 
 import { loginUser, logoutUser, requireCurrentUser } from "@/lib/auth/session";
 import {
+  applyOverrunCascadeBacklog,
   applyTrafficLightToDay,
   generateWeeklySummary,
   getOrCreateProgress,
   moveBlockToBacklog,
+  moveVisibleBlocksToBacklog,
   runLateNightSweep,
 } from "@/lib/data/app-state";
 import { createEmptyUserState, getEffectiveNow, mutateStore } from "@/lib/data/local-store";
-import { createRevisionId, getCurrentDayNumber, getVisibleBlockKeys, reconcileRevisionCompletionsForSource } from "@/lib/domain/schedule";
+import { createRevisionId, getCurrentDayNumber, reconcileRevisionCompletionsForSource } from "@/lib/domain/schedule";
 import type { BlockKey, McqCauseCode, McqPriority, McqResult, RevisionSourceBlockKey, TrafficLight } from "@/lib/domain/types";
 import { getMinutesInTimeZone, IST_TIME_ZONE, toDateOnly, toDateOnlyInTimeZone, weekBounds } from "@/lib/utils/date";
 
@@ -74,7 +76,12 @@ export async function setTrafficLightAction(formData: FormData) {
   }
 
   await mutateStore((store) => {
-    applyTrafficLightToDay(store.userState[user.id], dayNumber, trafficLight);
+    const userState = store.userState[user.id];
+    const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
+    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+    applyTrafficLightToDay(userState, dayNumber, trafficLight, {
+      allowRestore: dayNumber === todayDayNumber,
+    });
   });
   refresh();
 }
@@ -87,6 +94,7 @@ export async function updateBlockAction(formData: FormData) {
   const completionDate = asString(formData.get("completionDate")) || null;
   const actualStart = asString(formData.get("actualStart")) || null;
   const actualEnd = asString(formData.get("actualEnd")) || null;
+  const cascadeDecision = asString(formData.get("cascadeDecision"));
   const note = asString(formData.get("note")) || null;
 
   await mutateStore((store) => {
@@ -122,14 +130,31 @@ export async function updateBlockAction(formData: FormData) {
       progress.completedAt = completionIsoForDateOnly(completionDate);
       progress.note = note;
     } else if (intent === "skip") {
-      progress.status = "skipped";
-      progress.completedAt = null;
-      progress.sourceTag = "skipped";
-      moveBlockToBacklog(store.userState[user.id], dayNumber, blockKey, "skipped", "skipped");
+      moveBlockToBacklog(userState, dayNumber, blockKey, "skipped", "skipped", note);
     } else if (intent === "time") {
       progress.actualStart = actualStart;
       progress.actualEnd = actualEnd;
       progress.note = note;
+
+      if (actualEnd && cascadeDecision === "move_next_to_backlog") {
+        applyOverrunCascadeBacklog(
+          userState,
+          dayNumber,
+          blockKey,
+          actualEnd,
+          "Moved to backlog after the earlier block ran long.",
+        );
+      }
+
+      if (actualEnd && cascadeDecision === "force_sleep_backlog") {
+        applyOverrunCascadeBacklog(
+          userState,
+          dayNumber,
+          blockKey,
+          actualEnd,
+          "Moved to backlog to protect sleep.",
+        );
+      }
     }
   });
 
@@ -204,12 +229,10 @@ export async function wrapUpDayAction(formData: FormData) {
   const trafficLight = asString(formData.get("trafficLight")) as TrafficLight;
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    for (const blockKey of getVisibleBlockKeys(trafficLight)) {
-      if (blockKey === "night_recall") {
-        continue;
-      }
-      moveBlockToBacklog(userState, dayNumber, blockKey, "missed");
-    }
+    moveVisibleBlocksToBacklog(userState, dayNumber, trafficLight, {
+      excludeNightRecall: true,
+      note: "Moved to backlog by wind-down prompt.",
+    });
   });
   refresh();
 }

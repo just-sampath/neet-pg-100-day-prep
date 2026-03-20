@@ -20,6 +20,7 @@ This must include:
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
 - `supabase/migrations/0003_automation_job_runs.sql`
 - `supabase/migrations/0004_revision_completion_identity.sql`
+- `supabase/migrations/0005_backlog_creation_metadata.sql`
 
 ## Hosted Automation
 
@@ -95,6 +96,14 @@ npm run generate:data
 
 - UI: dev toolbar time travel to next day `00:01`
 - API: `POST /api/dev/midnight`
+
+## Backlog Creation Notes
+
+- `morning_revision` is intentionally excluded from skip/miss backlog creation and re-enters the revision system instead.
+- Wind-down and midnight paths use `missed` as the backlog source tag for remaining visible study blocks.
+- Traffic-light downgrade paths use `yellow_day` or `red_day`.
+- Overrun-triggered recovery uses `overrun_cascade`.
+- Backlog items preserve `originalStart` and `originalEnd` for queue displays and debugging.
 
 ## Revision Engine Notes
 

@@ -4,6 +4,7 @@ import { TimeEditor } from "@/components/app/time-editor";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { getDayDetailData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
+import type { BlockKey } from "@/lib/domain/types";
 import { getRevisionAssignedSlotLabel, groupRevisionItemsForDisplay } from "@/lib/domain/schedule";
 import { completeRevisionAction, setTrafficLightAction, updateBlockAction } from "@/lib/server/actions";
 import { formatDateLabel } from "@/lib/utils/format";
@@ -27,6 +28,15 @@ export default async function ScheduleDayPage({
   const overflowGroups = detail.revisionPlan
     ? groupRevisionItemsForDisplay(detail.revisionPlan.overflow.map((entry) => entry.item))
     : [];
+  const timeEditorSlots = detail.blocks.map((block) => ({
+    key: block.key as BlockKey,
+    label: block.label,
+    start: block.start,
+    end: block.end,
+    status: block.progress.status,
+    actualStart: block.progress.actualStart,
+    actualEnd: block.progress.actualEnd,
+  }));
 
   return (
     <div className="grid gap-6">
@@ -165,7 +175,14 @@ export default async function ScheduleDayPage({
                 </div>
               </form>
             ) : null}
-            <TimeEditor dayNumber={detail.day.dayNumber} blockKey={block.key} start={block.start} end={block.end} />
+            <TimeEditor
+              dayNumber={detail.day.dayNumber}
+              blockKey={block.key as BlockKey}
+              start={block.start}
+              end={block.end}
+              trafficLight={detail.state.trafficLight}
+              slots={timeEditorSlots}
+            />
           </article>
         ))}
       </section>

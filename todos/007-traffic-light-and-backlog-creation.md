@@ -1,6 +1,6 @@
 # 007 Traffic Light And Backlog Creation
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -13,26 +13,25 @@ Green, yellow, and red days are central product behavior. The exact visible bloc
 
 ## Current Gap
 
-- Core traffic-light toggling works, but some backlog creation paths and exact UI behavior are simplified.
-- Overrun cascade and some metadata expectations are incomplete.
+- Closed. Traffic-light restoration, backlog creation metadata, wind-down creation paths, and overrun-triggered backlog creation now match the intended task scope.
 
 ## Checklist
 
-- [ ] Enforce the exact green visible block set.
-- [ ] Enforce the exact yellow visible and hidden block set.
-- [ ] Enforce the exact red visible and hidden block set.
-- [ ] Create backlog items with the correct reason and source metadata when blocks are hidden.
-- [ ] Restore same-day hidden blocks correctly if the user returns to green on the same day.
-- [ ] Support manual skip with correct backlog metadata.
-- [ ] Support midnight auto-miss with correct backlog metadata.
-- [ ] Support wind-down auto-move with correct backlog metadata.
-- [ ] Support overrun-triggered backlog creation with correct metadata.
-- [ ] Keep all copy emotionally neutral and supportive.
-- [ ] Test switching traffic-light state mid-day without corrupting completion state.
+- [x] Enforce the exact green visible block set.
+- [x] Enforce the exact yellow visible and hidden block set.
+- [x] Enforce the exact red visible and hidden block set.
+- [x] Create backlog items with the correct reason and source metadata when blocks are hidden.
+- [x] Restore same-day hidden blocks correctly if the user returns to green on the same day.
+- [x] Support manual skip with correct backlog metadata.
+- [x] Support midnight auto-miss with correct backlog metadata.
+- [x] Support wind-down auto-move with correct backlog metadata.
+- [x] Support overrun-triggered backlog creation with correct metadata.
+- [x] Keep all copy emotionally neutral and supportive.
+- [x] Test switching traffic-light state mid-day without corrupting completion state.
 
 ## Acceptance Criteria
 
-- [ ] Yellow and red modes hide only the blocks specified by the PRD.
-- [ ] Returning to green on the same day restores the right blocks without data loss.
-- [ ] Every backlog item carries enough metadata to explain how it was created.
-- [ ] Traffic-light changes never frame the user as failing.
+- [x] Yellow and red modes hide only the blocks specified by the PRD.
+- [x] Returning to green on the same day restores the right blocks without data loss.
+- [x] Every backlog item carries enough metadata to explain how it was created.
+- [x] Traffic-light changes never frame the user as failing.

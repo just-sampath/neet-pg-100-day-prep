@@ -55,6 +55,7 @@ Default local credentials:
 - Today view now keeps the full day in one chronological rail with inline break/meal separators, collapsed rescheduled blocks, an MCQ quick-log entry point, and a quiet completion glow
 - Dev-only time travel controls for 22:30 / 23:00 / 23:15 / midnight behavior
 - Open-app wind-down state machine with 22:30 wrap-up, one 22:45 reappearance, 23:00 night recall handling, and 23:15 safety-net backlog sweep
+- Traffic-light restoration and backlog creation now preserve original slot timing, keep morning revision out of the backlog queue, and support overrun-triggered recovery paths
 - Supabase auth, persistence, RLS, and Realtime integration path for shared-state deployment
 - Production cron routes for IST midnight rollover and weekly summary automation
 - Job telemetry in `automation_job_runs` plus manual cron setup SQL for Supabase

@@ -118,6 +118,7 @@ Defaults:
 
 - `src/lib/domain/types.ts`: all shared domain types
 - `src/lib/domain/constants.ts`: exam date, hard boundary, traffic-light block sets, compression rules
+- `src/lib/domain/backlog.ts`: traffic-light restore rules, backlog-creation guards, and overrun preview logic
 - `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, shift preview, backlog suggestions
 - `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
 - `src/lib/domain/quotes.ts`: quote selection
@@ -137,6 +138,7 @@ Defaults:
 - `supabase/migrations/0002_runtime_rls_realtime.sql`: runtime metadata, RLS, uniqueness, and realtime publication coverage
 - `supabase/migrations/0003_automation_job_runs.sql`: hosted job ledger for cron telemetry and idempotence
 - `supabase/migrations/0004_revision_completion_identity.sql`: block-aware revision completion identity
+- `supabase/migrations/0005_backlog_creation_metadata.sql`: original slot timing metadata for backlog items
 - `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
 
 ### Server Automation
@@ -196,6 +198,7 @@ The generated schedule bundle includes:
 
 - Visible: `morning_revision`, `block_a`, `block_b`, `mcq`, `night_recall`
 - Hidden to backlog: `consolidation`, `pyq_image`
+- Hidden blocks stay inline as neutral `Rescheduled` cards and create `yellow_day` backlog items.
 
 ### Red
 
@@ -203,6 +206,15 @@ The generated schedule bundle includes:
 - Hidden to backlog: everything else
 - UI copy should frame this as salvage mode, not failure
 - Today copy explicitly uses: `A salvage day, not a zero day.`
+- Same-day upgrades only restore the blocks that become visible again.
+
+## Backlog Creation Rules
+
+- Manual skip creates backlog entries for trackable study blocks except `morning_revision`.
+- Midnight auto-miss marks pending visible blocks as `missed`; `morning_revision` re-enters the revision system instead of the backlog queue.
+- Wind-down wrap-up and the 23:15 sweep move remaining visible study blocks into backlog as `missed`, excluding `morning_revision`.
+- Overrun-triggered recovery uses `overrun_cascade` as the source tag.
+- Backlog items now preserve `originalStart` and `originalEnd` so the queue can explain where the work came from.
 
 ## Schedule Shift Rules
 
@@ -236,19 +248,21 @@ Every feature should be runnable locally. Minimum manual pass:
 5. Confirm the Today view exposes the MCQ quick-log entry point directly.
 6. Complete and skip blocks.
 7. Edit a block time and confirm sleep protection warning.
-8. Mark revision items complete.
-9. Complete `block_a` or `block_b` on a later date and confirm the revision queue moves.
-10. Use dev time travel to trigger:
+8. Edit a block time into the next visible block and confirm the overrun decision path appears.
+9. Edit a late block so it would breach `23:00` and confirm the forced backlog path appears.
+10. Mark revision items complete.
+11. Complete `block_a` or `block_b` on a later date and confirm the revision queue moves.
+12. Use dev time travel to trigger:
    - 22:30 wind-down prompt
    - 22:45 wrap-up reappearance after one dismiss
    - 23:00 night recall prompt
    - 23:15 late-night sweep
    - next-day midnight rollover
-11. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.
-12. Log MCQ bulk and item data.
-13. Log GT data.
-14. Generate a weekly summary.
-15. Export JSON.
+13. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.
+14. Log MCQ bulk and item data.
+15. Log GT data.
+16. Generate a weekly summary.
+17. Export JSON.
 
 Supabase runtime pass:
 

@@ -33,11 +33,12 @@ The generator validates workbook structure before output:
 
 - `src/lib/domain/types.ts`
 - `src/lib/domain/constants.ts`
+- `src/lib/domain/backlog.ts`
 - `src/lib/domain/schedule.ts`
 - `src/lib/domain/today.ts`
 - `src/lib/domain/quotes.ts`
 
-This layer defines schedule mapping, traffic-light scope, revision derivation, shift absorption, backlog suggestions, and quote category selection.
+This layer defines schedule mapping, traffic-light scope, revision derivation, shift absorption, backlog suggestions, backlog-creation rules, overrun preview logic, and quote category selection.
 
 `src/lib/domain/today.ts` owns the Today-screen-specific pure helpers that should stay easy to test:
 
@@ -66,6 +67,7 @@ This layer decides whether the app is operating in `local` or `supabase` mode an
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
 - `supabase/migrations/0003_automation_job_runs.sql`
 - `supabase/migrations/0004_revision_completion_identity.sql`
+- `supabase/migrations/0005_backlog_creation_metadata.sql`
 
 `src/lib/data/local-store.ts` is now the runtime-aware persistence boundary.
 
@@ -95,6 +97,13 @@ This keeps the current automation model compatible across both runtimes.
 
 That change prevents `block_a` and `block_b` from colliding when they belong to the same schedule day.
 
+`0005_backlog_creation_metadata.sql` extends backlog persistence with original slot timing:
+
+- `original_start`
+- `original_end`
+
+That lets the backlog queue explain where a recovered block came from without relying on regenerated display text alone.
+
 `0003_automation_job_runs.sql` adds a job-run ledger for hosted automation:
 
 - `job_name`
@@ -116,8 +125,17 @@ This layer:
 - derives Today view data
 - builds schedule browser data
 - generates weekly summaries
+- owns traffic-light downgrade/upgrade behavior and backlog creation branches
 
 It remains storage-agnostic because it only works on the shared `UserState` model.
+
+Implemented backlog creation behavior:
+
+- traffic-light downgrade creates `yellow_day` or `red_day` backlog items only for still-pending hidden blocks
+- same-day upgrades restore only the blocks that become visible again
+- manual skip excludes `morning_revision` from the backlog queue
+- wind-down and midnight keep `morning_revision` in the revision system instead of the backlog queue
+- overrun cascade can either move the next affected block to backlog or force the affected tail to backlog when sleep would be breached
 
 ### Server Automation Layer
 

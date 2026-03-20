@@ -277,6 +277,16 @@ function normalizeUserState(userState: UserState | undefined): UserState {
   const base = userState ?? createEmptyUserState();
   return {
     ...base,
+    backlogItems: Object.fromEntries(
+      Object.entries(base.backlogItems ?? {}).map(([id, item]) => [
+        id,
+        {
+          ...item,
+          originalStart: item.originalStart ?? null,
+          originalEnd: item.originalEnd ?? null,
+        },
+      ]),
+    ),
     revisionCompletions: normalizeRevisionCompletions(base.revisionCompletions),
     processedDates: normalizeProcessedDates(base.processedDates),
   };
@@ -397,6 +407,8 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       id: row.id,
       originalDay: row.original_day,
       originalBlockKey: row.original_block_key,
+      originalStart: row.original_start ?? null,
+      originalEnd: row.original_end ?? null,
       topicDescription: row.topic_description,
       subject: row.subject,
       sourceTag: row.source_tag,
@@ -620,6 +632,8 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         user_id: userId,
         original_day: entry.originalDay,
         original_block_key: entry.originalBlockKey,
+        original_start: entry.originalStart,
+        original_end: entry.originalEnd,
         topic_description: entry.topicDescription,
         subject: entry.subject,
         source_tag: entry.sourceTag,
@@ -807,6 +821,8 @@ export async function persistSupabaseStoreForUser(nextStore: LocalStore, previou
         user_id: userId,
         original_day: entry.originalDay,
         original_block_key: entry.originalBlockKey,
+        original_start: entry.originalStart,
+        original_end: entry.originalEnd,
         topic_description: entry.topicDescription,
         subject: entry.subject,
         source_tag: entry.sourceTag,

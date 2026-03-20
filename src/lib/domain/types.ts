@@ -166,6 +166,8 @@ export interface BacklogItem {
   id: string;
   originalDay: number;
   originalBlockKey: BlockKey;
+  originalStart: string | null;
+  originalEnd: string | null;
   topicDescription: string;
   subject: string;
   sourceTag: BacklogSourceTag;

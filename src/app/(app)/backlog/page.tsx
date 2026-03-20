@@ -91,6 +91,7 @@ export default async function BacklogPage() {
                       <div className="metric-label">Original Slot</div>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
                         Day {item.originalDay} / {item.originalBlockKey.replaceAll("_", " ")}
+                        {item.originalStart && item.originalEnd ? ` / ${item.originalStart} - ${item.originalEnd}` : ""}
                       </p>
                     </div>
                     <div className="note-card p-4">

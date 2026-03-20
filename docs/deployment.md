@@ -34,6 +34,7 @@ This must apply:
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
 - `supabase/migrations/0003_automation_job_runs.sql`
 - `supabase/migrations/0004_revision_completion_identity.sql`
+- `supabase/migrations/0005_backlog_creation_metadata.sql`
 
 `0002_runtime_rls_realtime.sql` is required for:
 
@@ -53,6 +54,11 @@ This must apply:
 - block-aware revision completion identity
 - separate revision series for `block_a` and `block_b`
 - safe retroactive-completion recomputation without key collisions
+
+`0005_backlog_creation_metadata.sql` is required for:
+
+- preserving original scheduled slot timing on backlog items
+- queue displays that explain exactly where a moved block came from
 
 ## Auth Setup
 

@@ -160,6 +160,21 @@ export default async function TodayPage() {
   const catchUpGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.catchUp) : [];
   const restudyGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.restudyFlags) : [];
   const timelineEntries = buildTodayTimeline(todayScheduleDay, userState, todayState.trafficLight);
+  const timeEditorSlots = todayScheduleDay.slots
+    .filter((slot) => slot.trackable)
+    .map((slot) => {
+      const key = slot.key as typeof visibleBlocks[number];
+      const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, key);
+      return {
+        key,
+        label: slot.label,
+        start: slot.start,
+        end: slot.end,
+        status: progress.status,
+        actualStart: progress.actualStart,
+        actualEnd: progress.actualEnd,
+      };
+    });
   const trackableOrder = new Map(
     todayScheduleDay.slots.filter((slot) => slot.trackable).map((slot, index) => [slot.key, index + 1]),
   );
@@ -639,6 +654,8 @@ export default async function TodayPage() {
                       blockKey={entry.blockKey}
                       start={entry.start}
                       end={entry.end}
+                      trafficLight={todayState.trafficLight}
+                      slots={timeEditorSlots}
                     />
                   </div>
                 </div>

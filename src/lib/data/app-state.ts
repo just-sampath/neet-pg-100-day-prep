@@ -8,7 +8,6 @@ import {
   getDayCompletionState,
   getDayState,
   getDisplayBlockDescription,
-  getHiddenBlockKeys,
   getMappedDate,
   getSafeDayCountLabel,
   getScheduleDay,
@@ -21,6 +20,7 @@ import {
   buildDailyRevisionPlan,
   isCompressedHiddenDay,
 } from "@/lib/domain/schedule";
+import { getTrafficLightBacklogSourceTag, previewOverrunCascade, shouldCreateBacklogItem } from "@/lib/domain/backlog";
 import { getQuote } from "@/lib/domain/quotes";
 import type {
   AppSettings,
@@ -88,6 +88,8 @@ export function upsertBacklogItem(
     id: randomUUID(),
     originalDay: dayNumber,
     originalBlockKey: blockKey,
+    originalStart: slot?.start ?? null,
+    originalEnd: slot?.end ?? null,
     topicDescription: slot?.description ?? day.primaryFocus,
     subject,
     sourceTag,
@@ -111,21 +113,28 @@ export function moveBlockToBacklog(
   blockKey: BlockKey,
   sourceTag: BacklogSourceTag,
   status: BlockProgress["status"] = "rescheduled",
+  note: string | null = null,
 ) {
   const progress = getOrCreateProgress(userState, dayNumber, blockKey);
-  if (progress.status === "completed" || progress.status === "partial") {
+  if (progress.status !== "pending") {
     return;
   }
 
   progress.status = status;
+  progress.completedAt = null;
   progress.sourceTag = sourceTag;
-  upsertBacklogItem(userState, dayNumber, blockKey, sourceTag);
+  progress.note = note;
+
+  if (shouldCreateBacklogItem(blockKey, sourceTag)) {
+    upsertBacklogItem(userState, dayNumber, blockKey, sourceTag);
+  }
 }
 
-function restoreTrafficLightBacklog(userState: UserState, dayNumber: number) {
+function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, restoredBlocks: Set<BlockKey>) {
   for (const item of Object.values(userState.backlogItems)) {
     if (
       item.originalDay === dayNumber &&
+      restoredBlocks.has(item.originalBlockKey) &&
       item.status === "pending" &&
       (item.sourceTag === "yellow_day" || item.sourceTag === "red_day")
     ) {
@@ -135,12 +144,18 @@ function restoreTrafficLightBacklog(userState: UserState, dayNumber: number) {
       if (progress.status === "rescheduled") {
         progress.status = "pending";
         progress.sourceTag = null;
+        progress.note = null;
       }
     }
   }
 }
 
-export function applyTrafficLightToDay(userState: UserState, dayNumber: number, trafficLight: TrafficLight) {
+export function applyTrafficLightToDay(
+  userState: UserState,
+  dayNumber: number,
+  trafficLight: TrafficLight,
+  options?: { allowRestore?: boolean },
+) {
   const previous = getDayState(userState, dayNumber);
   userState.dayStates[String(dayNumber)] = {
     dayNumber,
@@ -148,18 +163,46 @@ export function applyTrafficLightToDay(userState: UserState, dayNumber: number, 
     updatedAt: new Date().toISOString(),
   };
 
-  if (previous.trafficLight !== "green" && trafficLight === "green") {
-    restoreTrafficLightBacklog(userState, dayNumber);
+  if (previous.trafficLight === trafficLight) {
     return;
   }
 
-  const hiddenBlocks = getHiddenBlockKeys(trafficLight);
+  const previousVisible = new Set(getVisibleBlockKeys(previous.trafficLight));
+  const nextVisible = new Set(getVisibleBlockKeys(trafficLight));
+  const hiddenSourceTag = getTrafficLightBacklogSourceTag(trafficLight === "red" ? "red" : "yellow");
+
+  if (options?.allowRestore) {
+    const restoredBlocks = new Set([...nextVisible].filter((blockKey) => !previousVisible.has(blockKey)));
+    if (restoredBlocks.size > 0) {
+      restoreTrafficLightBacklog(userState, dayNumber, restoredBlocks);
+    }
+  }
+
+  const hiddenBlocks = [...previousVisible].filter((blockKey) => !nextVisible.has(blockKey));
   for (const blockKey of hiddenBlocks) {
     const progress = getOrCreateProgress(userState, dayNumber, blockKey);
-    if (progress.status === "completed" || progress.status === "partial") {
+    if (progress.status !== "pending") {
       continue;
     }
-    moveBlockToBacklog(userState, dayNumber, blockKey, trafficLight === "yellow" ? "yellow_day" : "red_day");
+    moveBlockToBacklog(userState, dayNumber, blockKey, hiddenSourceTag);
+  }
+}
+
+export function moveVisibleBlocksToBacklog(
+  userState: UserState,
+  dayNumber: number,
+  trafficLight: TrafficLight,
+  options?: { excludeNightRecall?: boolean; note?: string | null },
+) {
+  const visibleBlocks = getVisibleBlockKeys(trafficLight);
+  for (const blockKey of visibleBlocks) {
+    if (blockKey === "morning_revision") {
+      continue;
+    }
+    if (options?.excludeNightRecall && blockKey === "night_recall") {
+      continue;
+    }
+    moveBlockToBacklog(userState, dayNumber, blockKey, "missed", "missed", options?.note ?? null);
   }
 }
 
@@ -172,15 +215,65 @@ export function runLateNightSweep(userState: UserState, settings: AppSettings, t
   }
 
   const trafficLight = getDayState(userState, todayDayNumber).trafficLight;
-  const visibleBlocks = getVisibleBlockKeys(trafficLight);
-  for (const blockKey of visibleBlocks) {
-    const progress = getOrCreateProgress(userState, todayDayNumber, blockKey);
-    if (progress.status === "pending") {
-      moveBlockToBacklog(userState, todayDayNumber, blockKey, "missed");
-    }
-  }
+  moveVisibleBlocksToBacklog(userState, todayDayNumber, trafficLight, {
+    note: "Moved to backlog by wind-down prompt.",
+  });
 
   userState.processedDates.lateNightSweepDates.push(todayDate);
+}
+
+export function applyOverrunCascadeBacklog(
+  userState: UserState,
+  dayNumber: number,
+  blockKey: BlockKey,
+  newEndTime: string,
+  note?: string | null,
+) {
+  const day = getScheduleDay(dayNumber);
+  if (!day) {
+    return { preview: { kind: "none" } as const, movedBlockKeys: [] as BlockKey[] };
+  }
+
+  const trafficLight = getDayState(userState, dayNumber).trafficLight;
+  const preview = previewOverrunCascade({
+    editedBlockKey: blockKey,
+    newEndTime,
+    trafficLight,
+    slots: getTrackableBlocks(day).map((slot) => {
+      const key = slot.key as BlockKey;
+      const progress = getBlockProgress(userState, dayNumber, key);
+      return {
+        key,
+        label: slot.label,
+        start: slot.start,
+        end: slot.end,
+        status: progress.status,
+        actualStart: progress.actualStart,
+        actualEnd: progress.actualEnd,
+      };
+    }),
+  });
+
+  if (preview.kind === "decision") {
+    moveBlockToBacklog(userState, dayNumber, preview.affectedBlockKey, "overrun_cascade", "rescheduled", note ?? "Moved to backlog after an overrun.");
+    return { preview, movedBlockKeys: [preview.affectedBlockKey] };
+  }
+
+  if (preview.kind === "force_to_backlog") {
+    for (const affectedBlockKey of preview.affectedBlockKeys) {
+      moveBlockToBacklog(
+        userState,
+        dayNumber,
+        affectedBlockKey,
+        "overrun_cascade",
+        "rescheduled",
+        note ?? "Moved to backlog to protect sleep.",
+      );
+    }
+    return { preview, movedBlockKeys: [...preview.affectedBlockKeys] };
+  }
+
+  return { preview, movedBlockKeys: [] as BlockKey[] };
 }
 
 export function getRevisionRolloverSnapshot(userState: UserState, settings: AppSettings, todayDate: string) {
