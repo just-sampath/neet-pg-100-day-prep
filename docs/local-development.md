@@ -88,6 +88,8 @@ npm run verify
 npm run build:webpack
 ```
 
+`npm run generate:data` is intentionally strict. If workbook fields, sheet names, GT references, or block durations drift from the expected source format, generation fails immediately instead of silently producing bad schedule data.
+
 ## Time Travel
 
 Use the dev toolbar on Today or Settings.
@@ -151,3 +153,11 @@ Whenever `resources/` changes:
 ```bash
 npm run generate:data
 ```
+
+This now regenerates:
+
+- normalized `blockTemplates` from `Block_Hours`
+- validated day slots from `Daywise_Plan`
+- validated subject metadata from `Subject_Strategy`
+- validated GT plan entries from `GT_Test_Plan`
+- workbook readme metadata from `Readme`

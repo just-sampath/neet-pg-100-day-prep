@@ -50,12 +50,13 @@ Default local credentials:
 ## What’s Included
 
 - Runtime-aware local and Supabase-backed modes
-- Build-time schedule and quote generation from the provided workbook/CSV
+- Build-time schedule and quote generation from the provided workbook/CSV with workbook validation
 - Today view, traffic light system, backlog queue, schedule browser, MCQ logging, GT logging, weekly summaries, export
 - Dev-only time travel controls for 22:30 / 23:00 / 23:15 / midnight behavior
 - Supabase auth, persistence, RLS, and Realtime integration path for shared-state deployment
 - Production cron routes for IST midnight rollover and weekly summary automation
 - Job telemetry in `automation_job_runs` plus manual cron setup SQL for Supabase
+- Workbook-derived block templates from `Block_Hours` plus regression tests that compare generated data back to the source workbook
 
 ## Core Commands
 

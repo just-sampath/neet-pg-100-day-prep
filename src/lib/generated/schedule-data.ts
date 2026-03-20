@@ -12,6 +12,181 @@ export const scheduleData: GeneratedScheduleBundle = {
     "pyq_image",
     "night_recall"
   ],
+  "blockTemplates": [
+    {
+      "key": "morning_revision",
+      "label": "Morning Revision",
+      "column": "06:30-08:00",
+      "start": "06:30",
+      "end": "08:00",
+      "durationHours": 1.5,
+      "trackable": true,
+      "order": 1,
+      "kind": "study"
+    },
+    {
+      "key": "break_1",
+      "label": "Break",
+      "column": "08:00-08:15",
+      "start": "08:00",
+      "end": "08:15",
+      "durationHours": 0.25,
+      "trackable": false,
+      "order": 2,
+      "kind": "break"
+    },
+    {
+      "key": "block_a",
+      "label": "Block A",
+      "column": "08:15-10:45",
+      "start": "08:15",
+      "end": "10:45",
+      "durationHours": 2.5,
+      "trackable": true,
+      "order": 3,
+      "kind": "study"
+    },
+    {
+      "key": "break_2",
+      "label": "Break",
+      "column": "10:45-11:00",
+      "start": "10:45",
+      "end": "11:00",
+      "durationHours": 0.25,
+      "trackable": false,
+      "order": 4,
+      "kind": "break"
+    },
+    {
+      "key": "block_b",
+      "label": "Block B",
+      "column": "11:00-13:30",
+      "start": "11:00",
+      "end": "13:30",
+      "durationHours": 2.5,
+      "trackable": true,
+      "order": 5,
+      "kind": "study"
+    },
+    {
+      "key": "lunch",
+      "label": "Lunch",
+      "column": "13:30-14:15",
+      "start": "13:30",
+      "end": "14:15",
+      "durationHours": 0.75,
+      "trackable": false,
+      "order": 6,
+      "kind": "meal"
+    },
+    {
+      "key": "consolidation",
+      "label": "Consolidation",
+      "column": "14:15-16:45",
+      "start": "14:15",
+      "end": "16:45",
+      "durationHours": 2.5,
+      "trackable": true,
+      "order": 7,
+      "kind": "study"
+    },
+    {
+      "key": "break_3",
+      "label": "Break",
+      "column": "16:45-17:00",
+      "start": "16:45",
+      "end": "17:00",
+      "durationHours": 0.25,
+      "trackable": false,
+      "order": 8,
+      "kind": "break"
+    },
+    {
+      "key": "mcq",
+      "label": "MCQ Block",
+      "column": "17:00-19:30",
+      "start": "17:00",
+      "end": "19:30",
+      "durationHours": 2.5,
+      "trackable": true,
+      "order": 9,
+      "kind": "study"
+    },
+    {
+      "key": "dinner",
+      "label": "Dinner",
+      "column": "19:30-20:15",
+      "start": "19:30",
+      "end": "20:15",
+      "durationHours": 0.75,
+      "trackable": false,
+      "order": 10,
+      "kind": "meal"
+    },
+    {
+      "key": "pyq_image",
+      "label": "PYQ / Image Block",
+      "column": "20:15-21:45",
+      "start": "20:15",
+      "end": "21:45",
+      "durationHours": 1.5,
+      "trackable": true,
+      "order": 11,
+      "kind": "study"
+    },
+    {
+      "key": "break_4",
+      "label": "Break",
+      "column": "21:45-22:00",
+      "start": "21:45",
+      "end": "22:00",
+      "durationHours": 0.25,
+      "trackable": false,
+      "order": 12,
+      "kind": "break"
+    },
+    {
+      "key": "night_recall",
+      "label": "Night Recall",
+      "column": "22:00-23:00",
+      "start": "22:00",
+      "end": "23:00",
+      "durationHours": 1,
+      "trackable": true,
+      "order": 13,
+      "kind": "study"
+    }
+  ],
+  "workbookReadme": [
+    {
+      "section": "What this workbook is",
+      "details": "A 100-day NEET PG 2026 rescue plan for a post-intern MBBS graduate starting almost from scratch."
+    },
+    {
+      "section": "Primary source decision",
+      "details": "Use Marrow WoR + Marrow notes + Marrow QBank/GTs as the main engine. Use BTR from Revision 2 onward. Use DBMCI/Bhatia only for specific rescue topics."
+    },
+    {
+      "section": "Why WoR works here",
+      "details": "The uploaded World of Revision index totals ~236h25m across 271 videos, which is feasible as a structured backbone inside 100 days when paired with notes, MCQs, PYQs and GTs."
+    },
+    {
+      "section": "How to read Daywise_Plan",
+      "details": "Morning = spaced revision queue. Day blocks = main study / note consolidation / MCQs / PYQs. Planned_Hours sums to 14.0 via formula."
+    },
+    {
+      "section": "Testing load",
+      "details": "This workbook uses 1 diagnostic mixed test, 9 full GTs, and 1 final 120Q half-simulation."
+    },
+    {
+      "section": "Core retention rule",
+      "details": "Every major topic should be touched again at roughly D+1, D+3, D+7, D+14 and D+28. The morning block encodes this."
+    },
+    {
+      "section": "Source notes",
+      "details": "Built from official recent NBEMS pattern information, recent exam analyses/recall trends, topper interviews, medical-education evidence on spacing/retrieval, and the uploaded World of Revision index."
+    }
+  ],
   "days": [
     {
       "dayNumber": 1,
@@ -28,119 +203,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Set up notes, volatile notebook, GT error log, bookmarks, study dashboard.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Set up notes, volatile notebook, GT error log, bookmarks, study dashboard."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "100Q timed diagnostic mixed test (all 19 subjects, do not care about score).",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "100Q timed diagnostic mixed test (all 19 subjects, do not care about score)."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Review wrongs + guessed-rights; identify top 5 weak subjects and top 20 volatile topics.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Review wrongs + guessed-rights; identify top 5 weak subjects and top 20 volatile topics."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Read plan, lock sources: Marrow primary; BTR later; DBMCI only for rescue topics.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Read plan, lock sources: Marrow primary; BTR later; DBMCI only for rescue topics."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Watch orientation / first WoR intro clips + prepare annotated note markers.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Watch orientation / first WoR intro clips + prepare annotated note markers."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Make one-page rules sheet: how to read explanations, when to mark notes, when to skip.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Make one-page rules sheet: how to read explanations, when to mark notes, when to skip."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep reset, next-day prep, no doom-scrolling.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep reset, next-day prep, no doom-scrolling."
         }
       ]
     },
@@ -159,119 +373,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Diagnostic baseline + system setup",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Diagnostic baseline + system setup"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Pathology Revision; Haematology: WBC Disorders and Leukemias",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Pathology Revision; Haematology: WBC Disorders and Leukemias"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Haematology: Myeloid Disorders, Lymphomas and Miscellaneous; Haematology: RBC Disorders; Haematology: Haemostasis, Blood Banking and Practical Haematology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Haematology: Myeloid Disorders, Lymphomas and Miscellaneous; Haematology: RBC Disorders; Haematology: Haemostasis, Blood Banking and Practical Haematology"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Pathology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Pathology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Pathology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Pathology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -290,119 +543,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Pathology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Pathology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — General Pathology: Cell Adaptations and Cell Injury; General Pathology: Inflammation",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — General Pathology: Cell Adaptations and Cell Injury; General Pathology: Inflammation"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — General Pathology: Neoplasia and Immunity; General Pathology: Genetics",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — General Pathology: Neoplasia and Immunity; General Pathology: Genetics"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Pathology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Pathology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Pathology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Pathology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -422,119 +714,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Pathology FP-2 | D+3: Diagnostic baseline + system setup",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Pathology FP-2 | D+3: Diagnostic baseline + system setup"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Systemic Pathology: Blood Vessels and Heart; Systemic Pathology: Respiratory System; Systemic Pathology: Gastrointestinal, Endocrine and Musculoskeletal System",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Systemic Pathology: Blood Vessels and Heart; Systemic Pathology: Respiratory System; Systemic Pathology: Gastrointestinal, Endocrine and Musculoskeletal System"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Systemic Pathology: Kidney and Liver; Systemic Pathology: Genital System and Breast; Systemic Pathology: CNS and Dermatopathology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Systemic Pathology: Kidney and Liver; Systemic Pathology: Genital System and Breast; Systemic Pathology: CNS and Dermatopathology"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Pathology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Pathology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Pathology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Pathology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -554,119 +885,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Pathology FP-3 | D+3: Pathology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Pathology FP-3 | D+3: Pathology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Pharmacology Revision; General Pharmacology: Part 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Pharmacology Revision; General Pharmacology: Part 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — General Pharmacology: Part 2; Drugs Acting on Autonomic Nervous System; Drugs Acting on Cardiovascular System",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — General Pharmacology: Part 2; Drugs Acting on Autonomic Nervous System; Drugs Acting on Cardiovascular System"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Pharmacology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Pharmacology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Pharmacology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Pharmacology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -686,119 +1056,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Pharmacology FP-1 | D+3: Pathology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Pharmacology FP-1 | D+3: Pathology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Drugs Acting on Kidney; Drugs Acting on CNS; Antimicrobial Drugs: Part 1; Antimicrobial Drugs: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Drugs Acting on Kidney; Drugs Acting on CNS; Antimicrobial Drugs: Part 1; Antimicrobial Drugs: Part 2"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Drugs Acting on Endocrine System; Autacoids; Drugs Acting on RS, GIT and Blood; Immunomodulators and Anticancer Drugs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Drugs Acting on Endocrine System; Autacoids; Drugs Acting on RS, GIT and Blood; Immunomodulators and Anticancer Drugs"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Pharmacology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Pharmacology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Pharmacology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Pharmacology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -818,119 +1227,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Pharmacology FP-2 | D+3: Pathology FP-3",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Pharmacology FP-2 | D+3: Pathology FP-3"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Microbiology Revision; General Microbiology: Part 1; General Microbiology: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Microbiology Revision; General Microbiology: Part 1; General Microbiology: Part 2"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — General Microbiology: Part 3; Hospital Infection Control; Immunology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — General Microbiology: Part 3; Hospital Infection Control; Immunology"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Microbiology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Microbiology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Microbiology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Microbiology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -951,119 +1399,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Microbiology FP-1 | D+3: Pharmacology FP-1 | D+7: Diagnostic baseline + system setup",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Microbiology FP-1 | D+3: Pharmacology FP-1 | D+7: Diagnostic baseline + system setup"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Central Nervous System; Cardiovascular System: Infections of Heart; Cardiovascular System: Bloodstream and Lymphatic Infections; Respiratory System",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Central Nervous System; Cardiovascular System: Infections of Heart; Cardiovascular System: Bloodstream and Lymphatic Infections; Respiratory System"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Gastrointestinal and Hepatobiliary System; Genitourinary System; Skin, Subcutaneous and Musculoskeletal System; Miscellaneous Infections",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Gastrointestinal and Hepatobiliary System; Genitourinary System; Skin, Subcutaneous and Musculoskeletal System; Miscellaneous Infections"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Microbiology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Microbiology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Microbiology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Microbiology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -1084,119 +1571,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Microbiology FP-2 | D+3: Pharmacology FP-2 | D+7: Pathology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Microbiology FP-2 | D+3: Pharmacology FP-2 | D+7: Pathology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Physiology Revision; General and Cellular Physiology: Part 1; General and Cellular Physiology: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Physiology Revision; General and Cellular Physiology: Part 1; General and Cellular Physiology: Part 2"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Nerve Muscle Physiology; Neurophysiology: Part 1; Neurophysiology: Part 2; Neurophysiology: Part 3",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Nerve Muscle Physiology; Neurophysiology: Part 1; Neurophysiology: Part 2; Neurophysiology: Part 3"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Physiology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Physiology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Physiology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Physiology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -1217,119 +1743,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Physiology FP-1 | D+3: Microbiology FP-1 | D+7: Pathology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Physiology FP-1 | D+3: Microbiology FP-1 | D+7: Pathology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Respiratory Physiology: Part 1; Respiratory Physiology: Part 2; Respiratory Physiology: Part 3; Cardiovascular Physiology: Part 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Respiratory Physiology: Part 1; Respiratory Physiology: Part 2; Respiratory Physiology: Part 3; Cardiovascular Physiology: Part 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Cardiovascular Physiology: Part 2; Gastrointestinal Physiology; Renal Physiology; Endocrine Physiology; Reproductive Physiology, Exercise Physiology and Regulation of Body Temperature",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Cardiovascular Physiology: Part 2; Gastrointestinal Physiology; Renal Physiology; Endocrine Physiology; Reproductive Physiology, Exercise Physiology and Regulation of Body Temperature"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Physiology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Physiology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Physiology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Physiology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -1350,119 +1915,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Physiology FP-2 | D+3: Microbiology FP-2 | D+7: Pathology FP-3",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Physiology FP-2 | D+3: Microbiology FP-2 | D+7: Pathology FP-3"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Anatomy Revision; Embryology: Part 1; Embryology: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Anatomy Revision; Embryology: Part 1; Embryology: Part 2"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Histology; Head, Neck and Face: Part 1; Head, Neck and Face: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Histology; Head, Neck and Face: Part 1; Head, Neck and Face: Part 2"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Anatomy; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Anatomy; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Anatomy + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Anatomy + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -1483,119 +2087,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Anatomy FP-1 | D+3: Physiology FP-1 | D+7: Pharmacology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Anatomy FP-1 | D+3: Physiology FP-1 | D+7: Pharmacology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Neuroanatomy: Part 1; Neuroanatomy: Part 2; Upper Limb",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Neuroanatomy: Part 1; Neuroanatomy: Part 2; Upper Limb"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Lower Limb; Thorax; Abdomen",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Lower Limb; Thorax; Abdomen"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Anatomy; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Anatomy; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Anatomy + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Anatomy + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -1616,119 +2259,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Anatomy FP-2 | D+3: Physiology FP-2 | D+7: Pharmacology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Anatomy FP-2 | D+3: Physiology FP-2 | D+7: Pharmacology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Biochemistry Revision; Enzymes",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Biochemistry Revision; Enzymes"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Carbohydrates: Introduction; Metabolism of Carbohydrates: Part 1; Metabolism of Carbohydrates: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Carbohydrates: Introduction; Metabolism of Carbohydrates: Part 1; Metabolism of Carbohydrates: Part 2"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Biochemistry; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Biochemistry; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Biochemistry + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Biochemistry + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -1749,119 +2431,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Biochemistry FP-1 | D+3: Anatomy FP-1 | D+7: Microbiology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Biochemistry FP-1 | D+3: Anatomy FP-1 | D+7: Microbiology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Amino Acids: Part 1; Amino Acids: Part 2; Metabolism of Lipids",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Amino Acids: Part 1; Amino Acids: Part 2; Metabolism of Lipids"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Molecular Biology; Vitamins and Minerals; Miscellaneous Topics in Biochemistry",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Molecular Biology; Vitamins and Minerals; Miscellaneous Topics in Biochemistry"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Biochemistry; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Biochemistry; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Biochemistry + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Biochemistry + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -1883,119 +2604,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Biochemistry FP-2 | D+3: Anatomy FP-2 | D+7: Microbiology FP-2 | D+14: Diagnostic baseline + system setup",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Biochemistry FP-2 | D+3: Anatomy FP-2 | D+7: Microbiology FP-2 | D+14: Diagnostic baseline + system setup"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Community Medicine Revision; Demography; Contraception and Family Welfare Program",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Community Medicine Revision; Demography; Contraception and Family Welfare Program"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Health Care System in India; Preventive Obstetrics; Preventive Paediatrics",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Health Care System in India; Preventive Obstetrics; Preventive Paediatrics"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Community Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Community Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Community Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Community Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -2017,119 +2777,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Community Medicine FP-1 | D+3: Biochemistry FP-1 | D+7: Physiology FP-1 | D+14: Pathology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Community Medicine FP-1 | D+3: Biochemistry FP-1 | D+7: Physiology FP-1 | D+14: Pathology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — NTEP and NACP; National Vector Borne Disease Control Programme",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — NTEP and NACP; National Vector Borne Disease Control Programme"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Other National Health Programmes; Epidemiology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Other National Health Programmes; Epidemiology"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Community Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Community Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Community Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Community Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -2151,119 +2950,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Community Medicine FP-2 | D+3: Biochemistry FP-2 | D+7: Physiology FP-2 | D+14: Pathology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Community Medicine FP-2 | D+3: Biochemistry FP-2 | D+7: Physiology FP-2 | D+14: Pathology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Screening of Disease; Biostatistics; Infectious Disease Epidemiology; Communicable Diseases",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Screening of Disease; Biostatistics; Infectious Disease Epidemiology; Communicable Diseases"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Nutrition; Environment; Miscellaneous Topics in Community Medicine; Recent Updates in Community Medicine and Health Care Planning",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Nutrition; Environment; Miscellaneous Topics in Community Medicine; Recent Updates in Community Medicine and Health Care Planning"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Community Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Community Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Community Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Community Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -2285,119 +3123,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Community Medicine FP-3 | D+3: Community Medicine FP-1 | D+7: Anatomy FP-1 | D+14: Pathology FP-3",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Community Medicine FP-3 | D+3: Community Medicine FP-1 | D+7: Anatomy FP-1 | D+14: Pathology FP-3"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Medicine Revision; Basics of Pituitary Gland; Anterior Pituitary Disorders: Part 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Medicine Revision; Basics of Pituitary Gland; Anterior Pituitary Disorders: Part 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Anterior Pituitary Disorders: Part 2; Posterior Pituitary Disorders; Adrenal Cortex",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Anterior Pituitary Disorders: Part 2; Posterior Pituitary Disorders; Adrenal Cortex"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -2419,119 +3296,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine FP-1 | D+3: Community Medicine FP-2 | D+7: Anatomy FP-2 | D+14: Pharmacology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine FP-1 | D+3: Community Medicine FP-2 | D+7: Anatomy FP-2 | D+14: Pharmacology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Adrenal Medulla; Diabetes Mellitus; Calcium Metabolism and Thyroid Disorders",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Adrenal Medulla; Diabetes Mellitus; Calcium Metabolism and Thyroid Disorders"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Heart Failure and Cardiomyopathies; Pericarditis and Cardiac Tamponade; Arterial Pulses, JVP and Heart Sounds",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Heart Failure and Cardiomyopathies; Pericarditis and Cardiac Tamponade; Arterial Pulses, JVP and Heart Sounds"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -2553,119 +3469,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine FP-2 | D+3: Community Medicine FP-3 | D+7: Biochemistry FP-1 | D+14: Pharmacology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine FP-2 | D+3: Community Medicine FP-3 | D+7: Biochemistry FP-1 | D+14: Pharmacology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Valvular Heart Diseases; ECG Revision",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Valvular Heart Diseases; ECG Revision"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Gastrointestinal Disorders; Hepatic Disorders; Basics of Pulmonology: Structure, Mechanics and PFT",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Gastrointestinal Disorders; Hepatic Disorders; Basics of Pulmonology: Structure, Mechanics and PFT"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -2687,119 +3642,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine FP-3 | D+3: Medicine FP-1 | D+7: Biochemistry FP-2 | D+14: Microbiology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine FP-3 | D+3: Medicine FP-1 | D+7: Biochemistry FP-2 | D+14: Microbiology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Vascular Disorders of Lung; Obstructive Lung Diseases; Restrictive Lung Diseases",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Vascular Disorders of Lung; Obstructive Lung Diseases; Restrictive Lung Diseases"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — ARDS, Pneumonia and Pleural Effusion; Cortical and Subcortical Lesions; Neuropathies; Headache and Seizures",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — ARDS, Pneumonia and Pleural Effusion; Cortical and Subcortical Lesions; Neuropathies; Headache and Seizures"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -2821,119 +3815,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine FP-4 | D+3: Medicine FP-2 | D+7: Community Medicine FP-1 | D+14: Microbiology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine FP-4 | D+3: Medicine FP-2 | D+7: Community Medicine FP-1 | D+14: Microbiology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Approach to Stroke; Neuromuscular Dysfunction and Spinal Cord Diseases; Basics of Haematology; Approach to Anemia: Part 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Approach to Stroke; Neuromuscular Dysfunction and Spinal Cord Diseases; Basics of Haematology; Approach to Anemia: Part 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Approach to Anemia: Part 2; Myeloproliferative Neoplasm; Acute Myeloid Leukemia; Lymphoid Series Neoplasm",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Approach to Anemia: Part 2; Myeloproliferative Neoplasm; Acute Myeloid Leukemia; Lymphoid Series Neoplasm"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -2955,119 +3988,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine FP-5 | D+3: Medicine FP-3 | D+7: Community Medicine FP-2 | D+14: Physiology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine FP-5 | D+3: Medicine FP-3 | D+7: Community Medicine FP-2 | D+14: Physiology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Plasma Cell Disorders; Chronic Kidney Disease; Tubular Disorders; Glomerular Disorders; Approach to Renal Failure and Acute Kidney Injury",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Plasma Cell Disorders; Chronic Kidney Disease; Tubular Disorders; Glomerular Disorders; Approach to Renal Failure and Acute Kidney Injury"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Connective Tissue Diseases: Part 1; Connective Tissue Diseases: Part 2; Rheumatoid Arthritis and Systemic Lupus Erythematosus; Systemic Sclerosis and Inflammatory Muscle Disease; Vasculitis; Spondyloarthropathies",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Connective Tissue Diseases: Part 1; Connective Tissue Diseases: Part 2; Rheumatoid Arthritis and Systemic Lupus Erythematosus; Systemic Sclerosis and Inflammatory Muscle Disease; Vasculitis; Spondyloarthropathies"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -3089,119 +4161,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine FP-6 | D+3: Medicine FP-4 | D+7: Community Medicine FP-3 | D+14: Physiology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine FP-6 | D+3: Medicine FP-4 | D+7: Community Medicine FP-3 | D+14: Physiology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Surgery Revision; General Surgery",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Surgery Revision; General Surgery"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Breast; Endocrine Surgery",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Breast; Endocrine Surgery"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Surgery; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Surgery; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Surgery + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Surgery + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -3223,119 +4334,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Surgery FP-1 | D+3: Medicine FP-5 | D+7: Medicine FP-1 | D+14: Anatomy FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Surgery FP-1 | D+3: Medicine FP-5 | D+7: Medicine FP-1 | D+14: Anatomy FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Oral Cancer and Salivary Glands; Gastrointestinal Surgery: Part 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Oral Cancer and Salivary Glands; Gastrointestinal Surgery: Part 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Gastrointestinal Surgery: Part 2; Gastrointestinal Surgery: Part 3",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Gastrointestinal Surgery: Part 2; Gastrointestinal Surgery: Part 3"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Surgery; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Surgery; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Surgery + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Surgery + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -3357,119 +4507,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Surgery FP-2 | D+3: Medicine FP-6 | D+7: Medicine FP-2 | D+14: Anatomy FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Surgery FP-2 | D+3: Medicine FP-6 | D+7: Medicine FP-2 | D+14: Anatomy FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Hepatobiliary and Minimally Invasive Surgery",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Hepatobiliary and Minimally Invasive Surgery"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Urology: Part 1; Urology: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Urology: Part 1; Urology: Part 2"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Surgery; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Surgery; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Surgery + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Surgery + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -3491,119 +4680,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Surgery FP-3 | D+3: Surgery FP-1 | D+7: Medicine FP-3 | D+14: Biochemistry FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Surgery FP-3 | D+3: Surgery FP-1 | D+7: Medicine FP-3 | D+14: Biochemistry FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Trauma and Burns; Hernia, Thorax and Skin",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Trauma and Burns; Hernia, Thorax and Skin"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Vascular Surgery; Speciality Surgery",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Vascular Surgery; Speciality Surgery"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Surgery; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Surgery; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Surgery + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Surgery + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -3625,119 +4853,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Surgery FP-4 | D+3: Surgery FP-2 | D+7: Medicine FP-4 | D+14: Biochemistry FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Surgery FP-4 | D+3: Surgery FP-2 | D+7: Medicine FP-4 | D+14: Biochemistry FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to OBG Revision; Gynaecology Revision: Part 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to OBG Revision; Gynaecology Revision: Part 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Gynaecology Revision: Part 2; Gynaecology Revision: Part 3; Gynaecology Revision: Part 4",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Gynaecology Revision: Part 2; Gynaecology Revision: Part 3; Gynaecology Revision: Part 4"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Obstetrics & Gynaecology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Obstetrics & Gynaecology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Obstetrics & Gynaecology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Obstetrics & Gynaecology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -3760,119 +5027,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Obstetrics & Gynaecology FP-1 | D+3: Surgery FP-3 | D+7: Medicine FP-5 | D+14: Community Medicine FP-1 | D+28: Diagnostic baseline + system setup",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Obstetrics & Gynaecology FP-1 | D+3: Surgery FP-3 | D+7: Medicine FP-5 | D+14: Community Medicine FP-1 | D+28: Diagnostic baseline + system setup"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Gynaecology Revision: Part 5",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Gynaecology Revision: Part 5"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Gynaecology Revision: Part 6; Gynaecology Revision: Part 7",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Gynaecology Revision: Part 6; Gynaecology Revision: Part 7"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Obstetrics & Gynaecology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Obstetrics & Gynaecology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Obstetrics & Gynaecology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Obstetrics & Gynaecology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -3895,119 +5201,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Obstetrics & Gynaecology FP-2 | D+3: Surgery FP-4 | D+7: Medicine FP-6 | D+14: Community Medicine FP-2 | D+28: Pathology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Obstetrics & Gynaecology FP-2 | D+3: Surgery FP-4 | D+7: Medicine FP-6 | D+14: Community Medicine FP-2 | D+28: Pathology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Gynaecology Revision: Part 8; Obstetrics Revision: Part 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Gynaecology Revision: Part 8; Obstetrics Revision: Part 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Obstetrics Revision: Part 2; Obstetrics Revision: Part 3",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Obstetrics Revision: Part 2; Obstetrics Revision: Part 3"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Obstetrics & Gynaecology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Obstetrics & Gynaecology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Obstetrics & Gynaecology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Obstetrics & Gynaecology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -4030,119 +5375,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Obstetrics & Gynaecology FP-3 | D+3: Obstetrics & Gynaecology FP-1 | D+7: Surgery FP-1 | D+14: Community Medicine FP-3 | D+28: Pathology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Obstetrics & Gynaecology FP-3 | D+3: Obstetrics & Gynaecology FP-1 | D+7: Surgery FP-1 | D+14: Community Medicine FP-3 | D+28: Pathology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Obstetrics Revision: Part 4; Obstetrics Revision: Part 5; Obstetrics Revision: Part 6",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Obstetrics Revision: Part 4; Obstetrics Revision: Part 5; Obstetrics Revision: Part 6"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Obstetrics Revision: Part 7; Obstetrics Revision: Part 8; Obstetrics Revision: Part 9",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Obstetrics Revision: Part 7; Obstetrics Revision: Part 8; Obstetrics Revision: Part 9"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Obstetrics & Gynaecology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Obstetrics & Gynaecology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Obstetrics & Gynaecology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Obstetrics & Gynaecology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -4165,119 +5549,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Obstetrics & Gynaecology FP-4 | D+3: Obstetrics & Gynaecology FP-2 | D+7: Surgery FP-2 | D+14: Medicine FP-1 | D+28: Pathology FP-3",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Obstetrics & Gynaecology FP-4 | D+3: Obstetrics & Gynaecology FP-2 | D+7: Surgery FP-2 | D+14: Medicine FP-1 | D+28: Pathology FP-3"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Paediatrics Revision; Neonatology: Part 1; Neonatology: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Paediatrics Revision; Neonatology: Part 1; Neonatology: Part 2"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Neonatology: Part 3; General Paediatrics: Growth; Development; General Paediatrics: Nutrition",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Neonatology: Part 3; General Paediatrics: Growth; Development; General Paediatrics: Nutrition"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Paediatrics; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Paediatrics; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Paediatrics + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Paediatrics + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -4300,119 +5723,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Paediatrics FP-1 | D+3: Obstetrics & Gynaecology FP-3 | D+7: Surgery FP-3 | D+14: Medicine FP-2 | D+28: Pharmacology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Paediatrics FP-1 | D+3: Obstetrics & Gynaecology FP-3 | D+7: Surgery FP-3 | D+14: Medicine FP-2 | D+28: Pharmacology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Childhood Infections; General Paediatrics: Genetics; Metabolic Disorders; Systemic Paediatrics: Cardiology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Childhood Infections; General Paediatrics: Genetics; Metabolic Disorders; Systemic Paediatrics: Cardiology"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Systemic Paediatrics: Pulmonology; Systemic Paediatrics: Gastroenterology; Systemic Paediatrics: Neurology; Systemic Paediatrics: Nephrology; Systemic Paediatrics: Endocrinology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Systemic Paediatrics: Pulmonology; Systemic Paediatrics: Gastroenterology; Systemic Paediatrics: Neurology; Systemic Paediatrics: Nephrology; Systemic Paediatrics: Endocrinology"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Paediatrics; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Paediatrics; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Paediatrics + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Paediatrics + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -4435,119 +5897,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Paediatrics FP-2 | D+3: Obstetrics & Gynaecology FP-4 | D+7: Surgery FP-4 | D+14: Medicine FP-3 | D+28: Pharmacology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Paediatrics FP-2 | D+3: Obstetrics & Gynaecology FP-4 | D+7: Surgery FP-4 | D+14: Medicine FP-3 | D+28: Pharmacology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to ENT Revision; Ear: Part 1; Ear: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to ENT Revision; Ear: Part 1; Ear: Part 2"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Ear: Part 3; Ear: Part 4; Ear: Part 5; Ear: Part 6",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Ear: Part 3; Ear: Part 4; Ear: Part 5; Ear: Part 6"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for ENT; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for ENT; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from ENT + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from ENT + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -4570,119 +6071,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: ENT FP-1 | D+3: Paediatrics FP-1 | D+7: Obstetrics & Gynaecology FP-1 | D+14: Medicine FP-4 | D+28: Microbiology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: ENT FP-1 | D+3: Paediatrics FP-1 | D+7: Obstetrics & Gynaecology FP-1 | D+14: Medicine FP-4 | D+28: Microbiology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Ear: Part 7; Ear: Part 8; Nose: Part 1; Nose: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Ear: Part 7; Ear: Part 8; Nose: Part 1; Nose: Part 2"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Pharynx: Part 1; Pharynx: Part 2; Larynx: Part 1; Larynx: Part 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Pharynx: Part 1; Pharynx: Part 2; Larynx: Part 1; Larynx: Part 2"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for ENT; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for ENT; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from ENT + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from ENT + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -4705,119 +6245,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: ENT FP-2 | D+3: Paediatrics FP-2 | D+7: Obstetrics & Gynaecology FP-2 | D+14: Medicine FP-5 | D+28: Microbiology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: ENT FP-2 | D+3: Paediatrics FP-2 | D+7: Obstetrics & Gynaecology FP-2 | D+14: Medicine FP-5 | D+28: Microbiology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Ophthalmology Revision; Basic Anatomy of the Eye; Cornea and Sclera; Neuro-Ophthalmology; Squint; Lens and Blunt Trauma",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Ophthalmology Revision; Basic Anatomy of the Eye; Cornea and Sclera; Neuro-Ophthalmology; Squint; Lens and Blunt Trauma"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Uvea; Glaucoma; Optics, Refraction and Accommodation; Retina; Eyelids and Orbit; Conjunctiva",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Uvea; Glaucoma; Optics, Refraction and Accommodation; Retina; Eyelids and Orbit; Conjunctiva"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Ophthalmology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Ophthalmology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Ophthalmology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Ophthalmology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -4840,119 +6419,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Ophthalmology FP-1 | D+3: ENT FP-1 | D+7: Obstetrics & Gynaecology FP-3 | D+14: Medicine FP-6 | D+28: Physiology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Ophthalmology FP-1 | D+3: ENT FP-1 | D+7: Obstetrics & Gynaecology FP-3 | D+14: Medicine FP-6 | D+28: Physiology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Introduction to Forensic Medicine Revision; Traumatology; Forensic Ballistics; Medical Jurisprudence; Autopsy Techniques and Thanatology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Introduction to Forensic Medicine Revision; Traumatology; Forensic Ballistics; Medical Jurisprudence; Autopsy Techniques and Thanatology"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Human Identification; Asphyxial Deaths; Sexual Jurisprudence and Trace Evidence; Toxicology; Forensic Psychiatry and Legal Sections",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Human Identification; Asphyxial Deaths; Sexual Jurisprudence and Trace Evidence; Toxicology; Forensic Psychiatry and Legal Sections"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Forensic Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Forensic Medicine; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Forensic Medicine + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Forensic Medicine + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -4975,119 +6593,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Forensic Medicine FP-1 | D+3: ENT FP-2 | D+7: Obstetrics & Gynaecology FP-4 | D+14: Surgery FP-1 | D+28: Physiology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Forensic Medicine FP-1 | D+3: ENT FP-2 | D+7: Obstetrics & Gynaecology FP-4 | D+14: Surgery FP-1 | D+28: Physiology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Anaesthesia WoR + notes: pre-op, monitoring, induction, relaxants, LA/regional, airway, BLS/ACLS",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Anaesthesia WoR + notes: pre-op, monitoring, induction, relaxants, LA/regional, airway, BLS/ACLS"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Orthopaedics notes/video revision: trauma, bone/metabolic disorders, tumors, nerve injuries, joints, spine, infections, paeds ortho, sports injuries",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Orthopaedics notes/video revision: trauma, bone/metabolic disorders, tumors, nerve injuries, joints, spine, infections, paeds ortho, sports injuries"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Rapid consolidation: Anaesthesia must-knows + Ortho fractures/nerve injuries/tumors/joints/spine tables.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Rapid consolidation: Anaesthesia must-knows + Ortho fractures/nerve injuries/tumors/joints/spine tables."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "60-80 MCQs split Anaesthesia/Ortho; prioritize airway, BLS/ACLS, trauma, fracture nerves, bone pathology.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "60-80 MCQs split Anaesthesia/Ortho; prioritize airway, BLS/ACLS, trauma, fracture nerves, bone pathology."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -5110,119 +6767,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Anaesthesia + Orthopaedics FP-1 | D+3: Ophthalmology FP-1 | D+7: Paediatrics FP-1 | D+14: Surgery FP-2 | D+28: Anatomy FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Anaesthesia + Orthopaedics FP-1 | D+3: Ophthalmology FP-1 | D+7: Paediatrics FP-1 | D+14: Surgery FP-2 | D+28: Anatomy FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Radiology WoR + notes: fundamentals, neuro, respiratory",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Radiology WoR + notes: fundamentals, neuro, respiratory"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Radiology WoR + notes: CVS, GI, GU/women, MSK, radiotherapy/nuclear medicine",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Radiology WoR + notes: CVS, GI, GU/women, MSK, radiotherapy/nuclear medicine"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Same-day note consolidation for Radiology; mark volatile tables, images, algorithms, drugs, staging and differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Same-day note consolidation for Radiology; mark volatile tables, images, algorithms, drugs, staging and differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "45-70 same-topic MCQs from Radiology + read every explanation for wrongs and lucky guesses.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "45-70 same-topic MCQs from Radiology + read every explanation for wrongs and lucky guesses."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -5245,119 +6941,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Radiology FP-1 | D+3: Forensic Medicine FP-1 | D+7: Paediatrics FP-2 | D+14: Surgery FP-3 | D+28: Anatomy FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Radiology FP-1 | D+3: Forensic Medicine FP-1 | D+7: Paediatrics FP-2 | D+14: Surgery FP-3 | D+28: Anatomy FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Block A — Dermatology revision notes/video: lesions, infections, leprosy, STIs, drug reactions, derm spots",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Block A — Dermatology revision notes/video: lesions, infections, leprosy, STIs, drug reactions, derm spots"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Block B — Psychiatry revision notes/video: psychosis, mood, anxiety, sleep, neurocognitive/developmental disorders",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Block B — Psychiatry revision notes/video: psychosis, mood, anxiety, sleep, neurocognitive/developmental disorders"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Rapid consolidation: lesion identification + psych drug/adverse-effect tables + DSM-style differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Rapid consolidation: lesion identification + psych drug/adverse-effect tables + DSM-style differentiators."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "50-70 MCQs split Derm/Psych + image-based practice.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "50-70 MCQs split Derm/Psych + image-based practice."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "20-30 PYQs / image questions from the same subject + update volatile notebook / 20th notebook."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Active recall aloud: close notes and reconstruct 15-20 high-yield points from memory."
         }
       ]
     },
@@ -5376,119 +7111,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Grand Test sections 1-3 under strict timed conditions.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Grand Test sections 1-3 under strict timed conditions."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Grand Test sections 4-5 + submit + short break.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Grand Test sections 4-5 + submit + short break."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Short reflection: accuracy, time use, section pacing, emotional control.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Short reflection: accuracy, time use, section pacing, emotional control."
         }
       ]
     },
@@ -5511,119 +7285,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: GT-1 (end of first pass) | D+3: Radiology FP-1 | D+7: ENT FP-2 | D+14: Obstetrics & Gynaecology FP-1 | D+28: Biochemistry FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: GT-1 (end of first pass) | D+3: Radiology FP-1 | D+7: ENT FP-2 | D+14: Obstetrics & Gynaecology FP-1 | D+28: Biochemistry FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Pathology heme/general path rapid revision",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Pathology heme/general path rapid revision"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Pharmacology general/ANS/CVS rapid revision",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Pharmacology general/ANS/CVS rapid revision"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs from Path+Pharm",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs from Path+Pharm"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Read wrong explanations; make drug-differentiator list",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Read wrong explanations; make drug-differentiator list"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs from Path/Pharm + image micro-slots",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs from Path/Pharm + image micro-slots"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -5646,119 +7459,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Pathology R1-1 + Pharmacology R1-1 | D+3: Dermatology + Psychiatry FP-1 | D+7: Ophthalmology FP-1 | D+14: Obstetrics & Gynaecology FP-2 | D+28: Community Medicine FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Pathology R1-1 + Pharmacology R1-1 | D+3: Dermatology + Psychiatry FP-1 | D+7: Ophthalmology FP-1 | D+14: Obstetrics & Gynaecology FP-2 | D+28: Community Medicine FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Systemic pathology revision",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Systemic pathology revision"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Pharmac CNS/antimicrobials/endocrine/anticancer",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Pharmac CNS/antimicrobials/endocrine/anticancer"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs from Path+Pharm",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs from Path+Pharm"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Wrong-list repair: neoplasia/hemat vs drugs/adrs/antimicrobials",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Wrong-list repair: neoplasia/hemat vs drugs/adrs/antimicrobials"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs from same cluster",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs from same cluster"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -5781,119 +7633,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Pathology R1-2 + Pharmacology R1-2 | D+3: GT-1 (end of first pass) | D+7: Forensic Medicine FP-1 | D+14: Obstetrics & Gynaecology FP-3 | D+28: Community Medicine FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Pathology R1-2 + Pharmacology R1-2 | D+3: GT-1 (end of first pass) | D+7: Forensic Medicine FP-1 | D+14: Obstetrics & Gynaecology FP-3 | D+28: Community Medicine FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "General micro + immunology + infection control",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "General micro + immunology + infection control"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Systemic micro + lab diagnosis + bugs-in-one-shot",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Systemic micro + lab diagnosis + bugs-in-one-shot"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs from Micro",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs from Micro"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise lab tests, media, toxins, morphology, sterilization, vaccines",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise lab tests, media, toxins, morphology, sterilization, vaccines"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + image-based micro questions",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + image-based micro questions"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -5916,119 +7807,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Microbiology R1 (both first-pass units) | D+3: Pathology R1-1 + Pharmacology R1-1 | D+7: Anaesthesia + Orthopaedics FP-1 | D+14: Obstetrics & Gynaecology FP-4 | D+28: Community Medicine FP-3",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Microbiology R1 (both first-pass units) | D+3: Pathology R1-1 + Pharmacology R1-1 | D+7: Anaesthesia + Orthopaedics FP-1 | D+14: Obstetrics & Gynaecology FP-4 | D+28: Community Medicine FP-3"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "General physio + neurophysio",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "General physio + neurophysio"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Enzymes + carbs + metabolism basics",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Enzymes + carbs + metabolism basics"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "70-90 MCQs from Physio/Biochem",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "70-90 MCQs from Physio/Biochem"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Rebuild flowcharts from memory",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Rebuild flowcharts from memory"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + one-line volatile facts",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + one-line volatile facts"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -6051,119 +7981,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Physiology R1-1 + Biochemistry R1-1 | D+3: Pathology R1-2 + Pharmacology R1-2 | D+7: Radiology FP-1 | D+14: Paediatrics FP-1 | D+28: Medicine FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Physiology R1-1 + Biochemistry R1-1 | D+3: Pathology R1-2 + Pharmacology R1-2 | D+7: Radiology FP-1 | D+14: Paediatrics FP-1 | D+28: Medicine FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "CVS/Resp/GI/Renal/Endocrine/Repro physiology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "CVS/Resp/GI/Renal/Endocrine/Repro physiology"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "AA/lipids/molecular biology/vitamins/minerals",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "AA/lipids/molecular biology/vitamins/minerals"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "70-90 MCQs from Physio/Biochem",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "70-90 MCQs from Physio/Biochem"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Rebuild graphs, cycles, endocrine axes, vitamins/mineral deficiencies",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Rebuild graphs, cycles, endocrine axes, vitamins/mineral deficiencies"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + formulas/graphs practice",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + formulas/graphs practice"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -6186,119 +8155,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Physiology R1-2 + Biochemistry R1-2 | D+3: Microbiology R1 (both first-pass units) | D+7: Dermatology + Psychiatry FP-1 | D+14: Paediatrics FP-2 | D+28: Medicine FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Physiology R1-2 + Biochemistry R1-2 | D+3: Microbiology R1 (both first-pass units) | D+7: Dermatology + Psychiatry FP-1 | D+14: Paediatrics FP-2 | D+28: Medicine FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Embryology/histology/head-neck-face",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Embryology/histology/head-neck-face"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Neuroanat + limbs + thorax + abdomen",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Neuroanat + limbs + thorax + abdomen"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "70-90 MCQs from Anatomy + image bank",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "70-90 MCQs from Anatomy + image bank"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Label diagrams and nerve lesions from memory",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Label diagrams and nerve lesions from memory"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + image practice",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + image practice"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -6317,119 +8325,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Grand Test sections 1-3 under strict timed conditions.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Grand Test sections 1-3 under strict timed conditions."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Grand Test sections 4-5 + submit + short break.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Grand Test sections 4-5 + submit + short break."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Short reflection: accuracy, time use, section pacing, emotional control.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Short reflection: accuracy, time use, section pacing, emotional control."
         }
       ]
     },
@@ -6452,119 +8499,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: GT-2 | D+3: Physiology R1-2 + Biochemistry R1-2 | D+7: Pathology R1-1 + Pharmacology R1-1 | D+14: ENT FP-2 | D+28: Medicine FP-4",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: GT-2 | D+3: Physiology R1-2 + Biochemistry R1-2 | D+7: Pathology R1-1 + Pharmacology R1-1 | D+14: ENT FP-2 | D+28: Medicine FP-4"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Demography/family planning/health system/preventive obs-paed",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Demography/family planning/health system/preventive obs-paed"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "NTEP/NACP/NVBDCP/other programmes + epidemiology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "NTEP/NACP/NVBDCP/other programmes + epidemiology"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs from PSM",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs from PSM"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise screening, program tables, indicators, biases",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise screening, program tables, indicators, biases"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + national program cards",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + national program cards"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -6587,119 +8673,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Community Medicine R1-1 + R1-2 | D+3: Anatomy R1-1 + Anatomy R1-2 | D+7: Pathology R1-2 + Pharmacology R1-2 | D+14: Ophthalmology FP-1 | D+28: Medicine FP-5",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Community Medicine R1-1 + R1-2 | D+3: Anatomy R1-1 + Anatomy R1-2 | D+7: Pathology R1-2 + Pharmacology R1-2 | D+14: Ophthalmology FP-1 | D+28: Medicine FP-5"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Biostats/screening/infectious epi/nutrition/environment/recent updates",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Biostats/screening/infectious epi/nutrition/environment/recent updates"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "FMT: toxicology, IPC/CrPC, injury patterns, sexual offences",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "FMT: toxicology, IPC/CrPC, injury patterns, sexual offences"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs from PSM+FMT",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs from PSM+FMT"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise formulas, toxidromes, legal sections, age/identification",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise formulas, toxidromes, legal sections, age/identification"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + one-line recall",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + one-line recall"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -6722,119 +8847,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Community Medicine R1-3 + Forensic | D+3: GT-2 | D+7: Microbiology R1 (both first-pass units) | D+14: Forensic Medicine FP-1 | D+28: Medicine FP-6",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Community Medicine R1-3 + Forensic | D+3: GT-2 | D+7: Microbiology R1 (both first-pass units) | D+14: Forensic Medicine FP-1 | D+28: Medicine FP-6"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Medicine endocrine + diabetes + thyroid + adrenals",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Medicine endocrine + diabetes + thyroid + adrenals"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Medicine cardio: HF, JVP, pulses, valvular, ECG",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Medicine cardio: HF, JVP, pulses, valvular, ECG"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "90-120 MCQs from Medicine",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "90-120 MCQs from Medicine"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Create one cardiology/endocrine summary sheet",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Create one cardiology/endocrine summary sheet"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + ECG/image cases",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + ECG/image cases"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -6857,119 +9021,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine R1-1 + R1-2 | D+3: Community Medicine R1-1 + R1-2 | D+7: Physiology R1-1 + Biochemistry R1-1 | D+14: Anaesthesia + Orthopaedics FP-1 | D+28: Surgery FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine R1-1 + R1-2 | D+3: Community Medicine R1-1 + R1-2 | D+7: Physiology R1-1 + Biochemistry R1-1 | D+14: Anaesthesia + Orthopaedics FP-1 | D+28: Surgery FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "GI/hepatology + pulmonology basics",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "GI/hepatology + pulmonology basics"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "ARDS/pneumonia/pleural + neuro lesions/neuropathies/seizures",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "ARDS/pneumonia/pleural + neuro lesions/neuropathies/seizures"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "90-120 MCQs from Medicine",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "90-120 MCQs from Medicine"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise emergency algorithms + localization",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise emergency algorithms + localization"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + imaging/ABG/ECG sets",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + imaging/ABG/ECG sets"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -6992,119 +9195,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine R1-3 + R1-4 | D+3: Community Medicine R1-3 + Forensic | D+7: Physiology R1-2 + Biochemistry R1-2 | D+14: Radiology FP-1 | D+28: Surgery FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine R1-3 + R1-4 | D+3: Community Medicine R1-3 + Forensic | D+7: Physiology R1-2 + Biochemistry R1-2 | D+14: Radiology FP-1 | D+28: Surgery FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Stroke/spinal/hematology/anemia/leukemias",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Stroke/spinal/hematology/anemia/leukemias"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Renal + rheumatology/vasculitis/spondyloarthropathies",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Renal + rheumatology/vasculitis/spondyloarthropathies"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "90-120 MCQs from Medicine",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "90-120 MCQs from Medicine"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Build anemia/AKI/glomerular/rheuma differentiator tables",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Build anemia/AKI/glomerular/rheuma differentiator tables"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + integrated cases",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + integrated cases"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -7127,119 +9369,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine R1-5 + R1-6 | D+3: Medicine R1-1 + R1-2 | D+7: Anatomy R1-1 + Anatomy R1-2 | D+14: Dermatology + Psychiatry FP-1 | D+28: Surgery FP-3",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine R1-5 + R1-6 | D+3: Medicine R1-1 + R1-2 | D+7: Anatomy R1-1 + Anatomy R1-2 | D+14: Dermatology + Psychiatry FP-1 | D+28: Surgery FP-3"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "General surgery + breast + endocrine",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "General surgery + breast + endocrine"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "GI surgery + oral cancer/salivary",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "GI surgery + oral cancer/salivary"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs from Surgery",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs from Surgery"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise operative steps, investigations, malignancy clues",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise operative steps, investigations, malignancy clues"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + images/instruments",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + images/instruments"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -7262,119 +9543,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Surgery R1-1 + R1-2 | D+3: Medicine R1-3 + R1-4 | D+7: GT-2 | D+14: GT-1 (end of first pass) | D+28: Surgery FP-4",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Surgery R1-1 + R1-2 | D+3: Medicine R1-3 + R1-4 | D+7: GT-2 | D+14: GT-1 (end of first pass) | D+28: Surgery FP-4"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "HBP/MIS + urology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "HBP/MIS + urology"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Trauma/burns + hernia/thorax/vascular/special surgery",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Trauma/burns + hernia/thorax/vascular/special surgery"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs from Surgery",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs from Surgery"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Rebuild trauma/burn formulas and acute abdomen algorithms",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Rebuild trauma/burn formulas and acute abdomen algorithms"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + emergency protocols",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + emergency protocols"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -7397,119 +9717,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Surgery R1-3 + R1-4 | D+3: Medicine R1-5 + R1-6 | D+7: Community Medicine R1-1 + R1-2 | D+14: Pathology R1-1 + Pharmacology R1-1 | D+28: Obstetrics & Gynaecology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Surgery R1-3 + R1-4 | D+3: Medicine R1-5 + R1-6 | D+7: Community Medicine R1-1 + R1-2 | D+14: Pathology R1-1 + Pharmacology R1-1 | D+28: Obstetrics & Gynaecology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Gynae: AUB, fibroid, infertility, malignancy, endocrine, instruments",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Gynae: AUB, fibroid, infertility, malignancy, endocrine, instruments"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Gynae continuation + contraception + gynae-oncology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Gynae continuation + contraception + gynae-oncology"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "90-110 MCQs from OBG",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "90-110 MCQs from OBG"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise investigation/management algorithms",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise investigation/management algorithms"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + images/instruments",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + images/instruments"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -7532,119 +9891,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: OBG R1-1 + R1-2 | D+3: Surgery R1-1 + R1-2 | D+7: Community Medicine R1-3 + Forensic | D+14: Pathology R1-2 + Pharmacology R1-2 | D+28: Obstetrics & Gynaecology FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: OBG R1-1 + R1-2 | D+3: Surgery R1-1 + R1-2 | D+7: Community Medicine R1-3 + Forensic | D+14: Pathology R1-2 + Pharmacology R1-2 | D+28: Obstetrics & Gynaecology FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Obs: antenatal care, labour, fetal monitoring, hypertensive disorders",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Obs: antenatal care, labour, fetal monitoring, hypertensive disorders"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "PPH, emergencies, malpresentations, puerperium, operative obstetrics",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "PPH, emergencies, malpresentations, puerperium, operative obstetrics"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "90-110 MCQs from OBG",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "90-110 MCQs from OBG"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Rebuild labor room emergency flowcharts",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Rebuild labor room emergency flowcharts"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + CTG/instrument images",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + CTG/instrument images"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -7663,119 +10061,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Grand Test sections 1-3 under strict timed conditions.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Grand Test sections 1-3 under strict timed conditions."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Grand Test sections 4-5 + submit + short break.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Grand Test sections 4-5 + submit + short break."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Short reflection: accuracy, time use, section pacing, emotional control.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Short reflection: accuracy, time use, section pacing, emotional control."
         }
       ]
     },
@@ -7798,119 +10235,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: GT-3 | D+3: OBG R1-1 + R1-2 | D+7: Medicine R1-3 + R1-4 | D+14: Physiology R1-1 + Biochemistry R1-1 | D+28: Obstetrics & Gynaecology FP-4",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: GT-3 | D+3: OBG R1-1 + R1-2 | D+7: Medicine R1-3 + R1-4 | D+14: Physiology R1-1 + Biochemistry R1-1 | D+28: Obstetrics & Gynaecology FP-4"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Neonatology/growth/development/nutrition",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Neonatology/growth/development/nutrition"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Infections/genetics/metabolic + systemic paeds",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Infections/genetics/metabolic + systemic paeds"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "70-90 MCQs from Paeds",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "70-90 MCQs from Paeds"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise milestones, vaccines, neonatal resuscitation and common syndromes",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise milestones, vaccines, neonatal resuscitation and common syndromes"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + developmental charts",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + developmental charts"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -7933,119 +10409,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Paediatrics R1-1 + R1-2 | D+3: OBG R1-3 + R1-4 | D+7: Medicine R1-5 + R1-6 | D+14: Physiology R1-2 + Biochemistry R1-2 | D+28: Paediatrics FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Paediatrics R1-1 + R1-2 | D+3: OBG R1-3 + R1-4 | D+7: Medicine R1-5 + R1-6 | D+14: Physiology R1-2 + Biochemistry R1-2 | D+28: Paediatrics FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Ear full revision",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Ear full revision"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Nose/pharynx/larynx revision",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Nose/pharynx/larynx revision"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "70-90 MCQs from ENT",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "70-90 MCQs from ENT"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise hearing tests, epistaxis, neck spaces, laryngeal palsies",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise hearing tests, epistaxis, neck spaces, laryngeal palsies"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + instruments/images",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + instruments/images"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -8068,119 +10583,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: ENT R1-1 + R1-2 | D+3: GT-3 | D+7: Surgery R1-1 + R1-2 | D+14: Anatomy R1-1 + Anatomy R1-2 | D+28: Paediatrics FP-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: ENT R1-1 + R1-2 | D+3: GT-3 | D+7: Surgery R1-1 + R1-2 | D+14: Anatomy R1-1 + Anatomy R1-2 | D+28: Paediatrics FP-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Ophthal full revision: cornea, lens, glaucoma, retina, neuro-ophthal, optics",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Ophthal full revision: cornea, lens, glaucoma, retina, neuro-ophthal, optics"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Radiology full revision: basics, chest/CNS/GU/GI imaging",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Radiology full revision: basics, chest/CNS/GU/GI imaging"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "70-90 MCQs mixed Ophthal/Radio",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "70-90 MCQs mixed Ophthal/Radio"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Image drill only: fundus, x-ray, CT/MRI, contrast studies",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Image drill only: fundus, x-ray, CT/MRI, contrast studies"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + image bank",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + image bank"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -8203,119 +10757,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Ophthalmology + Radiology | D+3: Paediatrics R1-1 + R1-2 | D+7: Surgery R1-3 + R1-4 | D+14: GT-2 | D+28: ENT FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Ophthalmology + Radiology | D+3: Paediatrics R1-1 + R1-2 | D+7: Surgery R1-3 + R1-4 | D+14: GT-2 | D+28: ENT FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Anaesthesia + Ortho compression",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Anaesthesia + Ortho compression"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Dermatology + Psychiatry compression",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Dermatology + Psychiatry compression"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs mixed short subjects",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs mixed short subjects"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise airway drugs, fractures, derm spots, psych drugs/adverse effects",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise airway drugs, fractures, derm spots, psych drugs/adverse effects"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs + image spots",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs + image spots"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -8334,119 +10927,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Grand Test sections 1-3 under strict timed conditions.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Grand Test sections 1-3 under strict timed conditions."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Grand Test sections 4-5 + submit + short break.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Grand Test sections 4-5 + submit + short break."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Short reflection: accuracy, time use, section pacing, emotional control.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Short reflection: accuracy, time use, section pacing, emotional control."
         }
       ]
     },
@@ -8469,119 +11101,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: GT-4 | D+3: Ophthalmology + Radiology | D+7: OBG R1-3 + R1-4 | D+14: Community Medicine R1-3 + Forensic | D+28: Ophthalmology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: GT-4 | D+3: Ophthalmology + Radiology | D+7: OBG R1-3 + R1-4 | D+14: Community Medicine R1-3 + Forensic | D+28: Ophthalmology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Mixed PYQs set 1 (para-clinical high-yield)",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Mixed PYQs set 1 (para-clinical high-yield)"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Mixed PYQs set 2 (para-clinical high-yield)",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Mixed PYQs set 2 (para-clinical high-yield)"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "120 mixed MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "120 mixed MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Analyze repeat themes and standard traps",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Analyze repeat themes and standard traps"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Tag every repeat-risk fact",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Tag every repeat-risk fact"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -8604,119 +11275,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Path + Pharm + Micro + PSM mixed repair | D+3: Anaesthesia + Orthopaedics + Derm/Psych | D+7: GT-3 | D+14: Medicine R1-1 + R1-2 | D+28: Forensic Medicine FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Path + Pharm + Micro + PSM mixed repair | D+3: Anaesthesia + Orthopaedics + Derm/Psych | D+7: GT-3 | D+14: Medicine R1-1 + R1-2 | D+28: Forensic Medicine FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Mixed PYQs set 1 (clinical high-yield)",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Mixed PYQs set 1 (clinical high-yield)"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Mixed PYQs set 2 (clinical high-yield)",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Mixed PYQs set 2 (clinical high-yield)"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "120 mixed MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "120 mixed MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Analyze repeat themes and emergency algorithms",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Analyze repeat themes and emergency algorithms"
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Tag every repeat-risk fact",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Tag every repeat-risk fact"
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook revision + oral recall without notes.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook revision + oral recall without notes."
         }
       ]
     },
@@ -8735,119 +11445,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Grand Test sections 1-3 under strict timed conditions.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Grand Test sections 1-3 under strict timed conditions."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Grand Test sections 4-5 + submit + short break.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Grand Test sections 4-5 + submit + short break."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Short reflection: accuracy, time use, section pacing, emotional control.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Short reflection: accuracy, time use, section pacing, emotional control."
         }
       ]
     },
@@ -8870,119 +11619,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: GT-5 | D+3: Path + Pharm + Micro + PSM mixed repair | D+7: ENT R1-1 + R1-2 | D+14: Medicine R1-5 + R1-6 | D+28: Radiology FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: GT-5 | D+3: Path + Pharm + Micro + PSM mixed repair | D+7: ENT R1-1 + R1-2 | D+14: Medicine R1-5 + R1-6 | D+28: Radiology FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "BTR/notes: Pathology highest-yield + hemat/general/systemic traps",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "BTR/notes: Pathology highest-yield + hemat/general/systemic traps"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "BTR/notes: Pharmacology general/ANS/CVS/CNS/antimicrobials",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "BTR/notes: Pharmacology general/ANS/CVS/CNS/antimicrobials"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100-120 MCQs Path+Pharm",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100-120 MCQs Path+Pharm"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Read only wrongs/lucky guesses; re-mark notes.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Read only wrongs/lucky guesses; re-mark notes."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -9005,119 +11793,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Path + Pharm BTR compression | D+3: Medicine + Surgery + OBG + Paeds mixed repair | D+7: Ophthalmology + Radiology | D+14: Surgery R1-1 + R1-2 | D+28: Dermatology + Psychiatry FP-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Path + Pharm BTR compression | D+3: Medicine + Surgery + OBG + Paeds mixed repair | D+7: Ophthalmology + Radiology | D+14: Surgery R1-1 + R1-2 | D+28: Dermatology + Psychiatry FP-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Micro high-yield bugs, lab dx, immunology, infection control",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Micro high-yield bugs, lab dx, immunology, infection control"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "PSM/FMT high-yield: programs, bias, screening, biostats, legal sections, toxicology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "PSM/FMT high-yield: programs, bias, screening, biostats, legal sections, toxicology"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100-120 MCQs Micro/PSM/FMT",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100-120 MCQs Micro/PSM/FMT"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Rebuild tables from memory.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Rebuild tables from memory."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -9140,119 +11967,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Micro + PSM + FMT compression | D+3: GT-5 | D+7: Anaesthesia + Orthopaedics + Derm/Psych | D+14: Surgery R1-3 + R1-4 | D+28: GT-1 (end of first pass)",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Micro + PSM + FMT compression | D+3: GT-5 | D+7: Anaesthesia + Orthopaedics + Derm/Psych | D+14: Surgery R1-3 + R1-4 | D+28: GT-1 (end of first pass)"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Anat + Physio rapid pass",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Anat + Physio rapid pass"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Biochem rapid pass + graphs/cycles/vitamins",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Biochem rapid pass + graphs/cycles/vitamins"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "90-110 MCQs pre-clinicals",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "90-110 MCQs pre-clinicals"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Image + graph drill.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Image + graph drill."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -9275,119 +12141,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Anatomy + Physiology + Biochem compression | D+3: Path + Pharm BTR compression | D+7: GT-4 | D+14: OBG R1-1 + R1-2 | D+28: Pathology R1-1 + Pharmacology R1-1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Anatomy + Physiology + Biochem compression | D+3: Path + Pharm BTR compression | D+7: GT-4 | D+14: OBG R1-1 + R1-2 | D+28: Pathology R1-1 + Pharmacology R1-1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Medicine: cardio + endocrine + diabetes + thyroid/adrenal",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Medicine: cardio + endocrine + diabetes + thyroid/adrenal"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Medicine: GI/hepatology + pulmonology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Medicine: GI/hepatology + pulmonology"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100-120 MCQs Medicine",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100-120 MCQs Medicine"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "ECG/ABG/image drill.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "ECG/ABG/image drill."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -9410,119 +12315,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine compression 1 | D+3: Micro + PSM + FMT compression | D+7: Path + Pharm + Micro + PSM mixed repair | D+14: OBG R1-3 + R1-4 | D+28: Pathology R1-2 + Pharmacology R1-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine compression 1 | D+3: Micro + PSM + FMT compression | D+7: Path + Pharm + Micro + PSM mixed repair | D+14: OBG R1-3 + R1-4 | D+28: Pathology R1-2 + Pharmacology R1-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Medicine: neuro + stroke + seizures + neuropathy",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Medicine: neuro + stroke + seizures + neuropathy"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Medicine: heme + renal + rheuma/vasculitis",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Medicine: heme + renal + rheuma/vasculitis"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100-120 MCQs Medicine",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100-120 MCQs Medicine"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Emergency algorithms + differentiator tables.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Emergency algorithms + differentiator tables."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -9545,119 +12489,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Medicine compression 2 | D+3: Anatomy + Physiology + Biochem compression | D+7: Medicine + Surgery + OBG + Paeds mixed repair | D+14: GT-3 | D+28: Microbiology R1 (both first-pass units)",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Medicine compression 2 | D+3: Anatomy + Physiology + Biochem compression | D+7: Medicine + Surgery + OBG + Paeds mixed repair | D+14: GT-3 | D+28: Microbiology R1 (both first-pass units)"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "General/GI/HBP/Urology",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "General/GI/HBP/Urology"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Trauma/burns/vascular/breast/thyroid",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Trauma/burns/vascular/breast/thyroid"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "90-110 MCQs Surgery",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "90-110 MCQs Surgery"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Instruments + images + emergency pathways.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Instruments + images + emergency pathways."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -9676,119 +12659,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Grand Test sections 1-3 under strict timed conditions.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Grand Test sections 1-3 under strict timed conditions."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Grand Test sections 4-5 + submit + short break.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Grand Test sections 4-5 + submit + short break."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Short reflection: accuracy, time use, section pacing, emotional control.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Short reflection: accuracy, time use, section pacing, emotional control."
         }
       ]
     },
@@ -9811,119 +12833,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: GT-6 | D+3: Medicine compression 2 | D+7: Path + Pharm BTR compression | D+14: ENT R1-1 + R1-2 | D+28: Physiology R1-2 + Biochemistry R1-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: GT-6 | D+3: Medicine compression 2 | D+7: Path + Pharm BTR compression | D+14: ENT R1-1 + R1-2 | D+28: Physiology R1-2 + Biochemistry R1-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Gynae rapid pass",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Gynae rapid pass"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Obs rapid pass 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Obs rapid pass 1"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100-120 MCQs OBG",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100-120 MCQs OBG"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise AUB/infertility/malignancy algorithms.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise AUB/infertility/malignancy algorithms."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -9946,119 +13007,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: OBG compression 1 | D+3: Surgery compression | D+7: Micro + PSM + FMT compression | D+14: Ophthalmology + Radiology | D+28: Anatomy R1-1 + Anatomy R1-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: OBG compression 1 | D+3: Surgery compression | D+7: Micro + PSM + FMT compression | D+14: Ophthalmology + Radiology | D+28: Anatomy R1-1 + Anatomy R1-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Obs rapid pass 2 + labour room emergencies",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Obs rapid pass 2 + labour room emergencies"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Paediatrics rapid pass",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Paediatrics rapid pass"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100-120 MCQs OBG+Paeds",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100-120 MCQs OBG+Paeds"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Milestones + neonatal emergencies + vaccines.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Milestones + neonatal emergencies + vaccines."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -10081,119 +13181,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: OBG compression 2 + Paeds compression | D+3: GT-6 | D+7: Anatomy + Physiology + Biochem compression | D+14: Anaesthesia + Orthopaedics + Derm/Psych | D+28: GT-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: OBG compression 2 + Paeds compression | D+3: GT-6 | D+7: Anatomy + Physiology + Biochem compression | D+14: Anaesthesia + Orthopaedics + Derm/Psych | D+28: GT-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "ENT + Ophthal rapid pass",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "ENT + Ophthal rapid pass"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Radiology rapid pass",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Radiology rapid pass"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs mixed + image bank",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs mixed + image bank"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Only images/instruments/typical stems.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Only images/instruments/typical stems."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -10216,119 +13355,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: ENT + Ophthal + Radiology compression | D+3: OBG compression 1 | D+7: Medicine compression 1 | D+14: GT-4 | D+28: Community Medicine R1-1 + R1-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: ENT + Ophthal + Radiology compression | D+3: OBG compression 1 | D+7: Medicine compression 1 | D+14: GT-4 | D+28: Community Medicine R1-1 + R1-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Anaesthesia + Ortho high-yield",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Anaesthesia + Ortho high-yield"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Derm + Psych high-yield",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Derm + Psych high-yield"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs mixed short subjects",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs mixed short subjects"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Drug adverse effects + fractures + derm spots + DSM differentiators.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Drug adverse effects + fractures + derm spots + DSM differentiators."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -10347,119 +13525,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Grand Test sections 1-3 under strict timed conditions.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Grand Test sections 1-3 under strict timed conditions."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Grand Test sections 4-5 + submit + short break.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Grand Test sections 4-5 + submit + short break."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Short reflection: accuracy, time use, section pacing, emotional control.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Short reflection: accuracy, time use, section pacing, emotional control."
         }
       ]
     },
@@ -10482,119 +13699,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: GT-7 | D+3: ENT + Ophthal + Radiology compression | D+7: Surgery compression | D+14: Medicine + Surgery + OBG + Paeds mixed repair | D+28: Medicine R1-1 + R1-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: GT-7 | D+3: ENT + Ophthal + Radiology compression | D+7: Surgery compression | D+14: Medicine + Surgery + OBG + Paeds mixed repair | D+28: Medicine R1-1 + R1-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Image block 1: radio/chest/CNS/abdomen",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Image block 1: radio/chest/CNS/abdomen"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Image block 2: ophthal/derm/ENT/ortho/instruments/ECG",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Image block 2: ophthal/derm/ENT/ortho/instruments/ECG"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100 image-based questions",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100 image-based questions"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Make one image trap list.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Make one image trap list."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -10617,119 +13873,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Image / instrument / ECG / CT-MRI / derm spot day | D+3: Anaesthesia + Ortho + Derm + Psych compression | D+7: GT-6 | D+14: GT-5 | D+28: Medicine R1-3 + R1-4",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Image / instrument / ECG / CT-MRI / derm spot day | D+3: Anaesthesia + Ortho + Derm + Psych compression | D+7: GT-6 | D+14: GT-5 | D+28: Medicine R1-3 + R1-4"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "100 PYQs mixed set 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "100 PYQs mixed set 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "100 PYQs mixed set 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "100 PYQs mixed set 2"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Analyze all repeats",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Analyze all repeats"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Tag direct-repeat topics and likely variants.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Tag direct-repeat topics and likely variants."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -10752,119 +14047,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: All-19-subject PYQ mega day | D+3: GT-7 | D+7: OBG compression 1 | D+14: Path + Pharm BTR compression | D+28: Medicine R1-5 + R1-6",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: All-19-subject PYQ mega day | D+3: GT-7 | D+7: OBG compression 1 | D+14: Path + Pharm BTR compression | D+28: Medicine R1-5 + R1-6"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Redo all bookmarked wrongs set 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Redo all bookmarked wrongs set 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Redo all bookmarked wrongs set 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Redo all bookmarked wrongs set 2"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-120 corrected MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-120 corrected MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Write final memory triggers for repeated mistakes.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Write final memory triggers for repeated mistakes."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -10883,119 +14217,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Grand Test sections 1-3 under strict timed conditions.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Grand Test sections 1-3 under strict timed conditions."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Grand Test sections 4-5 + submit + short break.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Grand Test sections 4-5 + submit + short break."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Short reflection: accuracy, time use, section pacing, emotional control.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Short reflection: accuracy, time use, section pacing, emotional control."
         }
       ]
     },
@@ -11018,119 +14391,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: GT-8 | D+3: All-19-subject PYQ mega day | D+7: ENT + Ophthal + Radiology compression | D+14: Anatomy + Physiology + Biochem compression | D+28: Surgery R1-3 + R1-4",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: GT-8 | D+3: All-19-subject PYQ mega day | D+7: ENT + Ophthal + Radiology compression | D+14: Anatomy + Physiology + Biochem compression | D+28: Surgery R1-3 + R1-4"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "PSM recent updates/programs + vaccine schedules + screening",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "PSM recent updates/programs + vaccine schedules + screening"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Pharma antidotes/adverse effects + micro lab + path translocations",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Pharma antidotes/adverse effects + micro lab + path translocations"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "60-80 focused MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "60-80 focused MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Revise only volatile and frequently forgotten tables.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Revise only volatile and frequently forgotten tables."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -11153,119 +14565,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Latest updates + volatile tables + PSM programs + antidotes | D+3: Wrong notebook sweep + bookmarked QBank redo | D+7: Anaesthesia + Ortho + Derm + Psych compression | D+14: Medicine compression 1 | D+28: OBG R1-1 + R1-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Latest updates + volatile tables + PSM programs + antidotes | D+3: Wrong notebook sweep + bookmarked QBank redo | D+7: Anaesthesia + Ortho + Derm + Psych compression | D+14: Medicine compression 1 | D+28: OBG R1-1 + R1-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Weak Subject 1 rescue",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Weak Subject 1 rescue"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Weak Subject 2 rescue",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Weak Subject 2 rescue"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "60-80 targeted MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "60-80 targeted MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Consolidate rescue notes into volatile notebook.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Consolidate rescue notes into volatile notebook."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "PYQs / image sets / bookmark redo depending day focus.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "PYQs / image sets / bookmark redo depending day focus."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Wrong notebook recall + next-day weak list.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Wrong notebook recall + next-day weak list."
         }
       ]
     },
@@ -11288,119 +14739,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Buffer / weakest 2 subjects rescue | D+3: GT-8 | D+7: GT-7 | D+14: Medicine compression 2 | D+28: OBG R1-3 + R1-4",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Buffer / weakest 2 subjects rescue | D+3: GT-8 | D+7: GT-7 | D+14: Medicine compression 2 | D+28: OBG R1-3 + R1-4"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Path rapid run",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Path rapid run"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Pharm + Micro rapid run",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Pharm + Micro rapid run"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100 high-yield MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100 high-yield MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Only revise what is repeatedly tested.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Only revise what is repeatedly tested."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -11423,119 +14913,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Super-revision 1: Path + Pharm + Micro | D+3: Latest updates + volatile tables + PSM programs + antidotes | D+7: Image / instrument / ECG / CT-MRI / derm spot day | D+14: Surgery compression | D+28: GT-3",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Super-revision 1: Path + Pharm + Micro | D+3: Latest updates + volatile tables + PSM programs + antidotes | D+7: Image / instrument / ECG / CT-MRI / derm spot day | D+14: Surgery compression | D+28: GT-3"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "PSM + FMT rapid run",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "PSM + FMT rapid run"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Biochem rapid run",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Biochem rapid run"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "National programs, formulas, tox, vitamins, metabolism.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "National programs, formulas, tox, vitamins, metabolism."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -11554,119 +15083,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "Light warm-up only: formulas, antidotes, staging, image labels. No heavy studying."
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Grand Test sections 1-3 under strict timed conditions.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Grand Test sections 1-3 under strict timed conditions."
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Grand Test sections 4-5 + submit + short break.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Grand Test sections 4-5 + submit + short break."
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Immediate analysis: every wrong + every guessed-right answer. Tag as concept gap / recall gap / silly error / time pressure."
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Repair 2 worst domains from GT using annotated notes + 20-30 focused MCQs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Update wrong notebook; make 'repeat-risk list' for next 7 days."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Short reflection: accuracy, time use, section pacing, emotional control.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Short reflection: accuracy, time use, section pacing, emotional control."
         }
       ]
     },
@@ -11689,119 +15257,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: GT-9 | D+3: Super-revision 1: Path + Pharm + Micro | D+7: Wrong notebook sweep + bookmarked QBank redo | D+14: OBG compression 1 | D+28: ENT R1-1 + R1-2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: GT-9 | D+3: Super-revision 1: Path + Pharm + Micro | D+7: Wrong notebook sweep + bookmarked QBank redo | D+14: OBG compression 1 | D+28: ENT R1-1 + R1-2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Medicine cardio/endocrine/DM/thyroid/adrenal",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Medicine cardio/endocrine/DM/thyroid/adrenal"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Medicine GI/hepatology/pulm",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Medicine GI/hepatology/pulm"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100 high-yield MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100 high-yield MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "ECG/ABG/image revision.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "ECG/ABG/image revision."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -11824,119 +15431,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Super-revision 3: Medicine 1 | D+3: Super-revision 2: PSM + FMT + Biochem | D+7: GT-8 | D+14: OBG compression 2 + Paeds compression | D+28: Ophthalmology + Radiology",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Super-revision 3: Medicine 1 | D+3: Super-revision 2: PSM + FMT + Biochem | D+7: GT-8 | D+14: OBG compression 2 + Paeds compression | D+28: Ophthalmology + Radiology"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Medicine neuro/heme/renal",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Medicine neuro/heme/renal"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Rheuma + Pediatrics",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Rheuma + Pediatrics"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "100 high-yield MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "100 high-yield MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Milestones, neonatology, anemia, stroke, nephro.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Milestones, neonatology, anemia, stroke, nephro."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -11959,119 +15605,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Super-revision 4: Medicine 2 + Paeds | D+3: GT-9 | D+7: Latest updates + volatile tables + PSM programs + antidotes | D+14: ENT + Ophthal + Radiology compression | D+28: Anaesthesia + Orthopaedics + Derm/Psych",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Super-revision 4: Medicine 2 + Paeds | D+3: GT-9 | D+7: Latest updates + volatile tables + PSM programs + antidotes | D+14: ENT + Ophthal + Radiology compression | D+28: Anaesthesia + Orthopaedics + Derm/Psych"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "General/GI/HBP/Uro",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "General/GI/HBP/Uro"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Trauma/burns/vascular/breast/thyroid",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Trauma/burns/vascular/breast/thyroid"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "90-110 MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "90-110 MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Algorithms > details.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Algorithms > details."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -12094,119 +15779,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Super-revision 5: Surgery | D+3: Super-revision 3: Medicine 1 | D+7: Buffer / weakest 2 subjects rescue | D+14: Anaesthesia + Ortho + Derm + Psych compression | D+28: GT-4",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Super-revision 5: Surgery | D+3: Super-revision 3: Medicine 1 | D+7: Buffer / weakest 2 subjects rescue | D+14: Anaesthesia + Ortho + Derm + Psych compression | D+28: GT-4"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Gynae",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Gynae"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Obs + emergencies",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Obs + emergencies"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "90-110 MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "90-110 MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Labour room and AUB/infertility/oncology algorithms.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Labour room and AUB/infertility/oncology algorithms."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -12229,119 +15953,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Super-revision 6: OBG | D+3: Super-revision 4: Medicine 2 + Paeds | D+7: Super-revision 1: Path + Pharm + Micro | D+14: GT-7 | D+28: Path + Pharm + Micro + PSM mixed repair",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Super-revision 6: OBG | D+3: Super-revision 4: Medicine 2 + Paeds | D+7: Super-revision 1: Path + Pharm + Micro | D+14: GT-7 | D+28: Path + Pharm + Micro + PSM mixed repair"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Anat + Physio rapid run",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Anat + Physio rapid run"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "ENT + Ophthal image-heavy run",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "ENT + Ophthal image-heavy run"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "80-100 MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "80-100 MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Images, nerves, graphs, clinical clues.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Images, nerves, graphs, clinical clues."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -12364,119 +16127,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Super-revision 7: Anat + Physio + ENT + Ophthal | D+3: Super-revision 5: Surgery | D+7: Super-revision 2: PSM + FMT + Biochem | D+14: Image / instrument / ECG / CT-MRI / derm spot day | D+28: Medicine + Surgery + OBG + Paeds mixed repair",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Super-revision 7: Anat + Physio + ENT + Ophthal | D+3: Super-revision 5: Surgery | D+7: Super-revision 2: PSM + FMT + Biochem | D+14: Image / instrument / ECG / CT-MRI / derm spot day | D+28: Medicine + Surgery + OBG + Paeds mixed repair"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "60Q timed mixed set",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "60Q timed mixed set"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "60Q timed mixed set",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "60Q timed mixed set"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Analyze all wrongs + guessed-rights",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Analyze all wrongs + guessed-rights"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Patch only the weak topics.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Patch only the weak topics."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -12499,119 +16301,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: 120Q half-simulation + analysis | D+3: Super-revision 6: OBG | D+7: GT-9 | D+14: All-19-subject PYQ mega day | D+28: GT-5",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: 120Q half-simulation + analysis | D+3: Super-revision 6: OBG | D+7: GT-9 | D+14: All-19-subject PYQ mega day | D+28: GT-5"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Radiology/ECG/fundus/ENT/ortho images",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Radiology/ECG/fundus/ENT/ortho images"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Derm spots + instruments + one-liners",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Derm spots + instruments + one-liners"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "60-80 image questions",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "60-80 image questions"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Do not open new resources.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Do not open new resources."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -12634,119 +16475,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Image / instrument / one-liner sweep | D+3: Super-revision 7: Anat + Physio + ENT + Ophthal | D+7: Super-revision 3: Medicine 1 | D+14: Wrong notebook sweep + bookmarked QBank redo | D+28: Path + Pharm BTR compression",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Image / instrument / one-liner sweep | D+3: Super-revision 7: Anat + Physio + ENT + Ophthal | D+7: Super-revision 3: Medicine 1 | D+14: Wrong notebook sweep + bookmarked QBank redo | D+28: Path + Pharm BTR compression"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Wrong notebook set 1",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Wrong notebook set 1"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Wrong notebook set 2",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Wrong notebook set 2"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Redo 50-70 bookmarked wrongs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Redo 50-70 bookmarked wrongs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Convert every error into a 1-line trigger.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Convert every error into a 1-line trigger."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -12769,119 +16649,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Wrong notebook final pass 1 | D+3: 120Q half-simulation + analysis | D+7: Super-revision 4: Medicine 2 + Paeds | D+14: GT-8 | D+28: Micro + PSM + FMT compression",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Wrong notebook final pass 1 | D+3: 120Q half-simulation + analysis | D+7: Super-revision 4: Medicine 2 + Paeds | D+14: GT-8 | D+28: Micro + PSM + FMT compression"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Formulas/tables/antidotes/translocations/staging",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Formulas/tables/antidotes/translocations/staging"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Algorithms/scores/vaccines/programs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Algorithms/scores/vaccines/programs"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "50-70 focused MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "50-70 focused MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "No new learning.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "No new learning."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -12904,119 +16823,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Wrong notebook final pass 2 + formulas/tables | D+3: Image / instrument / one-liner sweep | D+7: Super-revision 5: Surgery | D+14: Latest updates + volatile tables + PSM programs + antidotes | D+28: Anatomy + Physiology + Biochem compression",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Wrong notebook final pass 2 + formulas/tables | D+3: Image / instrument / one-liner sweep | D+7: Super-revision 5: Surgery | D+14: Latest updates + volatile tables + PSM programs + antidotes | D+28: Anatomy + Physiology + Biochem compression"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "PPH, eclampsia, ACLS/BLS, shock, trauma, burns, AKI, stroke, DKA, status epilepticus",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "PPH, eclampsia, ACLS/BLS, shock, trauma, burns, AKI, stroke, DKA, status epilepticus"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Antidotes, poisoning, anaphylaxis, asthma/COPD, labour emergencies",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Antidotes, poisoning, anaphylaxis, asthma/COPD, labour emergencies"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "40-60 algorithmic MCQs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "40-60 algorithmic MCQs"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Memorize actions, not paragraphs.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Memorize actions, not paragraphs."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -13039,119 +16997,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Emergency algorithm day | D+3: Wrong notebook final pass 1 | D+7: Super-revision 6: OBG | D+14: Buffer / weakest 2 subjects rescue | D+28: Medicine compression 1",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Emergency algorithm day | D+3: Wrong notebook final pass 1 | D+7: Super-revision 6: OBG | D+14: Buffer / weakest 2 subjects rescue | D+28: Medicine compression 1"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "Direct repeat themes from PYQ/GT logs",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "Direct repeat themes from PYQ/GT logs"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "Most-missed volatile facts",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "Most-missed volatile facts"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "40-60 MCQs max",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "40-60 MCQs max"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Stay calm; no heavy testing.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Stay calm; no heavy testing."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -13174,119 +17171,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Direct repeats + volatile list only | D+3: Wrong notebook final pass 2 + formulas/tables | D+7: Super-revision 7: Anat + Physio + ENT + Ophthal | D+14: Super-revision 1: Path + Pharm + Micro | D+28: Medicine compression 2",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Direct repeats + volatile list only | D+3: Wrong notebook final pass 2 + formulas/tables | D+7: Super-revision 7: Anat + Physio + ENT + Ophthal | D+14: Super-revision 1: Path + Pharm + Micro | D+28: Medicine compression 2"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "1st half: calm rapid run of volatile notebook",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "1st half: calm rapid run of volatile notebook"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "2nd half: pack documents, route, meals, clothes, admit card checklist",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "2nd half: pack documents, route, meals, clothes, admit card checklist"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "No more than 30-40 easy questions",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "No more than 30-40 easy questions"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Stop by evening, sleep on time.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Stop by evening, sleep on time."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     },
@@ -13309,119 +17345,158 @@ export const scheduleData: GeneratedScheduleBundle = {
         {
           "key": "morning_revision",
           "label": "Morning Revision",
+          "column": "06:30-08:00",
           "start": "06:30",
           "end": "08:00",
-          "description": "D+1: Light recall + logistics + sleep normalization | D+3: Emergency algorithm day | D+7: 120Q half-simulation + analysis | D+14: Super-revision 2: PSM + FMT + Biochem | D+28: Surgery compression",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 1
+          "order": 1,
+          "kind": "study",
+          "description": "D+1: Light recall + logistics + sleep normalization | D+3: Emergency algorithm day | D+7: 120Q half-simulation + analysis | D+14: Super-revision 2: PSM + FMT + Biochem | D+28: Surgery compression"
         },
         {
           "key": "break_1",
           "label": "Break",
+          "column": "08:00-08:15",
           "start": "08:00",
           "end": "08:15",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 2
+          "order": 2,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_a",
           "label": "Block A",
+          "column": "08:15-10:45",
           "start": "08:15",
           "end": "10:45",
-          "description": "2-3 hour light recall: formulas, antidotes, staging, images, emergency steps",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 3
+          "order": 3,
+          "kind": "study",
+          "description": "2-3 hour light recall: formulas, antidotes, staging, images, emergency steps"
         },
         {
           "key": "break_2",
           "label": "Break",
+          "column": "10:45-11:00",
           "start": "10:45",
           "end": "11:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 4
+          "order": 4,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "block_b",
           "label": "Block B",
+          "column": "11:00-13:30",
           "start": "11:00",
           "end": "13:30",
-          "description": "No new questions after midday; short walk, meals, hydration",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 5
+          "order": 5,
+          "kind": "study",
+          "description": "No new questions after midday; short walk, meals, hydration"
         },
         {
           "key": "lunch",
           "label": "Lunch",
+          "column": "13:30-14:15",
           "start": "13:30",
           "end": "14:15",
-          "description": "LUNCH",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 6
+          "order": 6,
+          "kind": "meal",
+          "description": "LUNCH"
         },
         {
           "key": "consolidation",
           "label": "Consolidation",
+          "column": "14:15-16:45",
           "start": "14:15",
           "end": "16:45",
-          "description": "Rest, breath, logistics",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 7
+          "order": 7,
+          "kind": "study",
+          "description": "Rest, breath, logistics"
         },
         {
           "key": "break_3",
           "label": "Break",
+          "column": "16:45-17:00",
           "start": "16:45",
           "end": "17:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 8
+          "order": 8,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "mcq",
           "label": "MCQ Block",
+          "column": "17:00-19:30",
           "start": "17:00",
           "end": "19:30",
-          "description": "Stop studying by evening; protect sleep.",
+          "durationHours": 2.5,
           "trackable": true,
-          "order": 9
+          "order": 9,
+          "kind": "study",
+          "description": "Stop studying by evening; protect sleep."
         },
         {
           "key": "dinner",
           "label": "Dinner",
+          "column": "19:30-20:15",
           "start": "19:30",
           "end": "20:15",
-          "description": "DINNER",
+          "durationHours": 0.75,
           "trackable": false,
-          "order": 10
+          "order": 10,
+          "kind": "meal",
+          "description": "DINNER"
         },
         {
           "key": "pyq_image",
           "label": "PYQ / Image Block",
+          "column": "20:15-21:45",
           "start": "20:15",
           "end": "21:45",
-          "description": "Low-intensity recall only; if anxious, re-read confidence topics.",
+          "durationHours": 1.5,
           "trackable": true,
-          "order": 11
+          "order": 11,
+          "kind": "study",
+          "description": "Low-intensity recall only; if anxious, re-read confidence topics."
         },
         {
           "key": "break_4",
           "label": "Break",
+          "column": "21:45-22:00",
           "start": "21:45",
           "end": "22:00",
-          "description": "BREAK",
+          "durationHours": 0.25,
           "trackable": false,
-          "order": 12
+          "order": 12,
+          "kind": "break",
+          "description": "BREAK"
         },
         {
           "key": "night_recall",
           "label": "Night Recall",
+          "column": "22:00-23:00",
           "start": "22:00",
           "end": "23:00",
-          "description": "Sleep routine / calm shutdown.",
+          "durationHours": 1,
           "trackable": true,
-          "order": 13
+          "order": 13,
+          "kind": "study",
+          "description": "Sleep routine / calm shutdown."
         }
       ]
     }

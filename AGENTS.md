@@ -154,8 +154,18 @@ Defaults:
 
 ### Generated Data
 
-- `scripts/generate-static-data.mjs`: parses workbook/CSV into typed TS files
+- `scripts/generate-static-data.mjs`: validates workbook/CSV structure and parses them into typed TS files
 - `src/lib/generated/*`: committed generated data modules
+
+The generated schedule bundle includes:
+
+- `trackableBlockOrder`
+- `blockTemplates`
+- `workbookReadme`
+- `days`
+- `phases`
+- `gtPlan`
+- `subjects`
 
 ### Docs And Ops
 
@@ -248,6 +258,7 @@ Supabase runtime pass:
 - Avoid duplicating domain logic in pages. Add helper functions to `src/lib/domain/*` or `src/lib/data/app-state.ts`.
 - Keep generated data committed so the repo works immediately after clone.
 - If you change workbook parsing, rerun `npm run generate:data`.
+- Treat the workbook as truth. If generation fails, fix the workbook assumptions or the parser against the workbook, not by reintroducing hidden schedule constants.
 - Keep runtime branching at the persistence/auth/sync boundary; do not fork domain logic per runtime unless there is no cleaner option.
 
 ## What To Avoid

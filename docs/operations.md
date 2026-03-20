@@ -57,6 +57,13 @@ npm run generate:data
 
 3. Verify affected flows locally.
 
+Generation now validates workbook structure. If it fails:
+
+- check sheet names first
+- check `Block_Hours` duration values against the slot ranges
+- check `GT_Test_Plan` day references against `Daywise_Plan`
+- check required day-plan columns before changing app code
+
 ## Update Quotes
 
 1. Edit `resources/quotes.csv`

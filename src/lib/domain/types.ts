@@ -39,12 +39,18 @@ export type McqResult = "right" | "wrong" | "guessed_right";
 export type McqCauseCode = "R" | "C" | "A" | "D" | "I" | "M" | "V" | "B" | "T" | "K";
 
 export type McqPriority = "P1" | "P2" | "P3";
+export type TimelineSlotKind = "study" | "break" | "meal";
 
 export interface GeneratedQuote {
   id: string;
   quote: string;
   author: string;
   category: QuoteCategory;
+}
+
+export interface GeneratedWorkbookNote {
+  section: string;
+  details: string;
 }
 
 export interface GeneratedSubjectStrategy {
@@ -64,14 +70,21 @@ export interface GeneratedGtPlanItem {
   mustOutputAfterTest: string;
 }
 
-export interface GeneratedTimelineSlot {
+export interface GeneratedTimelineTemplate {
   key: BlockKey | string;
   label: string;
+  column?: string;
   start: string;
   end: string;
-  description: string;
+  durationHours?: number;
+  description?: string;
   trackable: boolean;
   order: number;
+  kind?: TimelineSlotKind;
+}
+
+export interface GeneratedTimelineSlot extends GeneratedTimelineTemplate {
+  description: string;
 }
 
 export interface GeneratedScheduleDay {
@@ -98,6 +111,8 @@ export interface GeneratedScheduleBundle {
   examDate: string;
   hardBoundaryDate: string;
   trackableBlockOrder: BlockKey[];
+  blockTemplates?: GeneratedTimelineTemplate[];
+  workbookReadme?: GeneratedWorkbookNote[];
   days: GeneratedScheduleDay[];
   phases: GeneratedPhaseSummary[];
   gtPlan: GeneratedGtPlanItem[];

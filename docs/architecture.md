@@ -21,6 +21,14 @@ The core design goal is to keep one domain model and one set of page/read-model 
 
 These files are build-time truth and should only change through source edits plus regeneration.
 
+The generator validates workbook structure before output:
+
+- required sheets: `Readme`, `Daywise_Plan`, `Block_Hours`, `Subject_Strategy`, `GT_Test_Plan`
+- required day-plan columns and 100-day continuity
+- `Block_Hours` duration consistency against the slot ranges
+- GT/Test cross-checking between `Daywise_Plan` and `GT_Test_Plan`
+- subject-list coverage against the schedule corpus
+
 ### Domain Layer
 
 - `src/lib/domain/types.ts`
@@ -206,6 +214,20 @@ In `local` mode, time-based behavior remains manually testable without waiting f
 - absorption savings come from:
   - Day 84 buffer
   - fixed compression pairs
+
+## Generated Static Bundle
+
+`src/lib/generated/schedule-data.ts` now includes:
+
+- `trackableBlockOrder`
+- `blockTemplates`
+- `workbookReadme`
+- `days`
+- `phases`
+- `gtPlan`
+- `subjects`
+
+This keeps the runtime schedule traceable back to the workbook instead of relying on unspoken block-template constants.
 
 ## PWA
 

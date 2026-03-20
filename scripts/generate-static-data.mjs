@@ -9,21 +9,65 @@ const generatedDir = resolve(root, "src/lib/generated");
 const workbookPath = resolve(resourcesDir, "neet_pg_2026_100_day_schedule.xlsx");
 const quotesPath = resolve(resourcesDir, "quotes.csv");
 
-const trackableMappings = [
-  { key: "morning_revision", label: "Morning Revision", column: "06:30-08:00", start: "06:30", end: "08:00", order: 1, trackable: true },
-  { key: "break_1", label: "Break", column: "08:00-08:15", start: "08:00", end: "08:15", order: 2, trackable: false },
-  { key: "block_a", label: "Block A", column: "08:15-10:45", start: "08:15", end: "10:45", order: 3, trackable: true },
-  { key: "break_2", label: "Break", column: "10:45-11:00", start: "10:45", end: "11:00", order: 4, trackable: false },
-  { key: "block_b", label: "Block B", column: "11:00-13:30", start: "11:00", end: "13:30", order: 5, trackable: true },
-  { key: "lunch", label: "Lunch", column: "13:30-14:15", start: "13:30", end: "14:15", order: 6, trackable: false },
-  { key: "consolidation", label: "Consolidation", column: "14:15-16:45", start: "14:15", end: "16:45", order: 7, trackable: true },
-  { key: "break_3", label: "Break", column: "16:45-17:00", start: "16:45", end: "17:00", order: 8, trackable: false },
-  { key: "mcq", label: "MCQ Block", column: "17:00-19:30", start: "17:00", end: "19:30", order: 9, trackable: true },
-  { key: "dinner", label: "Dinner", column: "19:30-20:15", start: "19:30", end: "20:15", order: 10, trackable: false },
-  { key: "pyq_image", label: "PYQ / Image Block", column: "20:15-21:45", start: "20:15", end: "21:45", order: 11, trackable: true },
-  { key: "break_4", label: "Break", column: "21:45-22:00", start: "21:45", end: "22:00", order: 12, trackable: false },
-  { key: "night_recall", label: "Night Recall", column: "22:00-23:00", start: "22:00", end: "23:00", order: 13, trackable: true },
+const REQUIRED_SHEETS = ["Readme", "Daywise_Plan", "Block_Hours", "Subject_Strategy", "GT_Test_Plan"];
+
+const TIMELINE_COLUMNS = [
+  "06:30-08:00",
+  "08:00-08:15",
+  "08:15-10:45",
+  "10:45-11:00",
+  "11:00-13:30",
+  "13:30-14:15",
+  "14:15-16:45",
+  "16:45-17:00",
+  "17:00-19:30",
+  "19:30-20:15",
+  "20:15-21:45",
+  "21:45-22:00",
+  "22:00-23:00",
 ];
+
+const DAYWISE_REQUIRED_COLUMNS = [
+  "Day",
+  "Phase",
+  "Primary Focus",
+  "Resource",
+  ...TIMELINE_COLUMNS,
+  "GT/Test",
+  "Deliverable",
+  "Planned_Hours",
+];
+
+const TRACKABLE_TEMPLATE_META = {
+  "06:30-08:00": { key: "morning_revision", label: "Morning Revision" },
+  "08:15-10:45": { key: "block_a", label: "Block A" },
+  "11:00-13:30": { key: "block_b", label: "Block B" },
+  "14:15-16:45": { key: "consolidation", label: "Consolidation" },
+  "17:00-19:30": { key: "mcq", label: "MCQ Block" },
+  "20:15-21:45": { key: "pyq_image", label: "PYQ / Image Block" },
+  "22:00-23:00": { key: "night_recall", label: "Night Recall" },
+};
+
+const SEPARATOR_TEMPLATE_META = {
+  "08:00-08:15": { key: "break_1", label: "Break", kind: "break" },
+  "10:45-11:00": { key: "break_2", label: "Break", kind: "break" },
+  "13:30-14:15": { key: "lunch", label: "Lunch", kind: "meal" },
+  "16:45-17:00": { key: "break_3", label: "Break", kind: "break" },
+  "19:30-20:15": { key: "dinner", label: "Dinner", kind: "meal" },
+  "21:45-22:00": { key: "break_4", label: "Break", kind: "break" },
+};
+
+const SUBJECT_ALIAS_OVERRIDES = {
+  "Community Medicine": ["PSM", "CM"],
+  "Forensic Medicine": ["FMT"],
+  Ophthalmology: ["Ophthal"],
+  Anaesthesia: ["Anesthesia"],
+  Dermatology: ["Derm"],
+  Psychiatry: ["Psych"],
+  Orthopaedics: ["Orthopedics", "Ortho"],
+  Paediatrics: ["Pediatrics", "Paeds"],
+  "Obstetrics & Gynaecology": ["OBG", "OB/GYN"],
+};
 
 const phaseDescriptions = {
   "Orientation + baseline": "System setup, diagnostic baseline, and source locking.",
@@ -41,53 +85,257 @@ const phaseDescriptions = {
   "Pre-exam day": "Calm recall, logistics, and sleep protection.",
 };
 
-function readWorkbook() {
-  return XLSX.readFile(workbookPath);
+const allowedGtTestTypes = new Set(["No", "Diagnostic 100Q", "Full GT", "120Q half-sim"]);
+const allowedQuoteCategories = new Set(["daily", "tough_day", "celebration"]);
+
+function fail(message) {
+  throw new Error(`[generate:data] ${message}`);
 }
 
-function readWorkbookSheet(name) {
-  const workbook = readWorkbook();
-  const sheet = workbook.Sheets[name];
-  if (!sheet) {
-    throw new Error(`Missing sheet: ${name}`);
+function assert(condition, message) {
+  if (!condition) {
+    fail(message);
   }
-
-  return XLSX.utils.sheet_to_json(sheet, { defval: "" });
 }
 
 function toArrayLiteral(value) {
   return JSON.stringify(value, null, 2);
 }
 
-async function main() {
-  const dayRows = readWorkbookSheet("Daywise_Plan");
-  const subjectRows = readWorkbookSheet("Subject_Strategy");
-  const gtRows = readWorkbookSheet("GT_Test_Plan");
+function readWorkbook() {
+  const workbook = XLSX.readFile(workbookPath);
+  const missingSheets = REQUIRED_SHEETS.filter((sheetName) => !workbook.Sheets[sheetName]);
+  assert(missingSheets.length === 0, `Missing workbook sheet(s): ${missingSheets.join(", ")}`);
+  return workbook;
+}
 
-  const days = dayRows.map((row) => ({
-    dayNumber: Number(row.Day),
-    phase: String(row.Phase),
-    primaryFocus: String(row["Primary Focus"]),
-    resource: String(row.Resource),
-    originalMorningItems: String(row["06:30-08:00"])
+function readWorkbookSheet(workbook, name) {
+  const sheet = workbook.Sheets[name];
+  assert(sheet, `Missing sheet: ${name}`);
+  const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+  assert(rows.length > 0, `Sheet ${name} is empty`);
+  return rows;
+}
+
+function ensureColumns(rows, sheetName, requiredColumns) {
+  const available = new Set(Object.keys(rows[0] ?? {}));
+  const missing = requiredColumns.filter((column) => !available.has(column));
+  assert(missing.length === 0, `${sheetName} is missing required column(s): ${missing.join(", ")}`);
+}
+
+function requireString(value, label) {
+  const result = String(value ?? "").trim();
+  assert(result.length > 0, `${label} is required`);
+  return result;
+}
+
+function requireFiniteNumber(value, label) {
+  const result = Number(value);
+  assert(Number.isFinite(result), `${label} must be a finite number, received: ${String(value)}`);
+  return result;
+}
+
+function requireInteger(value, label) {
+  const result = requireFiniteNumber(value, label);
+  assert(Number.isInteger(result), `${label} must be an integer, received: ${String(value)}`);
+  return result;
+}
+
+function parseTimeRange(range, label) {
+  const match = /^(\d{2}:\d{2})-(\d{2}:\d{2})$/.exec(range);
+  assert(match, `${label} must be a time range like HH:MM-HH:MM, received: ${range}`);
+  return { start: match[1], end: match[2] };
+}
+
+function timeToMinutes(value, label) {
+  const match = /^(\d{2}):(\d{2})$/.exec(value);
+  assert(match, `${label} must be in HH:MM format, received: ${value}`);
+  return Number(match[1]) * 60 + Number(match[2]);
+}
+
+function durationHoursFromRange(range) {
+  const { start, end } = parseTimeRange(range, `Range ${range}`);
+  return (timeToMinutes(end, `Range ${range} end`) - timeToMinutes(start, `Range ${range} start`)) / 60;
+}
+
+function nearlyEqual(left, right) {
+  return Math.abs(left - right) < 0.001;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildTrackableTemplates(blockHourRows) {
+  ensureColumns(blockHourRows, "Block_Hours", ["Block", "Hours"]);
+  assert(
+    blockHourRows.length === Object.keys(TRACKABLE_TEMPLATE_META).length,
+    `Block_Hours must contain ${Object.keys(TRACKABLE_TEMPLATE_META).length} rows`,
+  );
+
+  const templates = blockHourRows.map((row, index) => {
+    const column = requireString(row.Block, `Block_Hours row ${index + 1} Block`);
+    const meta = TRACKABLE_TEMPLATE_META[column];
+    assert(meta, `Unexpected trackable block range in Block_Hours: ${column}`);
+
+    const durationHours = requireFiniteNumber(row.Hours, `Block_Hours ${column} Hours`);
+    const expectedHours = durationHoursFromRange(column);
+    assert(
+      nearlyEqual(durationHours, expectedHours),
+      `Block_Hours ${column} must equal ${expectedHours}h, received ${durationHours}`,
+    );
+
+    const { start, end } = parseTimeRange(column, `Block_Hours ${column}`);
+
+    return {
+      key: meta.key,
+      label: meta.label,
+      column,
+      start,
+      end,
+      durationHours,
+      trackable: true,
+      order: TIMELINE_COLUMNS.indexOf(column) + 1,
+      kind: "study",
+    };
+  });
+
+  const seenColumns = new Set(templates.map((template) => template.column));
+  const missingTrackables = Object.keys(TRACKABLE_TEMPLATE_META).filter((column) => !seenColumns.has(column));
+  assert(missingTrackables.length === 0, `Block_Hours is missing trackable ranges: ${missingTrackables.join(", ")}`);
+
+  return templates.sort((left, right) => left.order - right.order);
+}
+
+function buildTimelineTemplates(trackableTemplates) {
+  const trackableByColumn = new Map(trackableTemplates.map((template) => [template.column, template]));
+
+  return TIMELINE_COLUMNS.map((column, index) => {
+    const trackableTemplate = trackableByColumn.get(column);
+    if (trackableTemplate) {
+      return { ...trackableTemplate, order: index + 1 };
+    }
+
+    const separator = SEPARATOR_TEMPLATE_META[column];
+    assert(separator, `No timeline template metadata configured for non-trackable slot ${column}`);
+    const { start, end } = parseTimeRange(column, `Timeline column ${column}`);
+    return {
+      key: separator.key,
+      label: separator.label,
+      column,
+      start,
+      end,
+      durationHours: durationHoursFromRange(column),
+      trackable: false,
+      order: index + 1,
+      kind: separator.kind,
+    };
+  });
+}
+
+function parseReadmeRows(readmeRows) {
+  ensureColumns(readmeRows, "Readme", ["Section", "Details"]);
+  return readmeRows.map((row, index) => ({
+    section: requireString(row.Section, `Readme row ${index + 1} Section`),
+    details: requireString(row.Details, `Readme row ${index + 1} Details`),
+  }));
+}
+
+function parseSubjects(subjectRows) {
+  ensureColumns(subjectRows, "Subject_Strategy", [
+    "Subject",
+    "WoR_hours",
+    "First_pass_days",
+    "Priority_tier",
+    "Resource_decision",
+    "Must_focus_topics",
+  ]);
+
+  const seenSubjects = new Set();
+  const subjects = subjectRows.map((row, index) => {
+    const subject = requireString(row.Subject, `Subject_Strategy row ${index + 1} Subject`);
+    assert(!seenSubjects.has(subject), `Subject_Strategy contains duplicate subject: ${subject}`);
+    seenSubjects.add(subject);
+
+    const worHours = requireFiniteNumber(row.WoR_hours, `Subject_Strategy ${subject} WoR_hours`);
+    const firstPassDays = requireFiniteNumber(row.First_pass_days, `Subject_Strategy ${subject} First_pass_days`);
+    assert(firstPassDays > 0, `Subject_Strategy ${subject} First_pass_days must be positive`);
+
+    const mustFocusTopics = requireString(row.Must_focus_topics, `Subject_Strategy ${subject} Must_focus_topics`)
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    assert(mustFocusTopics.length > 0, `Subject_Strategy ${subject} must list at least one focus topic`);
+
+    return {
+      subject,
+      worHours,
+      firstPassDays,
+      priorityTier: requireString(row.Priority_tier, `Subject_Strategy ${subject} Priority_tier`),
+      resourceDecision: requireString(row.Resource_decision, `Subject_Strategy ${subject} Resource_decision`),
+      mustFocusTopics,
+    };
+  });
+
+  assert(subjects.length === 19, `Subject_Strategy must contain 19 subjects, received ${subjects.length}`);
+  return subjects;
+}
+
+function parseGtTestType(value, label) {
+  const result = requireString(value, label);
+  assert(allowedGtTestTypes.has(result), `${label} must be one of ${[...allowedGtTestTypes].join(", ")}, received ${result}`);
+  return result;
+}
+
+function parseDays(dayRows, timelineTemplates, trackableTemplates) {
+  ensureColumns(dayRows, "Daywise_Plan", DAYWISE_REQUIRED_COLUMNS);
+  assert(dayRows.length === 100, `Daywise_Plan must contain 100 days, received ${dayRows.length}`);
+
+  const trackablePlannedHours = trackableTemplates.reduce((total, template) => total + template.durationHours, 0);
+  const seenDays = new Set();
+
+  return dayRows.map((row, index) => {
+    const dayNumber = requireInteger(row.Day, `Daywise_Plan row ${index + 1} Day`);
+    assert(dayNumber === index + 1, `Daywise_Plan day order must be consecutive from 1..100; expected ${index + 1}, received ${dayNumber}`);
+    assert(!seenDays.has(dayNumber), `Daywise_Plan contains duplicate day number ${dayNumber}`);
+    seenDays.add(dayNumber);
+
+    const plannedHours = requireFiniteNumber(row.Planned_Hours, `Day ${dayNumber} Planned_Hours`);
+    assert(
+      nearlyEqual(plannedHours, trackablePlannedHours),
+      `Day ${dayNumber} Planned_Hours must equal the Block_Hours total of ${trackablePlannedHours}, received ${plannedHours}`,
+    );
+
+    const slots = timelineTemplates.map((template) => ({
+      ...template,
+      description: requireString(row[template.column], `Day ${dayNumber} ${template.column}`),
+    }));
+
+    const originalMorningItems = requireString(row["06:30-08:00"], `Day ${dayNumber} morning revision`)
       .split("|")
       .map((item) => item.trim())
-      .filter(Boolean),
-    gtTest: String(row["GT/Test"]),
-    deliverable: String(row.Deliverable),
-    plannedHours: Number(row.Planned_Hours),
-    slots: trackableMappings.map((slot) => ({
-      key: slot.key,
-      label: slot.label,
-      start: slot.start,
-      end: slot.end,
-      description: String(row[slot.column] ?? ""),
-      trackable: slot.trackable,
-      order: slot.order,
-    })),
-  }));
+      .filter(Boolean);
 
+    assert(originalMorningItems.length > 0, `Day ${dayNumber} must include at least one morning revision item`);
+
+    return {
+      dayNumber,
+      phase: requireString(row.Phase, `Day ${dayNumber} Phase`),
+      primaryFocus: requireString(row["Primary Focus"], `Day ${dayNumber} Primary Focus`),
+      resource: requireString(row.Resource, `Day ${dayNumber} Resource`),
+      originalMorningItems,
+      gtTest: parseGtTestType(row["GT/Test"], `Day ${dayNumber} GT/Test`),
+      deliverable: requireString(row.Deliverable, `Day ${dayNumber} Deliverable`),
+      plannedHours,
+      slots,
+    };
+  });
+}
+
+function buildPhases(days) {
   const phaseMap = new Map();
+
   for (const day of days) {
     const existing = phaseMap.get(day.phase);
     if (!existing) {
@@ -104,39 +352,120 @@ async function main() {
     existing.days += 1;
   }
 
-  const phases = [...phaseMap.values()].map((phase) => ({
+  return [...phaseMap.values()].map((phase) => ({
     ...phase,
     description: phaseDescriptions[phase.name] ?? "Study phase",
   }));
+}
 
-  const subjects = subjectRows.map((row) => ({
-    subject: String(row.Subject),
-    worHours: Number(row.WoR_hours),
-    firstPassDays: Number(row.First_pass_days),
-    priorityTier: String(row.Priority_tier),
-    resourceDecision: String(row.Resource_decision),
-    mustFocusTopics: String(row.Must_focus_topics)
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean),
-  }));
+function getSubjectAliases(subject) {
+  return [subject, ...(SUBJECT_ALIAS_OVERRIDES[subject] ?? [])];
+}
 
-  const gtPlan = gtRows.map((row) => ({
-    dayNumber: Number(row.Day),
-    testType: String(row.Test_type),
-    purpose: String(row.Purpose),
-    whatToMeasure: String(row.What_to_measure),
-    mustOutputAfterTest: String(row.Must_output_after_test),
-  }));
+function validateSubjectCoverage(subjects, days) {
+  const scheduleCorpus = days
+    .map((day) => [day.primaryFocus, ...day.slots.map((slot) => slot.description)].join(" "))
+    .join("\n");
 
-  const quotesWorkbook = XLSX.readFile(quotesPath, { type: "string" });
-  const quotesSheet = quotesWorkbook.Sheets[quotesWorkbook.SheetNames[0]];
-  const quotes = XLSX.utils.sheet_to_json(quotesSheet, { defval: "" }).map((row, index) => ({
-    id: `quote-${index + 1}`,
-    quote: row.quote,
-    author: row.author,
-    category: row.category,
-  }));
+  const missingSubjects = subjects
+    .filter((subject) =>
+      !getSubjectAliases(subject.subject).some((alias) => new RegExp(`\\b${escapeRegExp(alias)}\\b`, "i").test(scheduleCorpus)),
+    )
+    .map((subject) => subject.subject);
+
+  assert(
+    missingSubjects.length === 0,
+    `Subject_Strategy subjects not referenced anywhere in Daywise_Plan: ${missingSubjects.join(", ")}`,
+  );
+}
+
+function parseGtPlan(gtRows, days) {
+  ensureColumns(gtRows, "GT_Test_Plan", ["Day", "Test_type", "Purpose", "What_to_measure", "Must_output_after_test"]);
+  const dayMap = new Map(days.map((day) => [day.dayNumber, day]));
+  const seenDays = new Set();
+
+  const gtPlan = gtRows.map((row, index) => {
+    const dayNumber = requireInteger(row.Day, `GT_Test_Plan row ${index + 1} Day`);
+    assert(dayMap.has(dayNumber), `GT_Test_Plan references unknown day ${dayNumber}`);
+    assert(!seenDays.has(dayNumber), `GT_Test_Plan contains duplicate day ${dayNumber}`);
+    seenDays.add(dayNumber);
+
+    const testType = parseGtTestType(row.Test_type, `GT_Test_Plan day ${dayNumber} Test_type`);
+    assert(testType !== "No", `GT_Test_Plan day ${dayNumber} cannot use Test_type "No"`);
+
+    const matchingDay = dayMap.get(dayNumber);
+    assert(
+      matchingDay.gtTest === testType,
+      `GT_Test_Plan day ${dayNumber} (${testType}) does not match Daywise_Plan GT/Test (${matchingDay.gtTest})`,
+    );
+
+    return {
+      dayNumber,
+      testType,
+      purpose: requireString(row.Purpose, `GT_Test_Plan day ${dayNumber} Purpose`),
+      whatToMeasure: requireString(row.What_to_measure, `GT_Test_Plan day ${dayNumber} What_to_measure`),
+      mustOutputAfterTest: requireString(
+        row.Must_output_after_test,
+        `GT_Test_Plan day ${dayNumber} Must_output_after_test`,
+      ),
+    };
+  });
+
+  const plannedGtDays = days
+    .filter((day) => day.gtTest !== "No")
+    .map((day) => day.dayNumber)
+    .sort((left, right) => left - right);
+
+  const gtPlanDays = gtPlan.map((item) => item.dayNumber).sort((left, right) => left - right);
+
+  assert(
+    JSON.stringify(gtPlanDays) === JSON.stringify(plannedGtDays),
+    `GT_Test_Plan days ${gtPlanDays.join(", ")} do not match GT/Test days ${plannedGtDays.join(", ")}`,
+  );
+
+  return gtPlan;
+}
+
+function parseQuotes() {
+  const workbook = XLSX.readFile(quotesPath, { type: "string" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  assert(sheet, "quotes.csv is empty");
+
+  return XLSX.utils.sheet_to_json(sheet, { defval: "" }).map((row, index) => {
+    const quote = requireString(row.quote, `quotes.csv row ${index + 1} quote`);
+    const author = requireString(row.author, `quotes.csv row ${index + 1} author`);
+    const category = requireString(row.category, `quotes.csv row ${index + 1} category`);
+
+    assert(
+      allowedQuoteCategories.has(category),
+      `quotes.csv row ${index + 1} category must be one of ${[...allowedQuoteCategories].join(", ")}, received ${category}`,
+    );
+
+    return {
+      id: `quote-${index + 1}`,
+      quote,
+      author,
+      category,
+    };
+  });
+}
+
+async function main() {
+  const workbook = readWorkbook();
+  const readmeRows = readWorkbookSheet(workbook, "Readme");
+  const dayRows = readWorkbookSheet(workbook, "Daywise_Plan");
+  const blockHourRows = readWorkbookSheet(workbook, "Block_Hours");
+  const subjectRows = readWorkbookSheet(workbook, "Subject_Strategy");
+  const gtRows = readWorkbookSheet(workbook, "GT_Test_Plan");
+
+  const workbookReadme = parseReadmeRows(readmeRows);
+  const blockTemplates = buildTimelineTemplates(buildTrackableTemplates(blockHourRows));
+  const days = parseDays(dayRows, blockTemplates, blockTemplates.filter((template) => template.trackable));
+  const subjects = parseSubjects(subjectRows);
+  validateSubjectCoverage(subjects, days);
+  const gtPlan = parseGtPlan(gtRows, days);
+  const phases = buildPhases(days);
+  const quotes = parseQuotes();
 
   await mkdir(generatedDir, { recursive: true });
 
@@ -145,7 +474,9 @@ async function main() {
 export const scheduleData: GeneratedScheduleBundle = ${toArrayLiteral({
     examDate: "2026-08-30",
     hardBoundaryDate: "2026-08-20",
-    trackableBlockOrder: ["morning_revision", "block_a", "block_b", "consolidation", "mcq", "pyq_image", "night_recall"],
+    trackableBlockOrder: blockTemplates.filter((template) => template.trackable).map((template) => template.key),
+    blockTemplates,
+    workbookReadme,
     days,
     phases,
     gtPlan,

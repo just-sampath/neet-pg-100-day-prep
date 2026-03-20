@@ -13,6 +13,7 @@ npm run build:webpack
 - lint
 - typecheck
 - vitest
+- workbook-to-generated-data regression checks
 
 ## Local Mode Manual Pass
 
@@ -97,3 +98,10 @@ In Supabase mode, with `CRON_SECRET` configured:
 - Supabase mode should not rely on the fixed polling loop for core sync.
 - Conflict policy is last-write-wins through authoritative server persistence and refresh on Realtime events.
 - In Supabase mode, midnight and weekly automation should come from cron routes, not page-open refresh behavior.
+
+## Static Data Regression Expectations
+
+- `Block_Hours` must remain the source of truth for trackable block timing.
+- `Daywise_Plan` must remain exactly 100 mapped days.
+- `GT_Test_Plan` day references must match GT-tagged days in `Daywise_Plan`.
+- If any of these assumptions break, `npm run generate:data` or `vitest` should fail loudly.
