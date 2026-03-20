@@ -33,6 +33,7 @@ This must apply:
 - `supabase/migrations/0001_initial_schema.sql`
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
 - `supabase/migrations/0003_automation_job_runs.sql`
+- `supabase/migrations/0004_revision_completion_identity.sql`
 
 `0002_runtime_rls_realtime.sql` is required for:
 
@@ -46,6 +47,12 @@ This must apply:
 - hosted cron job idempotence
 - failure inspection and run telemetry
 - safe auditing of midnight and weekly automation
+
+`0004_revision_completion_identity.sql` is required for:
+
+- block-aware revision completion identity
+- separate revision series for `block_a` and `block_b`
+- safe retroactive-completion recomputation without key collisions
 
 ## Auth Setup
 

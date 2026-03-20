@@ -13,7 +13,9 @@ import {
   getBlockProgress,
   getDisplayBlockDescription,
   getHiddenBlockKeys,
+  getRevisionAssignedSlotLabel,
   getVisibleBlockKeys,
+  groupRevisionItemsForDisplay,
 } from "@/lib/domain/schedule";
 import { scheduleData } from "@/lib/generated/schedule-data";
 import {
@@ -71,6 +73,12 @@ function getProgressLabel(status: BlockStatus) {
     return "Moved out";
   }
   return "Pending";
+}
+
+function getRevisionGroupNote(itemCount: number) {
+  return itemCount === 1
+    ? "1 revision segment is due from this topic."
+    : `${itemCount} revision segments are due from this topic.`;
 }
 
 export default async function TodayPage() {
@@ -139,6 +147,13 @@ export default async function TodayPage() {
   const revisionDue = data.todayRevisionPlan?.queue.length ?? 0;
   const overflowCount = data.todayRevisionPlan?.overflow.length ?? 0;
   const catchUpCount = data.todayRevisionPlan?.catchUp.length ?? 0;
+  const restudyCount = data.todayRevisionPlan?.restudyFlags.length ?? 0;
+  const revisionGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.queue) : [];
+  const overflowGroups = data.todayRevisionPlan
+    ? groupRevisionItemsForDisplay(data.todayRevisionPlan.overflow.map((entry) => entry.item))
+    : [];
+  const catchUpGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.catchUp) : [];
+  const restudyGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.restudyFlags) : [];
   const quickStats = [
     {
       label: "Visible Blocks",
@@ -148,7 +163,11 @@ export default async function TodayPage() {
     {
       label: "Revision Due",
       value: String(revisionDue),
-      note: overflowCount ? `${overflowCount} overflow items also suggested.` : "No extra overflow pressure.",
+      note: overflowCount
+        ? `${overflowCount} overflow items also suggested.`
+        : data.todayRevisionPlan?.morningMinutesPerItem
+          ? `~${data.todayRevisionPlan.morningMinutesPerItem} min per item this morning.`
+          : "No extra overflow pressure.",
     },
     {
       label: "Backlog Queue",
@@ -327,6 +346,14 @@ export default async function TodayPage() {
             <div>
               <div className="eyebrow">Morning Revision</div>
               <h3 className="display mt-3 text-3xl">Open the day with retrieval, not drift.</h3>
+              {data.todayRevisionPlan?.morningMinutesPerItem ? (
+                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  About {data.todayRevisionPlan.morningMinutesPerItem} minutes per visible item across the 06:30-08:00 block.
+                </p>
+              ) : null}
+              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                Only revision work that is due today is shown here. Later recalls stay quiet until their own date arrives.
+              </p>
             </div>
             <span className="status-badge" data-tone={revisionDue ? "yellow" : "green"}>
               {revisionDue} due
@@ -334,28 +361,48 @@ export default async function TodayPage() {
           </div>
 
           <div className="mt-6 grid gap-3">
-            {data.todayRevisionPlan?.queue.length ? (
-              data.todayRevisionPlan.queue.map((item, index) => (
-                <form key={item.id} action={completeRevisionAction} className="note-card p-4">
-                  <input type="hidden" name="sourceDay" value={item.sourceDay} />
-                  <input type="hidden" name="revisionType" value={item.revisionType} />
-                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div className="flex gap-4">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] font-mono text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                        {String(index + 1).padStart(2, "0")}
+            {revisionGroups.length ? (
+              revisionGroups.map((group, index) => (
+                <article key={group.id} className="note-card p-4">
+                  <div className="flex gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] font-mono text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
+                      {String(index + 1).padStart(2, "0")}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
+                        {group.revisionTypes.join(" · ")} / {group.subject}
                       </div>
-                      <div>
-                        <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
-                          {item.revisionType} / {item.subject}
-                        </div>
-                        <div className="mt-2 text-base font-semibold leading-7">{item.topic}</div>
+                      <div className="mt-2 text-base font-semibold leading-7">{group.sourceTopicLabel}</div>
+                      <div className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                        {getRevisionGroupNote(group.items.length)}
                       </div>
                     </div>
-                    <button className="button-secondary" type="submit">
-                      Check off
-                    </button>
                   </div>
-                </form>
+                  <div className="mt-4 grid gap-2">
+                    {group.items.map((item) => (
+                      <form
+                        key={item.id}
+                        action={completeRevisionAction}
+                        className="rounded-2xl border border-[var(--border)] p-3"
+                      >
+                        <input type="hidden" name="sourceDay" value={item.sourceDay} />
+                        <input type="hidden" name="sourceBlockKey" value={item.sourceBlockKey} />
+                        <input type="hidden" name="revisionType" value={item.revisionType} />
+                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                          <div>
+                            <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
+                              {item.revisionType}
+                            </div>
+                            <div className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{item.topic}</div>
+                          </div>
+                          <button className="button-secondary" type="submit">
+                            Check off
+                          </button>
+                        </div>
+                      </form>
+                    ))}
+                  </div>
+                </article>
               ))
             ) : (
               <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
@@ -364,16 +411,33 @@ export default async function TodayPage() {
             )}
           </div>
 
-          {(overflowCount || catchUpCount) ? (
+          {(overflowCount || catchUpCount || restudyCount || data.todayRevisionPlan?.overflowSuggestion) ? (
             <div className="mt-5 grid gap-3">
+              {data.todayRevisionPlan?.overflowSuggestion ? (
+                <div className="note-card p-4">
+                  <div className="eyebrow">Revision Pressure</div>
+                  <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                    {data.todayRevisionPlan.overflowSuggestion}
+                  </p>
+                </div>
+              ) : null}
               {overflowCount ? (
                 <div className="note-card p-4">
                   <div className="eyebrow">Also Review Today</div>
-                  <div className="mt-3 space-y-2 text-sm leading-7 text-[var(--text-secondary)]">
-                    {data.todayRevisionPlan!.overflow.map((overflow) => (
-                      <p key={overflow.item.id}>
-                        {overflow.label}: {overflow.item.topic} ({overflow.item.revisionType})
-                      </p>
+                  <div className="mt-3 grid gap-3 text-sm leading-7 text-[var(--text-secondary)]">
+                    {overflowGroups.map((group) => (
+                      <div key={group.id} className="rounded-2xl border border-[var(--border)] p-3">
+                        <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
+                        <div className="mt-2 space-y-1">
+                          {data.todayRevisionPlan!.overflow
+                            .filter((overflow) => overflow.item.sourceDay === group.sourceDay)
+                            .map((overflow) => (
+                              <p key={overflow.item.id}>
+                                {getRevisionAssignedSlotLabel(overflow.assignedSlot)}: {overflow.item.revisionType} · {overflow.item.topic}
+                              </p>
+                            ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -381,11 +445,37 @@ export default async function TodayPage() {
               {catchUpCount ? (
                 <div className="note-card p-4">
                   <div className="eyebrow">Catch-Up Revision</div>
-                  <div className="mt-3 space-y-2 text-sm leading-7 text-[var(--text-secondary)]">
-                    {data.todayRevisionPlan!.catchUp.map((item) => (
-                      <p key={item.id}>
-                        {item.topic} ({item.revisionType})
-                      </p>
+                  <div className="mt-3 grid gap-3 text-sm leading-7 text-[var(--text-secondary)]">
+                    {catchUpGroups.map((group) => (
+                      <div key={group.id} className="rounded-2xl border border-[var(--border)] p-3">
+                        <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
+                        <div className="mt-2 space-y-1">
+                          {group.items.map((item) => (
+                            <p key={item.id}>
+                              {getRevisionAssignedSlotLabel(item.assignedSlot)}: {item.revisionType} · {item.topic}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {restudyCount ? (
+                <div className="note-card p-4">
+                  <div className="eyebrow">Re-Study Flags</div>
+                  <div className="mt-3 grid gap-3 text-sm leading-7 text-[var(--text-secondary)]">
+                    {restudyGroups.map((group) => (
+                      <div key={group.id} className="rounded-2xl border border-[var(--border)] p-3">
+                        <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
+                        <div className="mt-2 space-y-1">
+                          {group.items.map((item) => (
+                            <p key={item.id}>
+                              {item.revisionType} · {item.topic} should return in the next revision phase instead of staying in the daily queue.
+                            </p>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>

@@ -8,12 +8,16 @@ import { redirect } from "next/navigation";
 import { loginUser, logoutUser, requireCurrentUser } from "@/lib/auth/session";
 import { applyTrafficLightToDay, generateWeeklySummary, getOrCreateProgress, moveBlockToBacklog } from "@/lib/data/app-state";
 import { createEmptyUserState, mutateStore } from "@/lib/data/local-store";
-import { getVisibleBlockKeys } from "@/lib/domain/schedule";
-import type { BlockKey, McqCauseCode, McqPriority, McqResult, TrafficLight } from "@/lib/domain/types";
+import { createRevisionId, getVisibleBlockKeys, reconcileRevisionCompletionsForSource } from "@/lib/domain/schedule";
+import type { BlockKey, McqCauseCode, McqPriority, McqResult, RevisionSourceBlockKey, TrafficLight } from "@/lib/domain/types";
 import { toDateOnly, weekBounds } from "@/lib/utils/date";
 
 function asString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value : "";
+}
+
+function completionIsoForDateOnly(dateOnly: string | null) {
+  return dateOnly ? `${dateOnly}T12:00:00.000Z` : new Date().toISOString();
 }
 
 export async function loginAction(formData: FormData) {
@@ -74,6 +78,7 @@ export async function updateBlockAction(formData: FormData) {
   const dayNumber = Number(asString(formData.get("dayNumber")));
   const blockKey = asString(formData.get("blockKey")) as BlockKey;
   const intent = asString(formData.get("intent"));
+  const completionDate = asString(formData.get("completionDate")) || null;
   const actualStart = asString(formData.get("actualStart")) || null;
   const actualEnd = asString(formData.get("actualEnd")) || null;
   const note = asString(formData.get("note")) || null;
@@ -96,11 +101,19 @@ export async function updateBlockAction(formData: FormData) {
 
     if (intent === "complete") {
       progress.status = "completed";
-      progress.completedAt = new Date().toISOString();
+      progress.completedAt = completionIsoForDateOnly(completionDate);
       progress.sourceTag = null;
+      progress.note = note;
+      reconcileRevisionCompletionsForSource(userState.revisionCompletions, dayNumber, blockKey, progress.completedAt);
+      for (const item of Object.values(userState.backlogItems)) {
+        if (item.originalDay === dayNumber && item.originalBlockKey === blockKey && item.status !== "dismissed") {
+          item.status = "completed";
+          item.completedAt = progress.completedAt;
+        }
+      }
     } else if (intent === "partial") {
       progress.status = "partial";
-      progress.completedAt = new Date().toISOString();
+      progress.completedAt = completionIsoForDateOnly(completionDate);
       progress.note = note;
     } else if (intent === "skip") {
       progress.status = "skipped";
@@ -120,11 +133,18 @@ export async function updateBlockAction(formData: FormData) {
 export async function completeRevisionAction(formData: FormData) {
   const user = await requireCurrentUser();
   const sourceDay = Number(asString(formData.get("sourceDay")));
+  const sourceBlockKey = asString(formData.get("sourceBlockKey")) as RevisionSourceBlockKey;
   const revisionType = asString(formData.get("revisionType"));
+  if (!sourceDay || !["block_a", "block_b"].includes(sourceBlockKey) || !["D+1", "D+3", "D+7", "D+14", "D+28"].includes(revisionType)) {
+    return;
+  }
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    userState.revisionCompletions[`${sourceDay}:${revisionType}`] = {
+    const revisionId = createRevisionId(sourceDay, sourceBlockKey, revisionType as never);
+    userState.revisionCompletions[revisionId] = {
+      revisionId,
       sourceDay,
+      sourceBlockKey,
       revisionType: revisionType as never,
       completedAt: new Date().toISOString(),
     };
@@ -149,10 +169,17 @@ export async function updateBacklogAction(formData: FormData) {
 
     if (intent === "complete") {
       item.status = "completed";
-      item.completedAt = completionDate ? `${completionDate}T12:00:00.000Z` : new Date().toISOString();
+      item.completedAt = completionIsoForDateOnly(completionDate);
       const progress = getOrCreateProgress(userState, item.originalDay, item.originalBlockKey);
       progress.status = "completed";
       progress.completedAt = item.completedAt;
+      progress.sourceTag = null;
+      reconcileRevisionCompletionsForSource(
+        userState.revisionCompletions,
+        item.originalDay,
+        item.originalBlockKey,
+        progress.completedAt,
+      );
     } else if (intent === "dismiss") {
       item.status = "dismissed";
       item.dismissedAt = new Date().toISOString();

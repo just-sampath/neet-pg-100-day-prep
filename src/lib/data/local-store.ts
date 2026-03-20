@@ -16,9 +16,11 @@ import type {
   McqBulkLog,
   McqItemLog,
   RevisionCompletion,
+  RevisionSourceBlockKey,
   UserState,
   WeeklySummary,
 } from "@/lib/domain/types";
+import { createRevisionId } from "@/lib/domain/schedule";
 import { getRuntimeMode } from "@/lib/runtime/mode";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -102,6 +104,7 @@ function ensureDefaultLocalUser(parsed: LocalStore) {
   if (!parsed.userState[defaultUser.id]) {
     parsed.userState[defaultUser.id] = createEmptyUserState();
   }
+  parsed.userState[defaultUser.id] = normalizeUserState(parsed.userState[defaultUser.id]);
 }
 
 async function readLocalStore(): Promise<LocalStore> {
@@ -109,6 +112,9 @@ async function readLocalStore(): Promise<LocalStore> {
   const raw = await readFile(storePath, "utf8");
   const parsed = JSON.parse(raw) as LocalStore;
   ensureDefaultLocalUser(parsed);
+  for (const userId of Object.keys(parsed.userState)) {
+    parsed.userState[userId] = normalizeUserState(parsed.userState[userId]);
+  }
   return parsed;
 }
 
@@ -172,6 +178,46 @@ function normalizeProcessedDates(
     lateNightSweepDates: Array.isArray(candidate.lateNightSweepDates) ? candidate.lateNightSweepDates : [],
     midnightDates: Array.isArray(candidate.midnightDates) ? candidate.midnightDates : [],
     weeklySummaryDates: Array.isArray(candidate.weeklySummaryDates) ? candidate.weeklySummaryDates : [],
+  };
+}
+
+function normalizeRevisionCompletions(
+  value: UserState["revisionCompletions"] | undefined,
+): UserState["revisionCompletions"] {
+  if (!value) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.values(value).map((entry) => {
+      const sourceDay = Number(entry.sourceDay);
+      const sourceBlockKey = ((entry as RevisionCompletion & { sourceBlockKey?: RevisionSourceBlockKey }).sourceBlockKey ??
+        "block_a") as RevisionSourceBlockKey;
+      const revisionType = entry.revisionType;
+      const revisionId =
+        (entry as RevisionCompletion & { revisionId?: string }).revisionId ??
+        createRevisionId(sourceDay, sourceBlockKey, revisionType);
+
+      return [
+        revisionId,
+        {
+          revisionId,
+          sourceDay,
+          sourceBlockKey,
+          revisionType,
+          completedAt: entry.completedAt,
+        } satisfies RevisionCompletion,
+      ];
+    }),
+  );
+}
+
+function normalizeUserState(userState: UserState | undefined): UserState {
+  const base = userState ?? createEmptyUserState();
+  return {
+    ...base,
+    revisionCompletions: normalizeRevisionCompletions(base.revisionCompletions),
+    processedDates: normalizeProcessedDates(base.processedDates),
   };
 }
 
@@ -276,11 +322,13 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
 
   for (const row of revisionCompletionsResult.data ?? []) {
     const completion: RevisionCompletion = {
+      revisionId: row.revision_id ?? `${row.source_day}:${row.source_block_key ?? "block_a"}:${row.revision_type}`,
       sourceDay: row.source_day,
+      sourceBlockKey: row.source_block_key ?? "block_a",
       revisionType: row.revision_type,
       completedAt: row.completed_at,
     };
-    userState.revisionCompletions[`${row.source_day}:${row.revision_type}`] = completion;
+    userState.revisionCompletions[completion.revisionId] = completion;
   }
 
   for (const row of backlogItemsResult.data ?? []) {
@@ -490,11 +538,13 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
     syncUserRows({
       table: "revision_completions",
       userId,
-      onConflict: "user_id,source_day,revision_type",
+      onConflict: "user_id,source_day,source_block_key,revision_type",
       previousCount: Object.keys(previousState.revisionCompletions).length,
       rows: Object.values(nextState.revisionCompletions).map((entry) => ({
         user_id: userId,
+        revision_id: entry.revisionId,
         source_day: entry.sourceDay,
+        source_block_key: entry.sourceBlockKey,
         revision_type: entry.revisionType,
         completed_at: entry.completedAt,
       })),
@@ -675,11 +725,13 @@ export async function persistSupabaseStoreForUser(nextStore: LocalStore, previou
     syncUserRows({
       table: "revision_completions",
       userId,
-      onConflict: "user_id,source_day,revision_type",
+      onConflict: "user_id,source_day,source_block_key,revision_type",
       previousCount: Object.keys(previousState.revisionCompletions).length,
       rows: Object.values(nextState.revisionCompletions).map((entry) => ({
         user_id: userId,
+        revision_id: entry.revisionId,
         source_day: entry.sourceDay,
+        source_block_key: entry.sourceBlockKey,
         revision_type: entry.revisionType,
         completed_at: entry.completedAt,
       })),

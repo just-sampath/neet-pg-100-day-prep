@@ -4,6 +4,7 @@ import {
   getBacklogCount,
   getBlockProgress,
   getCurrentDayNumber,
+  createRevisionId,
   getDayCompletionState,
   getDayState,
   getDisplayBlockDescription,
@@ -40,10 +41,6 @@ import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE, toDateOnlyInTim
 
 function progressKey(dayNumber: number, blockKey: BlockKey) {
   return `${dayNumber}:${blockKey}`;
-}
-
-function revisionKey(sourceDay: number, revisionType: string) {
-  return `${sourceDay}:${revisionType}`;
 }
 
 export function getOrCreateProgress(userState: UserState, dayNumber: number, blockKey: BlockKey): BlockProgress {
@@ -271,7 +268,7 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
     const revisionPlan = buildDailyRevisionPlan(mappedDate, userState, settings);
     morningRevisionPlanned += revisionPlan.queue.length;
     morningRevisionCompleted += revisionPlan.queue.filter((item) =>
-      Boolean(userState.revisionCompletions[revisionKey(item.sourceDay, item.revisionType)]),
+      Boolean(userState.revisionCompletions[createRevisionId(item.sourceDay, item.sourceBlockKey, item.revisionType)]),
     ).length;
 
     for (const block of visibleBlocks) {
@@ -504,6 +501,8 @@ export function getScheduleListData(store: LocalStore, userId: string) {
 export function getDayDetailData(store: LocalStore, userId: string, dayNumber: number) {
   applyAutomations(store, userId);
   const userState = store.userState[userId];
+  const now = getEffectiveNow(store);
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const day = getScheduleDay(dayNumber);
   if (!day) {
     return null;
@@ -515,6 +514,7 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
 
   return {
     day,
+    todayDate,
     mappedDate,
     state,
     revisionPlan,

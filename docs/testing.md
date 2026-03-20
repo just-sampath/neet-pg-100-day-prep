@@ -14,6 +14,13 @@ npm run build:webpack
 - typecheck
 - vitest
 - workbook-to-generated-data regression checks
+- revision-engine branch coverage for:
+  - planned fallback anchors
+  - late actual-completion anchor shifts
+  - morning queue cap and overflow slot order
+  - `1-2`, `3-6`, and `7+` overdue routing
+  - explicit revision completion exclusion
+  - retroactive completion recomputation and invalid early-checkoff cleanup
 
 ## Local Mode Manual Pass
 
@@ -33,10 +40,13 @@ Then verify:
 6. Skip a block and verify backlog entry appears.
 7. Edit a block time and trigger sleep protection.
 8. Mark a revision item complete.
-9. Log MCQ bulk and item data.
-10. Log a GT entry.
-11. Generate a weekly summary.
-12. Export JSON.
+9. Complete `block_a` or `block_b` late and confirm future revision anchors move.
+10. Open a past schedule day and complete a block with a retroactive date.
+11. Confirm the old planned revision placement disappears and the new anchor date gains the item.
+12. Log MCQ bulk and item data.
+13. Log a GT entry.
+14. Generate a weekly summary.
+15. Export JSON.
 
 ## Time-Based Manual Pass
 
@@ -104,4 +114,5 @@ In Supabase mode, with `CRON_SECRET` configured:
 - `Block_Hours` must remain the source of truth for trackable block timing.
 - `Daywise_Plan` must remain exactly 100 mapped days.
 - `GT_Test_Plan` day references must match GT-tagged days in `Daywise_Plan`.
+- Revision tests should fail if `block_a` and `block_b` stop producing independent revision identities.
 - If any of these assumptions break, `npm run generate:data` or `vitest` should fail loudly.

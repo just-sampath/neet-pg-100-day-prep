@@ -135,6 +135,7 @@ Defaults:
 - `supabase/migrations/0001_initial_schema.sql`: base schema
 - `supabase/migrations/0002_runtime_rls_realtime.sql`: runtime metadata, RLS, uniqueness, and realtime publication coverage
 - `supabase/migrations/0003_automation_job_runs.sql`: hosted job ledger for cron telemetry and idempotence
+- `supabase/migrations/0004_revision_completion_identity.sql`: block-aware revision completion identity
 - `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
 
 ### Server Automation
@@ -214,11 +215,13 @@ The generated schedule bundle includes:
 
 - Revisions are derived from actual completion when available.
 - If no completion exists yet, planned mapped date acts as the temporary anchor.
+- Revision sources are `block_a` and `block_b`, each with their own identity.
 - Intervals: `D+1`, `D+3`, `D+7`, `D+14`, `D+28`
 - Morning queue shows up to 5 items.
 - Overflow spills to night recall first, then break micro-slots.
 - `3-6` day misses become catch-up revision.
 - `7+` day misses become restudy flags.
+- Retroactive completion can move the anchor later; if that makes an earlier revision checkoff impossible, the old checkoff is removed during reconciliation.
 
 ## Testing Checklist
 
@@ -230,15 +233,17 @@ Every feature should be runnable locally. Minimum manual pass:
 4. Complete and skip blocks.
 5. Edit a block time and confirm sleep protection warning.
 6. Mark revision items complete.
-7. Use dev time travel to trigger:
+7. Complete `block_a` or `block_b` on a later date and confirm the revision queue moves.
+8. Use dev time travel to trigger:
    - 22:30 wind-down prompt
    - 23:00 night recall prompt
    - 23:15 late-night sweep
    - next-day midnight rollover
-8. Log MCQ bulk and item data.
-9. Log GT data.
-10. Generate a weekly summary.
-11. Export JSON.
+9. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.
+10. Log MCQ bulk and item data.
+11. Log GT data.
+12. Generate a weekly summary.
+13. Export JSON.
 
 Supabase runtime pass:
 

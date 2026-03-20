@@ -30,7 +30,7 @@ The codebase is production-ready only when:
 2. [x] [002-realtime-sync-and-connectivity.md](./002-realtime-sync-and-connectivity.md)
 3. [x] [003-cron-jobs-and-server-automation.md](./003-cron-jobs-and-server-automation.md)
 4. [x] [004-excel-ingestion-and-static-content.md](./004-excel-ingestion-and-static-content.md)
-5. [005-revision-engine-spec-alignment.md](./005-revision-engine-spec-alignment.md)
+5. [x] [005-revision-engine-spec-alignment.md](./005-revision-engine-spec-alignment.md)
 6. [006-today-view-and-wind-down.md](./006-today-view-and-wind-down.md)
 7. [007-traffic-light-and-backlog-creation.md](./007-traffic-light-and-backlog-creation.md)
 8. [008-backlog-suggestion-and-queue.md](./008-backlog-suggestion-and-queue.md)

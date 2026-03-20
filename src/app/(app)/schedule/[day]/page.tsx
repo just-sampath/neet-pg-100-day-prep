@@ -4,6 +4,7 @@ import { TimeEditor } from "@/components/app/time-editor";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { getDayDetailData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
+import { getRevisionAssignedSlotLabel, groupRevisionItemsForDisplay } from "@/lib/domain/schedule";
 import { completeRevisionAction, setTrafficLightAction, updateBlockAction } from "@/lib/server/actions";
 import { formatDateLabel } from "@/lib/utils/format";
 
@@ -19,6 +20,13 @@ export default async function ScheduleDayPage({
   if (!detail) {
     notFound();
   }
+
+  const defaultCompletionDate = detail.mappedDate ?? detail.todayDate;
+  const isPastDay = detail.mappedDate ? detail.mappedDate < detail.todayDate : false;
+  const revisionGroups = detail.revisionPlan ? groupRevisionItemsForDisplay(detail.revisionPlan.queue) : [];
+  const overflowGroups = detail.revisionPlan
+    ? groupRevisionItemsForDisplay(detail.revisionPlan.overflow.map((entry) => entry.item))
+    : [];
 
   return (
     <div className="grid gap-6">
@@ -52,26 +60,61 @@ export default async function ScheduleDayPage({
         </div>
       </section>
 
-      {detail.revisionPlan?.queue.length ? (
+      {revisionGroups.length ? (
         <section className="panel p-6">
-          <h2 className="text-xl font-semibold">Revision items mapped to this date</h2>
+          <h2 className="text-xl font-semibold">Revision work due on this date</h2>
+          <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+            This view only surfaces revision that becomes due on this mapped date. Later recalls stay out of the way until their own day arrives.
+          </p>
           <div className="mt-4 grid gap-3">
-            {detail.revisionPlan.queue.map((item) => (
-              <form key={item.id} action={completeRevisionAction} className="rounded-2xl border border-[var(--border)] p-4">
-                <input type="hidden" name="sourceDay" value={item.sourceDay} />
-                <input type="hidden" name="revisionType" value={item.revisionType} />
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <div className="text-sm text-[var(--muted)]">{item.revisionType}</div>
-                    <div className="font-medium">{item.topic}</div>
-                  </div>
-                  <button className="button-secondary" type="submit">
-                    Check off
-                  </button>
+            {revisionGroups.map((group) => (
+              <article key={group.id} className="rounded-2xl border border-[var(--border)] p-4">
+                <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
+                  {group.revisionTypes.join(" · ")} / {group.subject}
                 </div>
-              </form>
-            ))}
+                <div className="mt-2 text-lg font-semibold">{group.sourceTopicLabel}</div>
+                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                  {group.items.length === 1
+                    ? "1 revision segment is due from this topic."
+                    : `${group.items.length} revision segments are due from this topic.`}
+                </p>
+                <div className="mt-4 grid gap-2">
+                  {group.items.map((item) => (
+                    <form key={item.id} action={completeRevisionAction} className="rounded-2xl border border-[var(--border)] p-3">
+                      <input type="hidden" name="sourceDay" value={item.sourceDay} />
+                      <input type="hidden" name="sourceBlockKey" value={item.sourceBlockKey} />
+                      <input type="hidden" name="revisionType" value={item.revisionType} />
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="text-sm text-[var(--muted)]">{item.revisionType}</div>
+                          <div className="font-medium">{item.topic}</div>
+                        </div>
+                        <button className="button-secondary" type="submit">
+                          Check off
+                        </button>
+                      </div>
+                    </form>
+                  ))}
+                </div>
+              </article>
+              ))}
           </div>
+          {overflowGroups.length ? (
+            <div className="mt-4 rounded-2xl border border-[var(--border)] p-4 text-sm leading-7 text-[var(--text-secondary)]">
+              {overflowGroups.map((group) => (
+                <div key={group.id} className="mb-3 last:mb-0">
+                  <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
+                  {detail.revisionPlan!.overflow
+                    .filter((item) => item.item.sourceDay === group.sourceDay)
+                    .map((item) => (
+                      <p key={item.item.id}>
+                        {getRevisionAssignedSlotLabel(item.assignedSlot)}: {item.item.revisionType} · {item.item.topic}
+                      </p>
+                    ))}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -91,6 +134,7 @@ export default async function ScheduleDayPage({
                   <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
                   <input type="hidden" name="blockKey" value={block.key} />
                   <input type="hidden" name="intent" value="complete" />
+                  {isPastDay ? <input type="hidden" name="completionDate" value={defaultCompletionDate} /> : null}
                   <button className="button-primary" type="submit">
                     Complete
                   </button>
@@ -105,6 +149,22 @@ export default async function ScheduleDayPage({
                 </form>
               </div>
             </div>
+            {isPastDay ? (
+              <form action={updateBlockAction} className="mt-4 grid gap-3 rounded-2xl border border-[var(--border)] p-4 md:grid-cols-[1fr_auto] md:items-end">
+                <div>
+                  <label className="mb-2 block text-sm text-[var(--muted)]">Actual completion date</label>
+                  <input className="field" type="date" name="completionDate" defaultValue={defaultCompletionDate} />
+                </div>
+                <div className="flex gap-2">
+                  <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                  <input type="hidden" name="blockKey" value={block.key} />
+                  <input type="hidden" name="intent" value="complete" />
+                  <button className="button-secondary" type="submit">
+                    Complete with date
+                  </button>
+                </div>
+              </form>
+            ) : null}
             <TimeEditor dayNumber={detail.day.dayNumber} blockKey={block.key} start={block.start} end={block.end} />
           </article>
         ))}

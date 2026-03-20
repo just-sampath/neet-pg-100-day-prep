@@ -71,6 +71,7 @@ This applies both:
 - `supabase/migrations/0001_initial_schema.sql`
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
 - `supabase/migrations/0003_automation_job_runs.sql`
+- `supabase/migrations/0004_revision_completion_identity.sql`
 
 Expected behavior in Supabase mode:
 
@@ -124,6 +125,7 @@ In Supabase mode:
 4. Add an MCQ or GT entry in one window.
 5. Confirm the other window refreshes within seconds.
 6. Disconnect the network briefly and confirm `No connection` or `Sync reconnecting` appears quietly.
+7. Complete `block_a` or `block_b` on a past day with a retroactive date and confirm the revision queue moves to the new anchor date.
 
 ## Cron Manual Check
 

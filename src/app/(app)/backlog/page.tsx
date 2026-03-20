@@ -5,6 +5,7 @@ import { updateBacklogAction } from "@/lib/server/actions";
 
 export default async function BacklogPage() {
   const user = await requireCurrentUser();
+  const defaultCompletionDate = new Date().toISOString().slice(0, 10);
   const { items } = await mutateStore((store) => {
     applyAutomations(store, user.id);
     return {
@@ -106,9 +107,10 @@ export default async function BacklogPage() {
                 </div>
 
                 <div className="grid gap-3 lg:min-w-[21rem]">
-                  <form action={updateBacklogAction}>
+                  <form action={updateBacklogAction} className="note-card grid gap-3 p-4">
                     <input type="hidden" name="backlogId" value={item.id} />
                     <input type="hidden" name="intent" value="complete" />
+                    <input className="field" type="date" name="completionDate" defaultValue={defaultCompletionDate} />
                     <button className="button-primary w-full" type="submit">
                       Mark completed
                     </button>

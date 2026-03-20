@@ -1,10 +1,12 @@
 import { scheduleData } from "@/lib/generated/schedule-data";
 import {
+  BREAK_MICRO_SLOT_ORDER,
   BREAK_MICRO_SLOT_LABELS,
   BUFFER_DAY,
   EXAM_DATE,
   HARD_BOUNDARY_DATE,
   RED_VISIBLE_BLOCKS,
+  REVISION_SOURCE_BLOCKS,
   REVISION_INTERVALS,
   SHIFT_COMPRESSION_PAIRS,
   TRACKABLE_BLOCK_ORDER,
@@ -20,11 +22,13 @@ import type {
   GeneratedScheduleDay,
   OverflowRevisionItem,
   RevisionCompletion,
+  RevisionDisplayGroup,
+  RevisionSourceBlockKey,
   RevisionQueueItem,
   TrafficLight,
   UserState,
 } from "@/lib/domain/types";
-import { addDaysToDateOnly, diffDays, parseDateOnly, timeValue, toDateOnly } from "@/lib/utils/date";
+import { addDaysToDateOnly, diffDays, parseDateOnly, timeValue, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
 export function getScheduleDay(dayNumber: number): GeneratedScheduleDay | undefined {
   return scheduleData.days.find((day) => day.dayNumber === dayNumber);
@@ -134,23 +138,99 @@ export function getSubjectFromPrimaryFocus(primaryFocus: string): string {
   return primaryFocus.split(" ")[0] ?? primaryFocus;
 }
 
-function getAnchorDateForDay(dayNumber: number, settings: AppSettings, userState: UserState): string | null {
-  const relevantBlocks = TRACKABLE_BLOCK_ORDER.filter((block) => block !== "morning_revision");
-  const completions = relevantBlocks
-    .map((block) => getBlockProgress(userState, dayNumber, block))
-    .filter((progress) => progress.completedAt && (progress.status === "completed" || progress.status === "partial"))
-    .map((progress) => toDateOnly(progress.completedAt!))
-    .sort();
+function getRevisionBlockLabel(day: GeneratedScheduleDay, blockKey: RevisionSourceBlockKey) {
+  return day.slots.find((slot) => slot.key === blockKey)?.label ?? blockKey;
+}
 
-  return completions[0] ?? getMappedDate(dayNumber, settings);
+function getRevisionTopic(day: GeneratedScheduleDay, blockKey: RevisionSourceBlockKey) {
+  const slot = day.slots.find((entry) => entry.key === blockKey);
+  const description = slot?.description ?? day.primaryFocus;
+  return description.replace(/^Block [AB]\s+—\s+/u, "").trim() || day.primaryFocus;
+}
+
+function isCompletedRevisionSource(progress: BlockProgress) {
+  return (progress.status === "completed" || progress.status === "partial") && Boolean(progress.completedAt);
+}
+
+function getAnchorDateForRevisionSource(
+  day: GeneratedScheduleDay,
+  blockKey: RevisionSourceBlockKey,
+  settings: AppSettings,
+  userState: UserState,
+) {
+  const progress = getBlockProgress(userState, day.dayNumber, blockKey);
+  if (isCompletedRevisionSource(progress) && progress.completedAt) {
+    return {
+      anchorDate: toDateOnlyInTimeZone(progress.completedAt),
+      anchorMode: "actual" as const,
+    };
+  }
+
+  const mappedDate = getMappedDate(day.dayNumber, settings);
+  if (!mappedDate) {
+    return null;
+  }
+
+  return {
+    anchorDate: mappedDate,
+    anchorMode: "planned" as const,
+  };
+}
+
+export function createRevisionId(
+  sourceDay: number,
+  sourceBlockKey: RevisionSourceBlockKey,
+  revisionType: RevisionQueueItem["revisionType"],
+) {
+  return `${sourceDay}:${sourceBlockKey}:${revisionType}`;
+}
+
+export function reconcileRevisionCompletionsForSource(
+  revisionCompletions: Record<string, RevisionCompletion>,
+  dayNumber: number,
+  blockKey: BlockKey,
+  completedAtIso: string | null,
+) {
+  if (!completedAtIso || (blockKey !== "block_a" && blockKey !== "block_b")) {
+    return;
+  }
+
+  const anchorDate = toDateOnlyInTimeZone(completedAtIso);
+  for (const [revisionType, offset] of Object.entries(REVISION_INTERVALS) as Array<
+    [RevisionQueueItem["revisionType"], number]
+  >) {
+    const revisionId = createRevisionId(dayNumber, blockKey, revisionType);
+    const completion = revisionCompletions[revisionId];
+    if (!completion) {
+      continue;
+    }
+
+    const scheduledDate = addDaysToDateOnly(anchorDate, offset);
+    if (toDateOnlyInTimeZone(completion.completedAt) < scheduledDate) {
+      delete revisionCompletions[revisionId];
+    }
+  }
 }
 
 function getRevisionCompletion(
   completions: Record<string, RevisionCompletion>,
   sourceDay: number,
+  sourceBlockKey: RevisionSourceBlockKey,
   revisionType: RevisionQueueItem["revisionType"],
 ) {
-  return completions[`${sourceDay}:${revisionType}`];
+  return completions[createRevisionId(sourceDay, sourceBlockKey, revisionType)];
+}
+
+function getRevisionPriority(revisionType: RevisionQueueItem["revisionType"]) {
+  const order: Record<RevisionQueueItem["revisionType"], number> = {
+    "D+1": 1,
+    "D+3": 2,
+    "D+7": 3,
+    "D+14": 4,
+    "D+28": 5,
+  };
+
+  return order[revisionType];
 }
 
 export function buildRevisionInventory(userState: UserState, settings: AppSettings): RevisionQueueItem[] {
@@ -160,42 +240,111 @@ export function buildRevisionInventory(userState: UserState, settings: AppSettin
 
   const items: RevisionQueueItem[] = [];
   for (const day of scheduleData.days) {
-    const anchor = getAnchorDateForDay(day.dayNumber, settings, userState);
-    if (!anchor) {
-      continue;
-    }
-
     const subject = getSubjectFromPrimaryFocus(day.primaryFocus);
-    for (const [revisionType, offset] of Object.entries(REVISION_INTERVALS) as Array<
-      [RevisionQueueItem["revisionType"], number]
-    >) {
-      const scheduledDate = addDaysToDateOnly(anchor, offset);
-      const completion = getRevisionCompletion(userState.revisionCompletions, day.dayNumber, revisionType);
-      items.push({
-        id: `${day.dayNumber}:${revisionType}`,
-        sourceDay: day.dayNumber,
-        subject,
-        topic: day.primaryFocus,
-        revisionType,
-        scheduledDate,
-        status: completion ? "completed" : "due",
-      });
+
+    for (const blockKey of REVISION_SOURCE_BLOCKS) {
+      const anchor = getAnchorDateForRevisionSource(day, blockKey, settings, userState);
+      if (!anchor) {
+        continue;
+      }
+
+      const topic = getRevisionTopic(day, blockKey);
+      const sourceBlockLabel = getRevisionBlockLabel(day, blockKey);
+      for (const [revisionType, offset] of Object.entries(REVISION_INTERVALS) as Array<
+        [RevisionQueueItem["revisionType"], number]
+      >) {
+        const scheduledDate = addDaysToDateOnly(anchor.anchorDate, offset);
+        const completion = getRevisionCompletion(userState.revisionCompletions, day.dayNumber, blockKey, revisionType);
+        items.push({
+          id: createRevisionId(day.dayNumber, blockKey, revisionType),
+          sourceDay: day.dayNumber,
+          sourceBlockKey: blockKey,
+          sourceBlockLabel,
+          sourceTopicLabel: day.primaryFocus,
+          subject,
+          topic,
+          revisionType,
+          scheduledDate,
+          sourceAnchorDate: anchor.anchorDate,
+          anchorMode: anchor.anchorMode,
+          assignedSlot: "morning_revision",
+          overdueBy: 0,
+          status: completion ? "completed" : "due",
+        });
+      }
     }
   }
 
   return items.sort((left, right) => {
     if (left.scheduledDate === right.scheduledDate) {
+      const priorityDelta = getRevisionPriority(left.revisionType) - getRevisionPriority(right.revisionType);
+      if (priorityDelta !== 0) {
+        return priorityDelta;
+      }
+      if (left.sourceDay === right.sourceDay) {
+        return left.sourceBlockKey.localeCompare(right.sourceBlockKey);
+      }
       return left.sourceDay - right.sourceDay;
     }
     return left.scheduledDate.localeCompare(right.scheduledDate);
   });
 }
 
-export function buildDailyRevisionPlan(
+export function groupRevisionItemsForDisplay(items: RevisionQueueItem[]): RevisionDisplayGroup[] {
+  const groups = new Map<string, RevisionDisplayGroup>();
+
+  for (const item of items) {
+    const groupKey = `${item.sourceDay}`;
+    const existing = groups.get(groupKey);
+
+    if (existing) {
+      existing.items.push(item);
+      if (!existing.revisionTypes.includes(item.revisionType)) {
+        existing.revisionTypes.push(item.revisionType);
+      }
+      continue;
+    }
+
+    groups.set(groupKey, {
+      id: groupKey,
+      sourceDay: item.sourceDay,
+      sourceTopicLabel: item.sourceTopicLabel,
+      subject: item.subject,
+      revisionTypes: [item.revisionType],
+      items: [item],
+    });
+  }
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      revisionTypes: [...group.revisionTypes].sort(
+        (left, right) => getRevisionPriority(left) - getRevisionPriority(right),
+      ),
+      items: [...group.items].sort((left, right) => {
+        const priorityDelta = getRevisionPriority(left.revisionType) - getRevisionPriority(right.revisionType);
+        if (priorityDelta !== 0) {
+          return priorityDelta;
+        }
+        return left.sourceBlockKey.localeCompare(right.sourceBlockKey);
+      }),
+    }))
+    .sort((left, right) => left.sourceDay - right.sourceDay);
+}
+
+function calculateMorningMinutesPerItem(itemCount: number) {
+  if (itemCount <= 0) {
+    return 0;
+  }
+
+  return Math.floor(90 / Math.min(itemCount, 5));
+}
+
+function buildRevisionPlanBase(
   targetDate: string,
   userState: UserState,
   settings: AppSettings,
-): DailyRevisionPlan {
+): Omit<DailyRevisionPlan, "overflowStreakDays" | "overflowSuggestion"> {
   const inventory = buildRevisionInventory(userState, settings);
   const queueCandidates = inventory.filter((item) => {
     if (item.status === "completed") {
@@ -209,11 +358,17 @@ export function buildDailyRevisionPlan(
   const catchUp: RevisionQueueItem[] = [];
   const restudyFlags: RevisionQueueItem[] = [];
 
-  for (const item of queueCandidates) {
+  for (const candidate of queueCandidates) {
+    const item = {
+      ...candidate,
+      overdueBy: diffDays(targetDate, candidate.scheduledDate),
+    };
+
     const overdueBy = diffDays(targetDate, item.scheduledDate);
     if (overdueBy <= 2) {
       mainQueue.push({
         ...item,
+        assignedSlot: "morning_revision",
         status: overdueBy === 0 ? "due" : "overdue_1_2",
       });
       continue;
@@ -221,12 +376,14 @@ export function buildDailyRevisionPlan(
     if (overdueBy <= 6) {
       catchUp.push({
         ...item,
+        assignedSlot: catchUp.length % 2 === 0 ? "consolidation" : "pyq_image",
         status: "overdue_3_6",
       });
       continue;
     }
     restudyFlags.push({
       ...item,
+      assignedSlot: "next_revision_phase",
       status: "overdue_7_plus",
     });
   }
@@ -234,9 +391,12 @@ export function buildDailyRevisionPlan(
   const queue = mainQueue.slice(0, 5);
   const overflowItems = mainQueue.slice(5);
   const overflow: OverflowRevisionItem[] = overflowItems.map((item, index) => ({
-    item,
-    assignedSlot: index === 0 ? "night_recall" : "break_micro",
-    label: index === 0 ? "Night recall overflow" : BREAK_MICRO_SLOT_LABELS[(index - 1) % BREAK_MICRO_SLOT_LABELS.length],
+    item: {
+      ...item,
+      assignedSlot: index === 0 ? "night_recall" : BREAK_MICRO_SLOT_ORDER[(index - 1) % BREAK_MICRO_SLOT_ORDER.length],
+    },
+    assignedSlot: index === 0 ? "night_recall" : BREAK_MICRO_SLOT_ORDER[(index - 1) % BREAK_MICRO_SLOT_ORDER.length],
+    label: index === 0 ? "22:00 night recall" : BREAK_MICRO_SLOT_LABELS[(index - 1) % BREAK_MICRO_SLOT_LABELS.length],
   }));
 
   return {
@@ -244,6 +404,67 @@ export function buildDailyRevisionPlan(
     overflow,
     catchUp,
     restudyFlags,
+    morningMinutesPerItem: calculateMorningMinutesPerItem(queue.length),
+  };
+}
+
+function getOverflowStreakDays(targetDate: string, userState: UserState, settings: AppSettings) {
+  if (!settings.dayOneDate) {
+    return 0;
+  }
+
+  let streak = 0;
+  let cursor = targetDate;
+  while (cursor >= settings.dayOneDate) {
+    const plan = buildRevisionPlanBase(cursor, userState, settings);
+    if (plan.overflow.length === 0) {
+      break;
+    }
+    streak += 1;
+    cursor = addDaysToDateOnly(cursor, -1);
+  }
+
+  return streak;
+}
+
+export function getRevisionAssignedSlotLabel(slot: OverflowRevisionItem["assignedSlot"] | RevisionQueueItem["assignedSlot"]) {
+  switch (slot) {
+    case "night_recall":
+      return "22:00 night recall";
+    case "break_08_00":
+      return "08:00 quick recall";
+    case "break_10_45":
+      return "10:45 quick recall";
+    case "break_16_45":
+      return "16:45 quick recall";
+    case "break_21_45":
+      return "21:45 quick recall";
+    case "consolidation":
+      return "14:15 catch-up revision";
+    case "pyq_image":
+      return "20:15 catch-up revision";
+    case "next_revision_phase":
+      return "Next revision phase";
+    default:
+      return "06:30 morning revision";
+  }
+}
+
+export function buildDailyRevisionPlan(
+  targetDate: string,
+  userState: UserState,
+  settings: AppSettings,
+): DailyRevisionPlan {
+  const basePlan = buildRevisionPlanBase(targetDate, userState, settings);
+  const overflowStreakDays = getOverflowStreakDays(targetDate, userState, settings);
+
+  return {
+    ...basePlan,
+    overflowStreakDays,
+    overflowSuggestion:
+      overflowStreakDays >= 3
+        ? "Your revision queue is growing. Consider deferring low-priority items to next revision phase."
+        : null,
   };
 }
 

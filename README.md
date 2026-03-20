@@ -57,6 +57,7 @@ Default local credentials:
 - Production cron routes for IST midnight rollover and weekly summary automation
 - Job telemetry in `automation_job_runs` plus manual cron setup SQL for Supabase
 - Workbook-derived block templates from `Block_Hours` plus regression tests that compare generated data back to the source workbook
+- Block-level revision engine with actual-completion anchors, planned fallback, overflow routing, overdue recovery buckets, and retroactive recomputation coverage
 
 ## Core Commands
 

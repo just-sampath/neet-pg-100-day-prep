@@ -12,6 +12,17 @@ export type BlockKey =
   | "night_recall";
 
 export type RevisionType = "D+1" | "D+3" | "D+7" | "D+14" | "D+28";
+export type RevisionSourceBlockKey = "block_a" | "block_b";
+export type RevisionAssignedSlot =
+  | "morning_revision"
+  | "night_recall"
+  | "break_08_00"
+  | "break_10_45"
+  | "break_16_45"
+  | "break_21_45"
+  | "consolidation"
+  | "pyq_image"
+  | "next_revision_phase";
 
 export type GtTestType = "No" | "Diagnostic 100Q" | "Full GT" | "120Q half-sim";
 
@@ -144,7 +155,9 @@ export interface BlockProgress {
 }
 
 export interface RevisionCompletion {
+  revisionId: string;
   sourceDay: number;
+  sourceBlockKey: RevisionSourceBlockKey;
   revisionType: RevisionType;
   completedAt: string;
 }
@@ -300,17 +313,33 @@ export interface LocalStore {
 export interface RevisionQueueItem {
   id: string;
   sourceDay: number;
+  sourceBlockKey: RevisionSourceBlockKey;
+  sourceBlockLabel: string;
+  sourceTopicLabel: string;
   subject: string;
   topic: string;
   revisionType: RevisionType;
   scheduledDate: string;
+  sourceAnchorDate: string;
+  anchorMode: "actual" | "planned";
+  assignedSlot: RevisionAssignedSlot;
+  overdueBy: number;
   status: "due" | "completed" | "overdue_1_2" | "overdue_3_6" | "overdue_7_plus";
 }
 
 export interface OverflowRevisionItem {
   item: RevisionQueueItem;
-  assignedSlot: "night_recall" | "break_micro";
+  assignedSlot: "night_recall" | "break_08_00" | "break_10_45" | "break_16_45" | "break_21_45";
   label: string;
+}
+
+export interface RevisionDisplayGroup {
+  id: string;
+  sourceDay: number;
+  sourceTopicLabel: string;
+  subject: string;
+  revisionTypes: RevisionType[];
+  items: RevisionQueueItem[];
 }
 
 export interface DailyRevisionPlan {
@@ -318,6 +347,9 @@ export interface DailyRevisionPlan {
   overflow: OverflowRevisionItem[];
   catchUp: RevisionQueueItem[];
   restudyFlags: RevisionQueueItem[];
+  morningMinutesPerItem: number;
+  overflowStreakDays: number;
+  overflowSuggestion: string | null;
 }
 
 export interface DayViewModel {

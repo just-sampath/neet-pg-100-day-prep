@@ -19,6 +19,7 @@ This must include:
 - `supabase/migrations/0001_initial_schema.sql`
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
 - `supabase/migrations/0003_automation_job_runs.sql`
+- `supabase/migrations/0004_revision_completion_identity.sql`
 
 ## Hosted Automation
 
@@ -94,6 +95,12 @@ npm run generate:data
 
 - UI: dev toolbar time travel to next day `00:01`
 - API: `POST /api/dev/midnight`
+
+## Revision Engine Notes
+
+- Revision completions are now keyed per source block via `revision_id`.
+- `block_a` and `block_b` from the same study day intentionally produce separate revision series.
+- If a retroactive source completion is moved later, impossible earlier revision checkoffs are pruned during reconciliation.
 
 ## Inspect Automation Runs
 

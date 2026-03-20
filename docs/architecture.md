@@ -38,6 +38,13 @@ The generator validates workbook structure before output:
 
 This layer defines schedule mapping, traffic-light scope, revision derivation, shift absorption, backlog suggestions, and quote category selection.
 
+Revision derivation is now block-level, not day-level:
+
+- `block_a` and `block_b` each create their own revision series
+- actual completion dates in IST take precedence as anchors
+- mapped schedule dates remain the fallback when no completion exists yet
+- overdue routing is derived on read, so retroactive edits automatically recompute the queue
+
 ### Runtime Resolution Layer
 
 - `src/lib/runtime/mode.ts`
@@ -51,6 +58,7 @@ This layer decides whether the app is operating in `local` or `supabase` mode an
 - `supabase/migrations/0001_initial_schema.sql`
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
 - `supabase/migrations/0003_automation_job_runs.sql`
+- `supabase/migrations/0004_revision_completion_identity.sql`
 
 `src/lib/data/local-store.ts` is now the runtime-aware persistence boundary.
 
@@ -72,6 +80,13 @@ Additional runtime metadata is stored in `app_settings`:
 - `simulated_now_iso`
 
 This keeps the current automation model compatible across both runtimes.
+
+`0004_revision_completion_identity.sql` upgrades revision completion persistence from a day-only key to a block-aware identity:
+
+- `revision_id`
+- `source_block_key`
+
+That change prevents `block_a` and `block_b` from colliding when they belong to the same schedule day.
 
 `0003_automation_job_runs.sql` adds a job-run ledger for hosted automation:
 
@@ -214,6 +229,32 @@ In `local` mode, time-based behavior remains manually testable without waiting f
 - absorption savings come from:
   - Day 84 buffer
   - fixed compression pairs
+
+## Revision Engine
+
+The revision engine is implemented in `src/lib/domain/schedule.ts` and intentionally stays derived rather than persisted as a mutable queue table in local mode.
+
+Implemented behavior:
+
+- revision sources: `block_a` and `block_b`
+- intervals: `D+1`, `D+3`, `D+7`, `D+14`, `D+28`
+- anchor precedence:
+  - actual completion date in IST when available
+  - otherwise the mapped planned date
+- morning queue:
+  - maximum 5 visible items
+  - ordered by scheduled date, revision urgency, then source block
+- overflow routing:
+  - first overflow item to `night_recall`
+  - then to break micro-slots `08:00`, `10:45`, `16:45`, `21:45`
+  - 3+ consecutive overflow days surface the supportive warning from the PRD
+- overdue routing:
+  - `1-2` days overdue stay in the main morning queue
+  - `3-6` days overdue become catch-up revision items assigned to `consolidation` or `pyq_image`
+  - `7+` days overdue become restudy flags assigned to the next revision phase
+- retroactive completion:
+  - moving a source block’s actual completion date moves all future revision anchors automatically
+  - impossible early revision checkoffs are dropped during reconciliation so the recalculated queue stays honest
 
 ## Generated Static Bundle
 
