@@ -1,38 +1,118 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 
-import { updateBlockAction, wrapUpDayAction } from "@/lib/server/actions";
+import { getWindDownState } from "@/lib/domain/today";
+import type { BlockKey } from "@/lib/domain/types";
+import { runLateNightSweepAction, updateBlockAction, wrapUpDayAction } from "@/lib/server/actions";
+import { getMinutesInTimeZone, IST_TIME_ZONE } from "@/lib/utils/date";
 
 type Props = {
   nowIso: string;
   dayNumber: number;
   trafficLight: "green" | "yellow" | "red";
-  incompleteVisibleBlocks: string[];
+  incompleteVisibleBlocks: BlockKey[];
+  lateNightSweepProcessed: boolean;
 };
 
-export function WindDownPrompts({ nowIso, dayNumber, trafficLight, incompleteVisibleBlocks }: Props) {
-  const [snoozedUntil, setSnoozedUntil] = useState<number>(0);
-  const [pending, startTransition] = useTransition();
-  const now = useMemo(() => new Date(nowIso), [nowIso]);
-  const minutes = now.getHours() * 60 + now.getMinutes();
-  const nightRecallPending = incompleteVisibleBlocks.includes("night_recall");
-  const otherPending = incompleteVisibleBlocks.filter((block) => block !== "night_recall");
+const TICK_MS = 30_000;
 
-  if (minutes >= 23 * 60 + 15) {
+export function WindDownPrompts({
+  nowIso,
+  dayNumber,
+  trafficLight,
+  incompleteVisibleBlocks,
+  lateNightSweepProcessed,
+}: Props) {
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+  const [wrapUpDismissals, setWrapUpDismissals] = useState(0);
+  const [currentTimeMs, setCurrentTimeMs] = useState(() => new Date(nowIso).getTime());
+  const autoMoveRequestedRef = useRef(false);
+  const [pending, startTransition] = useTransition();
+  const effectiveNow = useMemo(() => new Date(currentTimeMs), [currentTimeMs]);
+  const minutes = useMemo(() => getMinutesInTimeZone(effectiveNow, IST_TIME_ZONE), [effectiveNow]);
+  const prompt = useMemo(
+    () =>
+      getWindDownState({
+        minutes,
+        incompleteVisibleBlocks,
+        wrapUpDismissals,
+        lateNightSweepProcessed,
+      }),
+    [incompleteVisibleBlocks, lateNightSweepProcessed, minutes, wrapUpDismissals],
+  );
+  const triggerAutoMove = useEffectEvent(() => {
+    startTransition(async () => {
+      await runLateNightSweepAction();
+    });
+  });
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setCurrentTimeMs((current) => current + TICK_MS);
+    }, TICK_MS);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (prompt.kind !== "auto_move_due" || autoMoveRequestedRef.current || pending) {
+      return;
+    }
+
+    autoMoveRequestedRef.current = true;
+    triggerAutoMove();
+  }, [pending, prompt.kind]);
+
+  function handleWrapUpDismiss() {
+    setWrapUpDismissals((current) => {
+      if (current === 0 && minutes < 22 * 60 + 45) {
+        return 1;
+      }
+
+      return 2;
+    });
+  }
+
+  if (!hydrated) {
+    return null;
+  }
+
+  if (prompt.kind === "none") {
+    return null;
+  }
+
+  if (prompt.kind === "auto_move_done") {
     return (
-      <div className="note-card p-4 text-sm leading-7 text-[var(--text-secondary)]">
-        Any remaining blocks have been moved to backlog. Sleep well.
+      <div aria-live="polite" className="note-card p-4 text-sm leading-7 text-[var(--text-secondary)]">
+        {prompt.message}
       </div>
     );
   }
 
-  if (minutes >= 23 * 60 && nightRecallPending) {
+  if (prompt.kind === "auto_move_due") {
     return (
-      <div className="panel p-4 md:p-5">
-        <div className="eyebrow">23:00 Check</div>
+      <div aria-live="polite" className="panel p-4 md:p-5">
+        <div className="eyebrow">{prompt.label}</div>
         <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-          Time to rest. Do a quick 5-minute version, or skip tonight&apos;s recall?
+          {pending ? "Moving remaining blocks to backlog now." : prompt.message}
+        </p>
+      </div>
+    );
+  }
+
+  if (prompt.kind === "night_recall") {
+    return (
+      <div aria-live="polite" className="panel p-4 md:p-5">
+        <div className="eyebrow">{prompt.label}</div>
+        <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+          {prompt.message}
         </p>
         <div className="mt-3 flex gap-2">
           <button
@@ -74,40 +154,32 @@ export function WindDownPrompts({ nowIso, dayNumber, trafficLight, incompleteVis
     );
   }
 
-  if (minutes >= 22 * 60 + 30 && otherPending.length > 0 && now.getTime() > snoozedUntil) {
-    return (
-      <div className="panel p-4 md:p-5">
-        <div className="eyebrow">22:30 Check</div>
-        <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-          It&apos;s getting late. Move remaining blocks to backlog and wind down?
-        </p>
-        <div className="mt-3 flex gap-2">
-          <button
-            className="button-primary"
-            type="button"
-            disabled={pending}
-            onClick={() =>
-              startTransition(async () => {
-                const formData = new FormData();
-                formData.set("dayNumber", String(dayNumber));
-                formData.set("trafficLight", trafficLight);
-                await wrapUpDayAction(formData);
-              })
-            }
-          >
-            Yes, wrap up
-          </button>
-          <button
-            className="button-secondary"
-            type="button"
-            onClick={() => setSnoozedUntil(now.getTime() + 15 * 60 * 1000)}
-          >
-            I&apos;m almost done
-          </button>
-        </div>
+  return (
+    <div aria-live="polite" className="panel p-4 md:p-5">
+      <div className="eyebrow">{prompt.label}</div>
+      <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+        {prompt.message}
+      </p>
+      <div className="mt-3 flex gap-2">
+        <button
+          className="button-primary"
+          type="button"
+          disabled={pending}
+          onClick={() =>
+            startTransition(async () => {
+              const formData = new FormData();
+              formData.set("dayNumber", String(dayNumber));
+              formData.set("trafficLight", trafficLight);
+              await wrapUpDayAction(formData);
+            })
+          }
+        >
+          Yes, wrap up
+        </button>
+        <button className="button-secondary" type="button" onClick={handleWrapUpDismiss}>
+          I&apos;m almost done
+        </button>
       </div>
-    );
-  }
-
-  return null;
+    </div>
+  );
 }

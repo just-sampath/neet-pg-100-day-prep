@@ -9,6 +9,11 @@ import { getHomeData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 import type { BlockStatus } from "@/lib/domain/types";
 import {
+  buildTodayTimeline,
+  getBacklogIndicatorLabel,
+  getRevisionMinutesLabel,
+} from "@/lib/domain/today";
+import {
   getBlockDurationLabel,
   getBlockProgress,
   getDisplayBlockDescription,
@@ -39,7 +44,7 @@ const paceCopy = {
   },
   red: {
     title: "Red",
-    description: "Salvage mode. Protect sleep, preserve continuity, and refuse the spiral.",
+    description: "A salvage day, not a zero day. Protect sleep, preserve continuity, and refuse the spiral.",
   },
 } as const;
 
@@ -70,7 +75,7 @@ function getProgressLabel(status: BlockStatus) {
     return "Skipped";
   }
   if (status === "rescheduled") {
-    return "Moved out";
+    return "Rescheduled";
   }
   return "Pending";
 }
@@ -154,6 +159,13 @@ export default async function TodayPage() {
     : [];
   const catchUpGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.catchUp) : [];
   const restudyGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.restudyFlags) : [];
+  const timelineEntries = buildTodayTimeline(todayScheduleDay, userState, todayState.trafficLight);
+  const trackableOrder = new Map(
+    todayScheduleDay.slots.filter((slot) => slot.trackable).map((slot, index) => [slot.key, index + 1]),
+  );
+  const backlogIndicatorLabel = getBacklogIndicatorLabel(data.backlogCount);
+  const revisionMinutesLabel = getRevisionMinutesLabel(data.todayRevisionPlan?.morningMinutesPerItem ?? 0);
+  const mcqQuickLogNote = getDisplayBlockDescription(todayScheduleDay, "mcq", todayState.trafficLight);
   const quickStats = [
     {
       label: "Visible Blocks",
@@ -215,6 +227,15 @@ export default async function TodayPage() {
                 </article>
               ))}
             </div>
+
+            {todayState.trafficLight === "red" ? (
+              <div className="note-card mt-6 p-5">
+                <div className="eyebrow">Salvage Mode</div>
+                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  A salvage day, not a zero day. Morning recall, one high-confidence review block, easy MCQs, then an early stop.
+                </p>
+              </div>
+            ) : null}
 
             {data.quote ? (
               <blockquote className="note-card mt-8 grid gap-4 p-5 md:grid-cols-[0.28fr_0.72fr] md:p-6">
@@ -279,9 +300,15 @@ export default async function TodayPage() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Link className="button-secondary" href="/backlog">
-                  Open backlog ({data.backlogCount})
-                </Link>
+                {data.backlogCount ? (
+                  <Link className="button-secondary" href="/backlog">
+                    {backlogIndicatorLabel}
+                  </Link>
+                ) : (
+                  <span className="status-badge" data-tone="neutral">
+                    backlog clear
+                  </span>
+                )}
                 <form action={setThemeAction}>
                   <input type="hidden" name="theme" value={data.settings.theme === "dark" ? "light" : "dark"} />
                   <button className="button-secondary" type="submit">
@@ -346,9 +373,9 @@ export default async function TodayPage() {
             <div>
               <div className="eyebrow">Morning Revision</div>
               <h3 className="display mt-3 text-3xl">Open the day with retrieval, not drift.</h3>
-              {data.todayRevisionPlan?.morningMinutesPerItem ? (
+              {revisionMinutesLabel ? (
                 <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                  About {data.todayRevisionPlan.morningMinutesPerItem} minutes per visible item across the 06:30-08:00 block.
+                  Equal split today: {revisionMinutesLabel} across the 06:30-08:00 block.
                 </p>
               ) : null}
               <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
@@ -395,9 +422,16 @@ export default async function TodayPage() {
                             </div>
                             <div className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{item.topic}</div>
                           </div>
-                          <button className="button-secondary" type="submit">
-                            Check off
-                          </button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            {revisionMinutesLabel ? (
+                              <span className="status-badge" data-tone="neutral">
+                                {revisionMinutesLabel}
+                              </span>
+                            ) : null}
+                            <button className="button-secondary" type="submit">
+                              Check off
+                            </button>
+                          </div>
                         </div>
                       </form>
                     ))}
@@ -485,44 +519,107 @@ export default async function TodayPage() {
         </section>
 
         <section className="grid gap-4">
-          {visibleBlocks.map((blockKey, index) => {
-            const slot = todayScheduleDay.slots.find((item) => item.key === blockKey)!;
-            const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, blockKey);
-            const completed = progress.status === "completed" || progress.status === "partial";
+          <section className="panel reveal-rise p-5 md:p-6">
+            <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr] lg:items-end">
+              <div>
+                <div className="eyebrow">MCQ Quick Log</div>
+                <h3 className="display mt-3 text-3xl">Capture the question block while it is still warm.</h3>
+                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  {mcqQuickLogNote}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 lg:justify-end">
+                <Link className="button-primary" href={{ pathname: "/mcq", hash: "bulk-entry" }}>
+                  Open quick log
+                </Link>
+                <Link className="button-secondary" href="/mcq/analytics">
+                  Accuracy trend
+                </Link>
+                {data.backlogCount ? (
+                  <Link className="button-secondary" href="/backlog">
+                    {backlogIndicatorLabel}
+                  </Link>
+                ) : (
+                  <span className="status-badge" data-tone="neutral">
+                    backlog clear
+                  </span>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {timelineEntries.map((entry) => {
+            if (entry.kind === "separator") {
+              return (
+                <div key={entry.id} className="timeline-separator" data-kind={entry.slotKind}>
+                  <span>{entry.label}</span>
+                  <span>
+                    {entry.start} - {entry.end}
+                  </span>
+                </div>
+              );
+            }
+
+            const completed = entry.progress.status === "completed" || entry.progress.status === "partial";
+            const hiddenStatusTone = completed ? "green" : "neutral";
+            const blockNumber = trackableOrder.get(entry.blockKey) ?? 0;
+
+            if (entry.mode === "hidden") {
+              return (
+                <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
+                        Block {String(blockNumber).padStart(2, "0")} / {entry.label}
+                      </div>
+                      <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                        {entry.start} - {entry.end}
+                      </p>
+                    </div>
+                    <span className="status-badge" data-tone={hiddenStatusTone}>
+                      {completed ? "Completed" : "Rescheduled"}
+                    </span>
+                  </div>
+                  <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
+                    {completed
+                      ? "Already completed before the pace dial tightened. Kept on record."
+                      : "Folded into the recovery queue so today stays believable without stretching sleep."}
+                  </p>
+                </article>
+              );
+            }
 
             return (
               <article
-                key={blockKey}
+                key={entry.id}
                 className="panel timeline-card reveal-rise p-5 md:p-6"
-                style={completed ? { borderColor: "var(--border-strong)" } : undefined}
+                data-complete={completed}
               >
                 <div className="grid gap-5 lg:grid-cols-[8.5rem_1fr]">
                   <div className="pl-6">
                     <div className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
-                      Block {String(index + 1).padStart(2, "0")}
+                      Block {String(blockNumber).padStart(2, "0")}
                     </div>
-                    <div className="mt-3 display text-3xl">{slot.label}</div>
+                    <div className="mt-3 display text-3xl">{entry.label}</div>
                     <p className="mt-3 text-sm text-[var(--text-secondary)]">
-                      {slot.start} - {slot.end}
+                      {entry.start} - {entry.end}
                     </p>
                     <div className="mt-4">
-                      <span className="status-badge" data-tone={getProgressTone(progress.status)}>
-                        {getProgressLabel(progress.status)}
+                      <span className="status-badge" data-tone={getProgressTone(entry.progress.status)}>
+                        {getProgressLabel(entry.progress.status)}
                       </span>
                     </div>
                   </div>
 
                   <div>
-                    <h3 className="text-2xl font-semibold leading-tight">
-                      {getDisplayBlockDescription(todayScheduleDay, blockKey, todayState.trafficLight)}
-                    </h3>
+                    <h3 className="text-2xl font-semibold leading-tight">{entry.displayDescription}</h3>
                     <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                      {getBlockDurationLabel(todayScheduleDay, blockKey, userState)}
+                      {getBlockDurationLabel(todayScheduleDay, entry.blockKey, userState)}
                     </p>
                     <div className="mt-5 flex flex-wrap gap-2">
                       <form action={updateBlockAction}>
                         <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
-                        <input type="hidden" name="blockKey" value={blockKey} />
+                        <input type="hidden" name="blockKey" value={entry.blockKey} />
                         <input type="hidden" name="intent" value="complete" />
                         <button className="button-primary" disabled={completed} type="submit">
                           Complete block
@@ -530,56 +627,45 @@ export default async function TodayPage() {
                       </form>
                       <form action={updateBlockAction}>
                         <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
-                        <input type="hidden" name="blockKey" value={blockKey} />
+                        <input type="hidden" name="blockKey" value={entry.blockKey} />
                         <input type="hidden" name="intent" value="skip" />
                         <button className="button-secondary" disabled={completed} type="submit">
-                          Move out
+                          Move to backlog
                         </button>
                       </form>
                     </div>
-                    <TimeEditor dayNumber={todayScheduleDay.dayNumber} blockKey={blockKey} start={slot.start} end={slot.end} />
+                    <TimeEditor
+                      dayNumber={todayScheduleDay.dayNumber}
+                      blockKey={entry.blockKey}
+                      start={entry.start}
+                      end={entry.end}
+                    />
                   </div>
                 </div>
               </article>
             );
           })}
-
-          {hiddenBlocks.length ? (
-            <section className="panel reveal-rise p-5 md:p-6">
-              <div className="eyebrow">Folded Away For Recovery</div>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {hiddenBlocks.map((blockKey) => {
-                  const slot = todayScheduleDay.slots.find((item) => item.key === blockKey)!;
-                  return (
-                    <div key={blockKey} className="note-card p-4 text-sm leading-7 text-[var(--text-secondary)]">
-                      <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
-                        {slot.label}
-                      </div>
-                      <p className="mt-2">
-                        This block is now part of the recovery queue so the current day can stay believable.
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
-          ) : null}
         </section>
       </section>
 
       {data.dayComplete && data.quote ? (
-        <section className="panel panel-hero reveal-rise p-6 md:p-8">
+        <section className="panel panel-hero celebration-panel reveal-rise p-6 md:p-8">
           <div className="eyebrow">Completion Moment</div>
           <p className="display mt-4 max-w-4xl text-3xl md:text-5xl">&ldquo;{data.quote.quote}&rdquo;</p>
           <p className="mt-4 text-sm text-[var(--text-secondary)]">{data.quote.author}</p>
+          <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
+            The visible day is closed. Let the rest of the night belong to recovery, not extension.
+          </p>
         </section>
       ) : null}
 
       <WindDownPrompts
+        key={`${todayScheduleDay.dayNumber}:${data.nowIso}`}
         nowIso={data.nowIso}
         dayNumber={todayScheduleDay.dayNumber}
         trafficLight={todayState.trafficLight}
         incompleteVisibleBlocks={incompleteVisibleBlocks}
+        lateNightSweepProcessed={data.lateNightSweepProcessed}
       />
 
       {process.env.NODE_ENV !== "production" ? <DevToolbar simulatedNow={data.nowIso} /> : null}

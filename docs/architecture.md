@@ -34,9 +34,16 @@ The generator validates workbook structure before output:
 - `src/lib/domain/types.ts`
 - `src/lib/domain/constants.ts`
 - `src/lib/domain/schedule.ts`
+- `src/lib/domain/today.ts`
 - `src/lib/domain/quotes.ts`
 
 This layer defines schedule mapping, traffic-light scope, revision derivation, shift absorption, backlog suggestions, and quote category selection.
+
+`src/lib/domain/today.ts` owns the Today-screen-specific pure helpers that should stay easy to test:
+
+- chronological timeline ordering with inline break/meal separators
+- hidden-block collapsing for Yellow/Red days
+- open-app wind-down prompt branching for `22:30`, `22:45`, `23:00`, and `23:15`
 
 Revision derivation is now block-level, not day-level:
 

@@ -454,6 +454,7 @@ export function getHomeData(store: LocalStore, userId: string) {
     nowIso: now.toISOString(),
     todayDate,
     todayDayNumber,
+    lateNightSweepProcessed: userState.processedDates.lateNightSweepDates.includes(todayDate),
     dayCountLabel: getSafeDayCountLabel(todayDayNumber),
     settings,
     todayScheduleDay,

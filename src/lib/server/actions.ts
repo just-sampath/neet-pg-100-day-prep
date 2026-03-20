@@ -6,11 +6,17 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { loginUser, logoutUser, requireCurrentUser } from "@/lib/auth/session";
-import { applyTrafficLightToDay, generateWeeklySummary, getOrCreateProgress, moveBlockToBacklog } from "@/lib/data/app-state";
-import { createEmptyUserState, mutateStore } from "@/lib/data/local-store";
-import { createRevisionId, getVisibleBlockKeys, reconcileRevisionCompletionsForSource } from "@/lib/domain/schedule";
+import {
+  applyTrafficLightToDay,
+  generateWeeklySummary,
+  getOrCreateProgress,
+  moveBlockToBacklog,
+  runLateNightSweep,
+} from "@/lib/data/app-state";
+import { createEmptyUserState, getEffectiveNow, mutateStore } from "@/lib/data/local-store";
+import { createRevisionId, getCurrentDayNumber, getVisibleBlockKeys, reconcileRevisionCompletionsForSource } from "@/lib/domain/schedule";
 import type { BlockKey, McqCauseCode, McqPriority, McqResult, RevisionSourceBlockKey, TrafficLight } from "@/lib/domain/types";
-import { toDateOnly, weekBounds } from "@/lib/utils/date";
+import { getMinutesInTimeZone, IST_TIME_ZONE, toDateOnly, toDateOnlyInTimeZone, weekBounds } from "@/lib/utils/date";
 
 function asString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value : "";
@@ -204,6 +210,20 @@ export async function wrapUpDayAction(formData: FormData) {
       }
       moveBlockToBacklog(userState, dayNumber, blockKey, "missed");
     }
+  });
+  refresh();
+}
+
+export async function runLateNightSweepAction() {
+  const user = await requireCurrentUser();
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const now = getEffectiveNow(store);
+    const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+    const minutes = getMinutesInTimeZone(now, IST_TIME_ZONE);
+
+    runLateNightSweep(userState, userState.settings, todayDate, todayDayNumber, minutes);
   });
   refresh();
 }

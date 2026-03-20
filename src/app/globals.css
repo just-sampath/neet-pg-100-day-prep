@@ -418,6 +418,14 @@ button {
   overflow: hidden;
 }
 
+.timeline-card[data-complete="true"] {
+  background:
+    linear-gradient(180deg, rgba(142, 217, 165, 0.08), rgba(255, 255, 255, 0.012)),
+    linear-gradient(135deg, rgba(223, 176, 111, 0.06), transparent 30%),
+    var(--surface);
+  border-color: rgba(142, 217, 165, 0.24);
+}
+
 .timeline-card::before {
   content: "";
   position: absolute;
@@ -425,6 +433,71 @@ button {
   width: 2px;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(223, 176, 111, 0.8), rgba(223, 176, 111, 0.08));
+}
+
+.timeline-separator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 0.4rem;
+  font-family: var(--font-mono), monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0.92;
+}
+
+.timeline-separator::before,
+.timeline-separator::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+}
+
+.timeline-separator[data-kind="meal"] {
+  color: var(--accent);
+}
+
+.timeline-hidden-card {
+  border: 1px dashed var(--border-strong);
+  border-radius: 1.35rem;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.024), rgba(255, 255, 255, 0.01)),
+    rgba(255, 255, 255, 0.02);
+  opacity: 0.88;
+}
+
+.celebration-panel {
+  overflow: hidden;
+}
+
+.celebration-panel::before {
+  content: "";
+  position: absolute;
+  inset: -28% auto auto -12%;
+  width: 18rem;
+  height: 18rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(223, 176, 111, 0.28), transparent 64%);
+  filter: blur(12px);
+  opacity: 0.95;
+  animation: celebration-glow 3.6s ease-in-out infinite alternate;
+}
+
+.celebration-panel::after {
+  content: "";
+  position: absolute;
+  inset: auto -4rem -5rem auto;
+  width: 16rem;
+  height: 16rem;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(142, 217, 165, 0.16), transparent 68%);
+  filter: blur(18px);
+  opacity: 0.9;
+  animation: celebration-glow 4.8s ease-in-out infinite alternate-reverse;
 }
 
 .nav-pill {
@@ -518,6 +591,16 @@ button {
   }
 }
 
+@keyframes celebration-glow {
+  from {
+    transform: translate3d(0, 0, 0) scale(0.98);
+  }
+
+  to {
+    transform: translate3d(1.5%, -1.5%, 0) scale(1.04);
+  }
+}
+
 @media (max-width: 768px) {
   .app-shell {
     padding-inline: 0.8rem;
@@ -534,7 +617,9 @@ button {
   }
 
   body::after,
-  .reveal-rise {
+  .reveal-rise,
+  .celebration-panel::before,
+  .celebration-panel::after {
     animation: none;
   }
 

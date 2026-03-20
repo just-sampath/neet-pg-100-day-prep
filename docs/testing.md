@@ -21,6 +21,13 @@ npm run build:webpack
   - `1-2`, `3-6`, and `7+` overdue routing
   - explicit revision completion exclusion
   - retroactive completion recomputation and invalid early-checkoff cleanup
+- Today-view branch coverage for:
+  - chronological timeline ordering with inline break/meal separators
+  - collapsed hidden-block placement inside the main rail
+  - 22:30 wrap-up prompt
+  - 22:45 one-time reappearance
+  - 23:00 night recall handling
+  - 23:15 safety-net auto-move states
 
 ## Local Mode Manual Pass
 
@@ -35,29 +42,32 @@ Then verify:
 1. Log in with the local seeded account.
 2. Set Day 1 date.
 3. Verify Today view loads a mapped day.
-4. Toggle Green, Yellow, Red and confirm visible/rescheduled blocks.
-5. Complete a block and refresh.
-6. Skip a block and verify backlog entry appears.
-7. Edit a block time and trigger sleep protection.
-8. Mark a revision item complete.
-9. Complete `block_a` or `block_b` late and confirm future revision anchors move.
-10. Open a past schedule day and complete a block with a retroactive date.
-11. Confirm the old planned revision placement disappears and the new anchor date gains the item.
-12. Log MCQ bulk and item data.
-13. Log a GT entry.
-14. Generate a weekly summary.
-15. Export JSON.
+4. Confirm break and meal separators stay inline in the Today timeline.
+5. Toggle Green, Yellow, Red and confirm visible blocks stay interactive while hidden blocks collapse in-place as `Rescheduled`.
+6. Confirm the Today view exposes the MCQ quick-log entry point.
+7. Complete a block and refresh.
+8. Skip a block and verify backlog entry appears.
+9. Edit a block time and trigger sleep protection.
+10. Mark a revision item complete.
+11. Complete `block_a` or `block_b` late and confirm future revision anchors move.
+12. Open a past schedule day and complete a block with a retroactive date.
+13. Confirm the old planned revision placement disappears and the new anchor date gains the item.
+14. Log MCQ bulk and item data.
+15. Log a GT entry.
+16. Generate a weekly summary.
+17. Export JSON.
 
 ## Time-Based Manual Pass
 
 1. Set simulated time to `22:30`.
 2. Confirm wind-down prompt appears.
-3. Set simulated time to `23:00`.
-4. Confirm night recall prompt appears.
-5. Set simulated time to `23:15`.
-6. Confirm remaining work is swept to backlog.
-7. Trigger `/api/dev/midnight` or set next day `00:01`.
-8. Confirm missed blocks are marked and weekly automation can run.
+3. Dismiss with `I'm almost done` and confirm the wrap-up prompt reappears once at `22:45`.
+4. Set simulated time to `23:00`.
+5. Confirm the night recall prompt appears.
+6. Set simulated time to `23:15`.
+7. Confirm remaining work is swept to backlog and the safety-net message appears.
+8. Trigger `/api/dev/midnight` or set next day `00:01`.
+9. Confirm missed blocks are marked and weekly automation can run.
 
 ## Supabase Runtime Pass
 

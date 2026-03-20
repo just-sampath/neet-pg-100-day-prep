@@ -5,6 +5,7 @@
 - Green: full schedule
 - Yellow: reduced day, hidden blocks moved to backlog
 - Red: salvage day, only the minimum visible blocks stay
+- The Today timeline keeps all study blocks in chronological order even on Yellow/Red days; hidden blocks collapse in-place as neutral `Rescheduled` cards.
 
 ## Backlog
 
@@ -27,6 +28,14 @@
 ## Wind-Down
 
 - `22:30`: offer wrap-up
+- `22:45`: if the `22:30` prompt was dismissed once, show one more wrap-up prompt
 - `23:00`: handle night recall explicitly
 - `23:15`: sweep remaining visible work to backlog
 - midnight: mark pending blocks as missed
+
+## Today View
+
+- Morning revision shows individual rows with equal time-per-item display.
+- Break and meal slots stay visible as thin separators between study blocks.
+- The Today screen includes a direct MCQ quick-log entry point.
+- Completion uses a quiet celebration treatment rather than a loud success screen.

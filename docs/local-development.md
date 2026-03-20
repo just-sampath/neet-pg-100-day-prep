@@ -98,9 +98,12 @@ Use the dev toolbar on Today or Settings.
 Recommended timestamps to test:
 
 - `YYYY-MM-DDT22:30`
+- `YYYY-MM-DDT22:45`
 - `YYYY-MM-DDT23:00`
 - `YYYY-MM-DDT23:15`
 - next day `T00:01`
+
+For the 23:15 safety-net path, set the simulated time directly to `23:15` rather than waiting from `22:30`, because the server-side sweep uses the stored simulated timestamp.
 
 API equivalent:
 

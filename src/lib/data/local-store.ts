@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -26,6 +26,9 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const dataDir = resolve(process.cwd(), ".data");
 const storePath = resolve(dataDir, "local-store.json");
+const tempStorePath = resolve(dataDir, "local-store.tmp.json");
+const backupStorePath = resolve(dataDir, "local-store.backup.json");
+let localMutationQueue: Promise<void> = Promise.resolve();
 
 function emptySettings(): AppSettings {
   return {
@@ -92,8 +95,41 @@ async function ensureStoreFile() {
     await readFile(storePath, "utf8");
   } catch {
     const store = createDefaultStore();
-    await writeFile(storePath, JSON.stringify(store, null, 2));
+    await persistLocalStoreFiles(store);
   }
+}
+
+async function persistLocalStoreFiles(store: LocalStore) {
+  await mkdir(dataDir, { recursive: true });
+  const serialized = JSON.stringify(store, null, 2);
+  await writeFile(tempStorePath, serialized);
+  await rename(tempStorePath, storePath);
+  await writeFile(backupStorePath, serialized);
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function parseLocalStoreFile(path: string, attempts = 3): Promise<LocalStore> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      const raw = await readFile(path, "utf8");
+      if (!raw.trim()) {
+        throw new SyntaxError(`Local store file is empty: ${path}`);
+      }
+      return JSON.parse(raw) as LocalStore;
+    } catch (error) {
+      lastError = error;
+      if (attempt < attempts - 1) {
+        await sleep(15 * (attempt + 1));
+      }
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error(`Unable to parse local store: ${path}`);
 }
 
 function ensureDefaultLocalUser(parsed: LocalStore) {
@@ -109,8 +145,18 @@ function ensureDefaultLocalUser(parsed: LocalStore) {
 
 async function readLocalStore(): Promise<LocalStore> {
   await ensureStoreFile();
-  const raw = await readFile(storePath, "utf8");
-  const parsed = JSON.parse(raw) as LocalStore;
+  let parsed: LocalStore;
+
+  try {
+    parsed = await parseLocalStoreFile(storePath);
+  } catch (error) {
+    parsed = await parseLocalStoreFile(backupStorePath);
+    await persistLocalStoreFiles(parsed);
+    if (error instanceof Error) {
+      console.warn(`Recovered local store from backup after read failure: ${error.message}`);
+    }
+  }
+
   ensureDefaultLocalUser(parsed);
   for (const userId of Object.keys(parsed.userState)) {
     parsed.userState[userId] = normalizeUserState(parsed.userState[userId]);
@@ -119,8 +165,23 @@ async function readLocalStore(): Promise<LocalStore> {
 }
 
 async function writeLocalStore(store: LocalStore) {
-  await mkdir(dataDir, { recursive: true });
-  await writeFile(storePath, JSON.stringify(store, null, 2));
+  await persistLocalStoreFiles(store);
+}
+
+async function withLocalMutationLock<T>(operation: () => Promise<T>): Promise<T> {
+  const previous = localMutationQueue;
+  let release!: () => void;
+  localMutationQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  await previous;
+
+  try {
+    return await operation();
+  } finally {
+    release();
+  }
 }
 
 function createSessionScopedStore(user: LocalUser): LocalStore {
@@ -861,7 +922,9 @@ export async function writeStore(store: LocalStore) {
     return;
   }
 
-  await writeLocalStore(store);
+  await withLocalMutationLock(async () => {
+    await writeLocalStore(store);
+  });
 }
 
 export async function mutateStore<T>(mutator: (store: LocalStore) => T | Promise<T>): Promise<T> {
@@ -877,10 +940,17 @@ export async function mutateStore<T>(mutator: (store: LocalStore) => T | Promise
     return result;
   }
 
-  const store = await readLocalStore();
-  const result = await mutator(store);
-  await writeLocalStore(store);
-  return result;
+  return withLocalMutationLock(async () => {
+    const store = await readLocalStore();
+    const previous = structuredClone(store);
+    const result = await mutator(store);
+
+    if (JSON.stringify(store) !== JSON.stringify(previous)) {
+      await writeLocalStore(store);
+    }
+
+    return result;
+  });
 }
 
 export function createSession(userId: string): LocalSession {

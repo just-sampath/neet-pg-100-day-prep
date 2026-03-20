@@ -119,6 +119,7 @@ Defaults:
 - `src/lib/domain/types.ts`: all shared domain types
 - `src/lib/domain/constants.ts`: exam date, hard boundary, traffic-light block sets, compression rules
 - `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, shift preview, backlog suggestions
+- `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
 - `src/lib/domain/quotes.ts`: quote selection
 - `src/lib/data/local-store.ts`: runtime-aware persistence boundary for local and Supabase modes
 - `src/lib/data/app-state.ts`: automations, read models, weekly summary generation
@@ -201,6 +202,7 @@ The generated schedule bundle includes:
 - Visible: `morning_revision`, `block_a`, `mcq`
 - Hidden to backlog: everything else
 - UI copy should frame this as salvage mode, not failure
+- Today copy explicitly uses: `A salvage day, not a zero day.`
 
 ## Schedule Shift Rules
 
@@ -230,20 +232,23 @@ Every feature should be runnable locally. Minimum manual pass:
 1. Log in.
 2. Set Day 1 date.
 3. Toggle Green/Yellow/Red and confirm block visibility/backlog behavior.
-4. Complete and skip blocks.
-5. Edit a block time and confirm sleep protection warning.
-6. Mark revision items complete.
-7. Complete `block_a` or `block_b` on a later date and confirm the revision queue moves.
-8. Use dev time travel to trigger:
+4. Confirm the Today timeline keeps break and meal separators inline and shows hidden blocks as collapsed `Rescheduled` cards in-place.
+5. Confirm the Today view exposes the MCQ quick-log entry point directly.
+6. Complete and skip blocks.
+7. Edit a block time and confirm sleep protection warning.
+8. Mark revision items complete.
+9. Complete `block_a` or `block_b` on a later date and confirm the revision queue moves.
+10. Use dev time travel to trigger:
    - 22:30 wind-down prompt
+   - 22:45 wrap-up reappearance after one dismiss
    - 23:00 night recall prompt
    - 23:15 late-night sweep
    - next-day midnight rollover
-9. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.
-10. Log MCQ bulk and item data.
-11. Log GT data.
-12. Generate a weekly summary.
-13. Export JSON.
+11. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.
+12. Log MCQ bulk and item data.
+13. Log GT data.
+14. Generate a weekly summary.
+15. Export JSON.
 
 Supabase runtime pass:
 

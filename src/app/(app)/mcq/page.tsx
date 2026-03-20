@@ -47,7 +47,7 @@ export default async function McqPage() {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <section className="panel p-6">
+        <section className="panel p-6" id="bulk-entry">
           <div className="eyebrow">Bulk Entry</div>
           <form action={submitMcqBulkAction} className="mt-4 grid gap-4">
             <label>
@@ -82,7 +82,7 @@ export default async function McqPage() {
           </form>
         </section>
 
-        <section className="panel p-6">
+        <section className="panel p-6" id="detailed-entry">
           <div className="eyebrow">One-by-One Entry</div>
           <form action={submitMcqItemAction} className="mt-4 grid gap-4">
             <div className="grid gap-4 md:grid-cols-2">

@@ -52,7 +52,9 @@ Default local credentials:
 - Runtime-aware local and Supabase-backed modes
 - Build-time schedule and quote generation from the provided workbook/CSV with workbook validation
 - Today view, traffic light system, backlog queue, schedule browser, MCQ logging, GT logging, weekly summaries, export
+- Today view now keeps the full day in one chronological rail with inline break/meal separators, collapsed rescheduled blocks, an MCQ quick-log entry point, and a quiet completion glow
 - Dev-only time travel controls for 22:30 / 23:00 / 23:15 / midnight behavior
+- Open-app wind-down state machine with 22:30 wrap-up, one 22:45 reappearance, 23:00 night recall handling, and 23:15 safety-net backlog sweep
 - Supabase auth, persistence, RLS, and Realtime integration path for shared-state deployment
 - Production cron routes for IST midnight rollover and weekly summary automation
 - Job telemetry in `automation_job_runs` plus manual cron setup SQL for Supabase
