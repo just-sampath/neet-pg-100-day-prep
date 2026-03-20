@@ -1,0 +1,70 @@
+import Link from "next/link";
+
+import { AutoRefresh } from "@/components/app/auto-refresh";
+import { NavBar } from "@/components/app/nav-bar";
+import { RegisterServiceWorker } from "@/components/app/register-sw";
+import { SyncStatus } from "@/components/app/sync-status";
+import { requireCurrentUser } from "@/lib/auth/session";
+import { getRuntimeMode } from "@/lib/runtime/mode";
+import { logoutAction } from "@/lib/server/actions";
+
+export default async function AppLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const user = await requireCurrentUser();
+  const runtimeMode = getRuntimeMode();
+
+  return (
+    <main id="main-content" className="app-shell">
+      <AutoRefresh runtimeMode={runtimeMode} />
+      <RegisterServiceWorker />
+      <header className="panel panel-hero overflow-hidden p-5 md:p-6">
+        <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-start">
+          <div>
+            <div className="eyebrow">Single-user study ledger</div>
+            <div className="mt-3 flex flex-wrap items-end gap-3">
+              <Link className="display text-4xl md:text-5xl" href="/today">
+                Beside You
+              </Link>
+              <span className="status-badge" data-tone="neutral">
+                quiet by design
+              </span>
+              <SyncStatus runtimeMode={runtimeMode} userId={user.id} />
+            </div>
+            <p className="lead mt-4 max-w-2xl text-sm md:text-base">
+              Built around the exact 100-day schedule rather than a generic task board, with quiet sync across the active study devices.
+            </p>
+          </div>
+          <div className="grid gap-3">
+            <div className="note-card p-4">
+              <div className="eyebrow">Signed In</div>
+              <p className="mt-3 text-sm text-[var(--text-secondary)]">{user.email}</p>
+            </div>
+            <div className="flex flex-wrap justify-end gap-2">
+              <form action={logoutAction}>
+                <button className="button-secondary" type="submit">
+                  Log out
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div className="mt-5 border-t border-[var(--border)] pt-4">
+          <div className="grid gap-2 text-sm text-[var(--text-secondary)] md:grid-cols-3">
+            <p>One aspirant. One source of truth. No social clutter.</p>
+            <p>Traffic lights reshape the day without turning the app punitive.</p>
+            <p>Manual time travel and cron triggers keep every rule locally testable.</p>
+          </div>
+        </div>
+      </header>
+      <div className="mt-5">
+        <NavBar />
+      </div>
+      <div className="mt-6">
+        <div className="grid gap-6">{children}</div>
+      </div>
+    </main>
+  );
+}

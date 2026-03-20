@@ -1,0 +1,327 @@
+"use server";
+
+import { randomUUID } from "node:crypto";
+
+import { refresh } from "next/cache";
+import { redirect } from "next/navigation";
+
+import { loginUser, logoutUser, requireCurrentUser } from "@/lib/auth/session";
+import { applyTrafficLightToDay, generateWeeklySummary, getOrCreateProgress, moveBlockToBacklog } from "@/lib/data/app-state";
+import { createEmptyUserState, mutateStore } from "@/lib/data/local-store";
+import { getVisibleBlockKeys } from "@/lib/domain/schedule";
+import type { BlockKey, McqCauseCode, McqPriority, McqResult, TrafficLight } from "@/lib/domain/types";
+import { toDateOnly, weekBounds } from "@/lib/utils/date";
+
+function asString(value: FormDataEntryValue | null) {
+  return typeof value === "string" ? value : "";
+}
+
+export async function loginAction(formData: FormData) {
+  const result = await loginUser(asString(formData.get("email")), asString(formData.get("password")));
+  if (!result.ok) {
+    redirect(`/login?error=${encodeURIComponent(result.message)}`);
+  }
+  redirect("/today");
+}
+
+export async function logoutAction() {
+  await logoutUser();
+  redirect("/login");
+}
+
+export async function setDayOneDateAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const dayOneDate = asString(formData.get("dayOneDate"));
+  const theme = asString(formData.get("theme"));
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    userState.settings.dayOneDate = dayOneDate || null;
+    if (theme === "dark" || theme === "light") {
+      userState.settings.theme = theme;
+    }
+  });
+  refresh();
+}
+
+export async function setThemeAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const theme = asString(formData.get("theme"));
+  if (theme !== "dark" && theme !== "light") {
+    return;
+  }
+  await mutateStore((store) => {
+    store.userState[user.id].settings.theme = theme;
+  });
+  refresh();
+}
+
+export async function setTrafficLightAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const dayNumber = Number(asString(formData.get("dayNumber")));
+  const trafficLight = asString(formData.get("trafficLight")) as TrafficLight;
+  if (!dayNumber || !["green", "yellow", "red"].includes(trafficLight)) {
+    return;
+  }
+
+  await mutateStore((store) => {
+    applyTrafficLightToDay(store.userState[user.id], dayNumber, trafficLight);
+  });
+  refresh();
+}
+
+export async function updateBlockAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const dayNumber = Number(asString(formData.get("dayNumber")));
+  const blockKey = asString(formData.get("blockKey")) as BlockKey;
+  const intent = asString(formData.get("intent"));
+  const actualStart = asString(formData.get("actualStart")) || null;
+  const actualEnd = asString(formData.get("actualEnd")) || null;
+  const note = asString(formData.get("note")) || null;
+
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const progressKey = `${dayNumber}:${blockKey}`;
+    const progress =
+      userState.blockProgress[progressKey] ??
+      (userState.blockProgress[progressKey] = {
+        dayNumber,
+        blockKey,
+        status: "pending",
+        actualStart: null,
+        actualEnd: null,
+        completedAt: null,
+        sourceTag: null,
+        note: null,
+      });
+
+    if (intent === "complete") {
+      progress.status = "completed";
+      progress.completedAt = new Date().toISOString();
+      progress.sourceTag = null;
+    } else if (intent === "partial") {
+      progress.status = "partial";
+      progress.completedAt = new Date().toISOString();
+      progress.note = note;
+    } else if (intent === "skip") {
+      progress.status = "skipped";
+      progress.completedAt = null;
+      progress.sourceTag = "skipped";
+      moveBlockToBacklog(store.userState[user.id], dayNumber, blockKey, "skipped", "skipped");
+    } else if (intent === "time") {
+      progress.actualStart = actualStart;
+      progress.actualEnd = actualEnd;
+      progress.note = note;
+    }
+  });
+
+  refresh();
+}
+
+export async function completeRevisionAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const sourceDay = Number(asString(formData.get("sourceDay")));
+  const revisionType = asString(formData.get("revisionType"));
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    userState.revisionCompletions[`${sourceDay}:${revisionType}`] = {
+      sourceDay,
+      revisionType: revisionType as never,
+      completedAt: new Date().toISOString(),
+    };
+  });
+  refresh();
+}
+
+export async function updateBacklogAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const backlogId = asString(formData.get("backlogId"));
+  const intent = asString(formData.get("intent"));
+  const completionDate = asString(formData.get("completionDate")) || null;
+  const rescheduledToDay = Number(asString(formData.get("rescheduledToDay")) || 0);
+  const rescheduledToBlockKey = asString(formData.get("rescheduledToBlockKey")) as BlockKey;
+
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const item = userState.backlogItems[backlogId];
+    if (!item) {
+      return;
+    }
+
+    if (intent === "complete") {
+      item.status = "completed";
+      item.completedAt = completionDate ? `${completionDate}T12:00:00.000Z` : new Date().toISOString();
+      const progress = getOrCreateProgress(userState, item.originalDay, item.originalBlockKey);
+      progress.status = "completed";
+      progress.completedAt = item.completedAt;
+    } else if (intent === "dismiss") {
+      item.status = "dismissed";
+      item.dismissedAt = new Date().toISOString();
+    } else if (intent === "reschedule") {
+      item.status = "rescheduled";
+      item.rescheduledToDay = rescheduledToDay || item.suggestedDay;
+      item.rescheduledToBlockKey = rescheduledToBlockKey || item.suggestedBlockKey;
+    }
+  });
+  refresh();
+}
+
+export async function wrapUpDayAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const dayNumber = Number(asString(formData.get("dayNumber")));
+  const trafficLight = asString(formData.get("trafficLight")) as TrafficLight;
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    for (const blockKey of getVisibleBlockKeys(trafficLight)) {
+      if (blockKey === "night_recall") {
+        continue;
+      }
+      moveBlockToBacklog(userState, dayNumber, blockKey, "missed");
+    }
+  });
+  refresh();
+}
+
+export async function applyShiftAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const additionalDays = Number(asString(formData.get("additionalDays")) || 0);
+  await mutateStore((store) => {
+    const settings = store.userState[user.id].settings;
+    settings.scheduleShiftDays += additionalDays;
+    settings.shiftAppliedAt = new Date().toISOString();
+  });
+  refresh();
+}
+
+export async function submitMcqBulkAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const id = randomUUID();
+    userState.mcqBulkLogs[id] = {
+      id,
+      entryDate: asString(formData.get("entryDate")) || toDateOnly(new Date()),
+      totalAttempted: Number(asString(formData.get("totalAttempted")) || 0),
+      correct: Number(asString(formData.get("correct")) || 0),
+      wrong: Number(asString(formData.get("wrong")) || 0),
+      subject: asString(formData.get("subject")) || null,
+      source: asString(formData.get("source")) || null,
+      createdAt: new Date().toISOString(),
+    };
+  });
+  refresh();
+}
+
+export async function submitMcqItemAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const id = randomUUID();
+    userState.mcqItemLogs[id] = {
+      id,
+      entryDate: asString(formData.get("entryDate")) || toDateOnly(new Date()),
+      mcqId: asString(formData.get("mcqId")),
+      result: asString(formData.get("result")) as McqResult,
+      subject: asString(formData.get("subject")) || null,
+      topic: asString(formData.get("topic")) || null,
+      source: asString(formData.get("source")) || null,
+      causeCode: (asString(formData.get("causeCode")) || null) as McqCauseCode | null,
+      priority: (asString(formData.get("priority")) || null) as McqPriority | null,
+      correctRule: asString(formData.get("correctRule")) || null,
+      whatFooledMe: asString(formData.get("whatFooledMe")) || null,
+      fixCodes: asString(formData.get("fixCodes"))
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+      tags: asString(formData.get("tags"))
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+      createdAt: new Date().toISOString(),
+    };
+  });
+  refresh();
+}
+
+export async function submitGtAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const id = randomUUID();
+    const section = (prefix: string) => ({
+      timeEnough: asString(formData.get(`${prefix}TimeEnough`)) ? asString(formData.get(`${prefix}TimeEnough`)) === "yes" : null,
+      panicStarted: asString(formData.get(`${prefix}PanicStarted`)) ? asString(formData.get(`${prefix}PanicStarted`)) === "yes" : null,
+      guessedTooMuch: asString(formData.get(`${prefix}GuessedTooMuch`)) ? asString(formData.get(`${prefix}GuessedTooMuch`)) === "yes" : null,
+      timeLostOn: asString(formData.get(`${prefix}TimeLostOn`))
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    });
+
+    userState.gtLogs[id] = {
+      id,
+      gtNumber: asString(formData.get("gtNumber")),
+      gtDate: asString(formData.get("gtDate")) || toDateOnly(new Date()),
+      dayNumber: Number(asString(formData.get("dayNumber")) || 0) || null,
+      score: Number(asString(formData.get("score")) || 0) || null,
+      correct: Number(asString(formData.get("correct")) || 0) || null,
+      wrong: Number(asString(formData.get("wrong")) || 0) || null,
+      unattempted: Number(asString(formData.get("unattempted")) || 0) || null,
+      airPercentile: asString(formData.get("airPercentile")) || null,
+      device: (asString(formData.get("device")) || null) as never,
+      attemptedLive: asString(formData.get("attemptedLive")) ? asString(formData.get("attemptedLive")) === "yes" : null,
+      overallFeeling: (asString(formData.get("overallFeeling")) || null) as never,
+      sectionA: section("sectionA"),
+      sectionB: section("sectionB"),
+      sectionC: section("sectionC"),
+      sectionD: section("sectionD"),
+      sectionE: section("sectionE"),
+      errorTypes: asString(formData.get("errorTypes")) || null,
+      recurringTopics: asString(formData.get("recurringTopics")) || null,
+      knowledgeVsBehaviour: Number(asString(formData.get("knowledgeVsBehaviour")) || 0) || null,
+      unsureRightCount: Number(asString(formData.get("unsureRightCount")) || 0) || null,
+      changeBeforeNextGt: asString(formData.get("changeBeforeNextGt")) || null,
+      createdAt: new Date().toISOString(),
+    };
+  });
+  refresh();
+}
+
+export async function generateWeeklySummaryAction() {
+  const user = await requireCurrentUser();
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const today = toDateOnly(store.dev.simulatedNowIso ?? new Date().toISOString());
+    const week = weekBounds(today);
+    const summary = generateWeeklySummary(userState, userState.settings, week.start);
+    userState.weeklySummaries[summary.id] = summary;
+  });
+  refresh();
+}
+
+export async function setSimulatedNowAction(formData: FormData) {
+  await requireCurrentUser();
+  const value = asString(formData.get("simulatedNow"));
+  await mutateStore((store) => {
+    store.dev.simulatedNowIso = value ? new Date(value).toISOString() : null;
+  });
+  refresh();
+}
+
+export async function clearSimulatedNowAction() {
+  await requireCurrentUser();
+  await mutateStore((store) => {
+    store.dev.simulatedNowIso = null;
+  });
+  refresh();
+}
+
+export async function resetLocalDataAction() {
+  const user = await requireCurrentUser();
+  await mutateStore((store) => {
+    store.userState[user.id] = createEmptyUserState();
+    store.sessions = {};
+    store.dev.simulatedNowIso = null;
+  });
+  await logoutUser();
+  redirect("/login");
+}
