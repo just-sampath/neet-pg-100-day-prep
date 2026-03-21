@@ -125,7 +125,7 @@ Defaults:
 - `src/lib/domain/weekly.ts`: weekly-summary normalization, week-key lookup, status labeling, and cadence helpers
 - `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, schedule-browser editability, and anchored schedule-shift preview logic
 - `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
-- `src/lib/domain/quotes.ts`: quote selection
+- `src/lib/domain/quotes.ts`: quote selection, per-category cycle state, and Today-view quote routing
 - `src/lib/data/local-store.ts`: runtime-aware persistence boundary for local and Supabase modes
 - `src/lib/data/app-state.ts`: automations, read models, weekly summary generation
 - `src/lib/server/actions.ts`: all UI mutations
@@ -147,6 +147,7 @@ Defaults:
 - `supabase/migrations/0007_schedule_shift_events.sql`: persistent shift-event history for anchored schedule shifts
 - `supabase/migrations/0008_gt_weakest_subjects.sql`: explicit weakest-subject persistence for GT wrapper analytics
 - `supabase/migrations/0009_weekly_summary_uniqueness.sql`: one summary per user per week plus duplicate cleanup
+- `supabase/migrations/0010_quote_state_history.sql`: persisted quote-cycle state for local and Supabase parity
 - `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
 
 ### Server Automation
@@ -195,6 +196,18 @@ The generated schedule bundle includes:
 - The exam date is fixed to `2026-08-30`.
 - The hard study boundary is `2026-08-20`.
 - Time-based features must stay locally testable without waiting for wall-clock time.
+
+## Quote Rules
+
+- Quotes come only from the build-time `resources/quotes.csv` source file.
+- Categories are fixed: `daily`, `tough_day`, `celebration`.
+- Green days show the date's `daily` quote.
+- Yellow and Red days show the date's `tough_day` quote.
+- Switching back to Green on the same date restores the same `daily` quote already selected for that date.
+- Completion uses a separate `celebration` quote path for that date.
+- Quotes do not repeat within a category until that category cycle is exhausted.
+- Quote history is stored per user in runtime persistence so refreshes and devices stay consistent.
+- If a category pool is very small, fallback selection must stay deterministic and avoid an immediate repeat when possible.
 
 ## Traffic Light Rules
 
@@ -355,13 +368,16 @@ Every feature should be runnable locally. Minimum manual pass:
 23. Confirm GT analytics show score trend, section patterns, comparison, wrapper trend, and weakness repetition.
 24. Generate a weekly summary.
 25. Open the weekly detail page and confirm it shows schedule adherence, revision pressure, overrun labels, MCQ signal, GT signal, backlog breakdown, and subjects studied.
-26. Export JSON.
-27. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
-28. Complete that destination block and confirm the assigned backlog item closes with it.
-29. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
-30. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
-31. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
-32. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
+26. Toggle Green -> Yellow/Red -> Green on Today and confirm the original daily quote returns for that date.
+27. Complete the visible day and confirm the celebration quote appears as its own completion moment.
+28. Refresh and confirm the quote for the current date/category stays stable.
+29. Export JSON.
+30. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
+31. Complete that destination block and confirm the assigned backlog item closes with it.
+32. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
+33. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+34. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
+35. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
 
 Supabase runtime pass:
 
@@ -373,6 +389,7 @@ Supabase runtime pass:
 6. Disconnect and reconnect the network once and confirm the degraded-sync badge behavior is quiet and recoverable.
 7. Call the cron routes with `CRON_SECRET` and confirm midnight and weekly jobs return success.
 8. Confirm repeated cron calls are idempotent by checking the app state or `automation_job_runs`.
+9. Refresh the same date in two sessions and confirm the quote shown for that date/category stays consistent across devices.
 
 ## Preferred Engineering Patterns
 

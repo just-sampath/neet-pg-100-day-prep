@@ -263,17 +263,17 @@ export default async function TodayPage() {
               </div>
             ) : null}
 
-            {data.quote ? (
+            {data.lineQuote ? (
               <blockquote className="note-card mt-8 grid gap-4 p-5 md:grid-cols-[0.28fr_0.72fr] md:p-6">
                 <div>
-                  <div className="eyebrow">{data.dayComplete ? "Completion Line" : "Today's Line"}</div>
+                  <div className="eyebrow">{data.lineQuoteCategory === "tough_day" ? "Tough-Day Line" : "Daily Line"}</div>
                   <p className="mt-3 font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-dim)]">
-                    {todayState.trafficLight} pace / beside you
+                    {data.lineQuoteCategory === "tough_day" ? `${todayState.trafficLight} pace` : "green pace"} / beside you
                   </p>
                 </div>
                 <div>
-                  <p className="display text-2xl leading-[1.1] md:text-3xl">&ldquo;{data.quote.quote}&rdquo;</p>
-                  <footer className="mt-4 text-sm text-[var(--text-secondary)]">{data.quote.author}</footer>
+                  <p className="display text-2xl leading-[1.1] md:text-3xl">&ldquo;{data.lineQuote.quote}&rdquo;</p>
+                  <footer className="mt-4 text-sm text-[var(--text-secondary)]">{data.lineQuote.author}</footer>
                 </div>
               </blockquote>
             ) : null}
@@ -684,11 +684,11 @@ export default async function TodayPage() {
         </section>
       </section>
 
-      {data.dayComplete && data.quote ? (
+      {data.dayComplete && data.celebrationQuote ? (
         <section className="panel panel-hero celebration-panel reveal-rise p-6 md:p-8">
           <div className="eyebrow">Completion Moment</div>
-          <p className="display mt-4 max-w-4xl text-3xl md:text-5xl">&ldquo;{data.quote.quote}&rdquo;</p>
-          <p className="mt-4 text-sm text-[var(--text-secondary)]">{data.quote.author}</p>
+          <p className="display mt-4 max-w-4xl text-3xl md:text-5xl">&ldquo;{data.celebrationQuote.quote}&rdquo;</p>
+          <p className="mt-4 text-sm text-[var(--text-secondary)]">{data.celebrationQuote.author}</p>
           <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
             The visible day is closed. Let the rest of the night belong to recovery, not extension.
           </p>

@@ -23,6 +23,9 @@ This must include:
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
 - `supabase/migrations/0006_backlog_queue_priority.sql`
 - `supabase/migrations/0007_schedule_shift_events.sql`
+- `supabase/migrations/0008_gt_weakest_subjects.sql`
+- `supabase/migrations/0009_weekly_summary_uniqueness.sql`
+- `supabase/migrations/0010_quote_state_history.sql`
 
 ## Hosted Automation
 
@@ -76,6 +79,18 @@ Generation now validates workbook structure. If it fails:
 ```bash
 npm run generate:data
 ```
+3. If Supabase mode is active, apply the runtime schema so `quote_state` stays aligned:
+
+```bash
+supabase db push
+```
+
+4. Recheck:
+
+- the current date's Green quote
+- the Yellow/Red tough-day quote
+- Green restoration on the same date
+- the completion celebration quote path
 
 ## Export User Data
 
@@ -117,6 +132,13 @@ npm run generate:data
 - Revision completions are now keyed per source block via `revision_id`.
 - `block_a` and `block_b` from the same study day intentionally produce separate revision series.
 - If a retroactive source completion is moved later, impossible earlier revision checkoffs are pruned during reconciliation.
+
+## Quote Notes
+
+- Quote history is stored per user in `app_settings.quote_state`.
+- The same date keeps its selected `daily`, `tough_day`, and `celebration` ids once chosen.
+- Category cycles reset only after exhaustion, and small pools avoid immediate repeat when possible.
+- If quote behavior drifts, inspect `src/lib/domain/quotes.ts` before patching Today UI copy.
 
 ## Schedule Shift Notes
 

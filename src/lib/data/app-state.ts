@@ -56,7 +56,7 @@ import {
   getMcqTopCauseCodes,
   getMcqTopWrongSubjects,
 } from "@/lib/domain/mcq";
-import { getQuote } from "@/lib/domain/quotes";
+import { getTodayQuoteSelection } from "@/lib/domain/quotes";
 import { findWeeklySummaryByWeekKey, getWeeklyScheduleStatus, WEEKLY_AUTOMATION_MINUTES } from "@/lib/domain/weekly";
 import type {
   AppSettings,
@@ -737,19 +737,21 @@ export function getHomeData(store: LocalStore, userId: string) {
   const backlogCount = getBacklogCount(userState);
   const dayComplete =
     todayScheduleDay && todayState ? getDayCompletionState(todayScheduleDay, userState, todayState.trafficLight) : false;
-  const dailyQuote = getQuote("daily", Math.max(0, todayDayNumber - 1));
-  const toughQuote = getQuote("tough_day", Math.max(0, todayDayNumber - 1));
-  const celebrationIndex = Math.max(
-    0,
-    scheduleData.days.filter((day) => getDayCompletionState(day, userState, getDayState(userState, day.dayNumber).trafficLight)).length - 1,
-  );
-  const celebrationQuote = getQuote("celebration", celebrationIndex);
-  const quote =
-    dayComplete && celebrationQuote
-      ? celebrationQuote
-      : todayState?.trafficLight === "green"
-        ? dailyQuote
-        : toughQuote;
+  const quoteSelection =
+    todayScheduleDay && todayState
+      ? getTodayQuoteSelection(userState.quoteState, {
+          dateKey: todayDate,
+          userKey: userId,
+          trafficLight: todayState.trafficLight,
+          dayComplete,
+        })
+      : {
+          lineCategory: null,
+          lineQuote: null,
+          dailyQuote: null,
+          toughQuote: null,
+          celebrationQuote: null,
+        };
 
   const shiftHealth = getScheduleHealth(userState, settings, todayDayNumber);
   const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays) : null;
@@ -767,7 +769,9 @@ export function getHomeData(store: LocalStore, userId: string) {
     todayRevisionPlan,
     backlogCount,
     dayComplete,
-    quote,
+    lineQuote: quoteSelection.lineQuote,
+    lineQuoteCategory: quoteSelection.lineCategory,
+    celebrationQuote: quoteSelection.celebrationQuote,
     shiftHealth,
     shiftPreview,
     plannedRecovery,

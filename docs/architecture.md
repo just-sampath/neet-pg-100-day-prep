@@ -76,6 +76,7 @@ This layer decides whether the app is operating in `local` or `supabase` mode an
 - `supabase/migrations/0007_schedule_shift_events.sql`
 - `supabase/migrations/0008_gt_weakest_subjects.sql`
 - `supabase/migrations/0009_weekly_summary_uniqueness.sql`
+- `supabase/migrations/0010_quote_state_history.sql`
 
 `src/lib/data/local-store.ts` is now the runtime-aware persistence boundary.
 
@@ -95,6 +96,7 @@ Additional runtime metadata is stored in `app_settings`:
 
 - `processed_dates`
 - `simulated_now_iso`
+- `quote_state`
 
 This keeps the current automation model compatible across both runtimes.
 
@@ -138,6 +140,12 @@ This keeps repeated shifts deterministic and lets mapped-date views recompute fr
 - `weakest_subjects`
 
 That keeps GT weakness analytics structured instead of relying on free-text inference.
+
+`0010_quote_state_history.sql` adds persisted quote-cycle state:
+
+- `quote_state`
+
+That keeps per-category quote history stable across refreshes, local runs, and Supabase multi-device sessions.
 
 `0003_automation_job_runs.sql` adds a job-run ledger for hosted automation:
 
@@ -199,6 +207,15 @@ Implemented GT behavior:
 - weakest subjects are persisted as structured subject values
 - analytics read models expose score trend, section patterns, section time-loss summaries, GT-over-GT deltas, wrapper trend, and repeated weak-subject/topic patterns
 - weekly summaries pull the latest GT in the week from the same GT log model
+
+Implemented quote behavior:
+
+- quote categories remain build-time source data from `quotes.csv`
+- quote selection is persisted per user through `quote_state`
+- each category uses a non-repeat cycle until exhausted
+- the same date keeps its own selected `daily`, `tough_day`, and `celebration` ids
+- switching Green -> Yellow/Red -> Green restores the original daily quote for that date
+- celebration uses its own distinct quote path rather than reusing the daily/tough-day line
 
 ### Server Automation Layer
 

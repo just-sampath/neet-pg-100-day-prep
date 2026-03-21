@@ -7,6 +7,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { DEFAULT_LOCAL_USER } from "@/lib/domain/constants";
 import { normalizeStoredGtLog } from "@/lib/domain/gt";
 import { normalizeStoredMcqBulkLog, normalizeStoredMcqItemLog } from "@/lib/domain/mcq";
+import { emptyQuoteState, normalizeQuoteState } from "@/lib/domain/quotes";
 import { findWeeklySummaryByWeekKey, normalizeStoredWeeklySummary } from "@/lib/domain/weekly";
 import type {
   AppSettings,
@@ -56,6 +57,7 @@ export function createEmptyUserState(): UserState {
     blockProgress: {},
     revisionCompletions: {},
     backlogItems: {},
+    quoteState: emptyQuoteState(),
     mcqBulkLogs: {},
     mcqItemLogs: {},
     gtLogs: {},
@@ -401,6 +403,7 @@ function normalizeUserState(userState: UserState | undefined): UserState {
     gtLogs: Object.fromEntries(Object.entries(base.gtLogs ?? {}).map(([id, log]) => [id, normalizeStoredGtLog(log)])),
     weeklySummaries,
     revisionCompletions: normalizeRevisionCompletions(base.revisionCompletions),
+    quoteState: normalizeQuoteState(base.quoteState),
     processedDates: normalizeProcessedDates(base.processedDates),
   };
 }
@@ -479,6 +482,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       shiftAppliedAt: settingsRow.shift_applied_at,
       shiftEvents: settingsRow.shift_events ?? [],
     };
+    userState.quoteState = normalizeQuoteState(settingsRow.quote_state);
     userState.processedDates = normalizeProcessedDates(settingsRow.processed_dates);
     store.dev.simulatedNowIso = settingsRow.simulated_now_iso ?? null;
   }
@@ -689,6 +693,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
       schedule_shift_days: nextState.settings.scheduleShiftDays,
       shift_applied_at: nextState.settings.shiftAppliedAt,
       shift_events: nextState.settings.shiftEvents,
+      quote_state: nextState.quoteState,
       processed_dates: nextState.processedDates,
       simulated_now_iso: nextStore.dev.simulatedNowIso,
     },
@@ -881,6 +886,7 @@ export async function persistSupabaseStoreForUser(nextStore: LocalStore, previou
       schedule_shift_days: nextState.settings.scheduleShiftDays,
       shift_applied_at: nextState.settings.shiftAppliedAt,
       shift_events: nextState.settings.shiftEvents,
+      quote_state: nextState.quoteState,
       processed_dates: nextState.processedDates,
       simulated_now_iso: nextStore.dev.simulatedNowIso,
     },

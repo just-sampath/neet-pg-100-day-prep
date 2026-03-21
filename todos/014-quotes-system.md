@@ -1,6 +1,6 @@
 # 014 Quotes System
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -13,22 +13,22 @@ Quotes are part of the product's emotional tone. The system needs to respect tra
 
 ## Current Gap
 
-- Quotes are selected deterministically by index rather than by non-repeating history.
-- Traffic-light mood mapping exists, but history and depletion behavior are not complete.
+- Quotes now use persisted per-category non-repeating cycles with per-day selections.
+- Traffic-light switching restores the same daily quote for the date, while celebration uses its own separate cycle.
 
 ## Checklist
 
-- [ ] Load quotes from the repo CSV at build time.
-- [ ] Keep quote categories mapped to green, yellow, red, and celebration contexts.
-- [ ] Prevent repeats until the relevant category cycle is exhausted.
-- [ ] Persist quote history in the correct runtime store.
-- [ ] Handle category switching without awkward repeated quotes.
-- [ ] Ensure the fallback logic is deterministic and safe if a category pool is small.
-- [ ] Keep quote rendering quiet and non-intrusive.
+- [x] Load quotes from the repo CSV at build time.
+- [x] Keep quote categories mapped to green, yellow, red, and celebration contexts.
+- [x] Prevent repeats until the relevant category cycle is exhausted.
+- [x] Persist quote history in the correct runtime store.
+- [x] Handle category switching without awkward repeated quotes.
+- [x] Ensure the fallback logic is deterministic and safe if a category pool is small.
+- [x] Keep quote rendering quiet and non-intrusive.
 
 ## Acceptance Criteria
 
-- [ ] Traffic-light changes result in an appropriate quote tone.
-- [ ] Repeats do not occur prematurely.
-- [ ] Celebration moments can use a distinct quote path without breaking the normal cycle.
-- [ ] Quote state is consistent across refreshes and devices.
+- [x] Traffic-light changes result in an appropriate quote tone.
+- [x] Repeats do not occur prematurely.
+- [x] Celebration moments can use a distinct quote path without breaking the normal cycle.
+- [x] Quote state is consistent across refreshes and devices.

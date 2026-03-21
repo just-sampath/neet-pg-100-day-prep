@@ -82,6 +82,18 @@
 - The Today screen includes a direct MCQ quick-log entry point.
 - Completion uses a quiet celebration treatment rather than a loud success screen.
 
+## Quotes
+
+- Quotes are loaded from the build-time `resources/quotes.csv` source file.
+- The Today view uses one calm quote line per date based on pace:
+  - Green -> `daily`
+  - Yellow/Red -> `tough_day`
+- If the pace changes mid-date, the quote tone changes with it.
+- If the pace returns to Green on that same date, the original daily quote for that date returns.
+- Completion uses a separate `celebration` quote path.
+- Each quote category runs on a non-repeat cycle per user; the cycle resets only after the category is exhausted.
+- Quote history is persisted, so refreshes and multi-device sessions stay consistent.
+
 ## MCQ Tracker
 
 - Bulk entry keeps the high-speed path minimal: date, attempted, correct, derived wrong, with optional subject and source context.

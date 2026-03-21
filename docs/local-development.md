@@ -75,6 +75,9 @@ This applies both:
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
 - `supabase/migrations/0006_backlog_queue_priority.sql`
 - `supabase/migrations/0007_schedule_shift_events.sql`
+- `supabase/migrations/0008_gt_weakest_subjects.sql`
+- `supabase/migrations/0009_weekly_summary_uniqueness.sql`
+- `supabase/migrations/0010_quote_state_history.sql`
 
 Expected behavior in Supabase mode:
 
@@ -141,6 +144,8 @@ In Supabase mode:
 14. Open `/schedule` and confirm it lands near Today with the current day highlighted.
 15. Open a future day and confirm it is view-only.
 16. Open a past day and confirm retroactive completion is available with an editable actual completion date.
+17. Toggle Green -> Yellow/Red -> Green on the same date and confirm the original daily quote returns.
+18. Refresh both sessions and confirm the quote shown for the current date/category stays consistent.
 
 ## Cron Manual Check
 

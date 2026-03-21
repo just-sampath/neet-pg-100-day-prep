@@ -70,6 +70,12 @@ npm run build:webpack
   - Sunday `23:30` IST automation cutoff
   - safe regeneration/upsert for the same week
   - stored payload integrity for schedule, revision, backlog, MCQ, and GT signals
+- Quote-system branch coverage for:
+  - CSV-to-generated-data alignment
+  - same-date quote stability without double-advancing the cycle
+  - category exhaustion/reset without premature repeat
+  - Green -> Yellow/Red -> Green restoration of the original daily quote
+  - stale persisted quote-state normalization
 
 ## Local Mode Manual Pass
 
@@ -106,17 +112,20 @@ Then verify:
 23. Confirm GT analytics show score trend, section patterns, comparison, wrapper trend, section time-loss reasons, and weak-subject/topic repetition.
 24. Generate a weekly summary.
 25. Open the weekly detail page and confirm it shows schedule adherence, revision health, overrun labels, MCQ trends, GT summary, backlog breakdown, and subjects studied.
-26. Export JSON.
-27. Reschedule a backlog item and confirm it renders inside the destination block card rather than a detached recovery strip.
-28. Complete the destination block and confirm the assigned backlog item closes automatically.
-29. In a separate pass, skip or miss the destination block and confirm the assigned backlog item returns to `pending`.
-30. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
-31. Open shift preview and confirm it starts from the earliest missed day, uses Day 84 first, and lists the exact compression pair when needed.
-32. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with it, and backlog from the shifted span is cleared.
-33. Open `/schedule` and confirm the browser scrolls near Today and highlights it.
-33. Open a future day from the browser and confirm it is view-only.
-34. Open a past day and confirm only retroactive completion is available.
-35. Open an absorbed or merged shift-hidden day and confirm it is view-only while still showing why the mapping changed.
+26. Toggle Green -> Yellow/Red -> Green and confirm the original daily quote returns for the same date.
+27. Complete the visible day and confirm the celebration quote appears as its own completion moment.
+28. Refresh and confirm the quote stays stable for the current date/category.
+29. Export JSON.
+30. Reschedule a backlog item and confirm it renders inside the destination block card rather than a detached recovery strip.
+31. Complete the destination block and confirm the assigned backlog item closes automatically.
+32. In a separate pass, skip or miss the destination block and confirm the assigned backlog item returns to `pending`.
+33. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+34. Open shift preview and confirm it starts from the earliest missed day, uses Day 84 first, and lists the exact compression pair when needed.
+35. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with it, and backlog from the shifted span is cleared.
+36. Open `/schedule` and confirm the browser scrolls near Today and highlights it.
+37. Open a future day from the browser and confirm it is view-only.
+38. Open a past day and confirm only retroactive completion is available.
+39. Open an absorbed or merged shift-hidden day and confirm it is view-only while still showing why the mapping changed.
 
 ## Time-Based Manual Pass
 
@@ -160,6 +169,7 @@ Then verify:
 7. Disconnect the network and confirm the app shows `No connection` or `Sync reconnecting`.
 8. Reconnect and confirm the app recovers without logout or manual reload.
 9. Export JSON and confirm the exported data reflects the persisted Supabase state.
+10. Refresh the same date in both sessions and confirm the current quote for that date/category remains consistent.
 
 ## Hosted Automation Pass
 

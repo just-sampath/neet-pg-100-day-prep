@@ -37,6 +37,9 @@ This must apply:
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
 - `supabase/migrations/0006_backlog_queue_priority.sql`
 - `supabase/migrations/0007_schedule_shift_events.sql`
+- `supabase/migrations/0008_gt_weakest_subjects.sql`
+- `supabase/migrations/0009_weekly_summary_uniqueness.sql`
+- `supabase/migrations/0010_quote_state_history.sql`
 
 `0002_runtime_rls_realtime.sql` is required for:
 
@@ -72,6 +75,12 @@ This must apply:
 - anchored shift-event persistence
 - repeated-shift safety across local and Supabase runtimes
 - preview/apply consistency for schedule remapping after deployment
+
+`0010_quote_state_history.sql` is required for:
+
+- persisted per-user quote-cycle history
+- stable quote selections across refreshes and devices
+- consistent Green/Yellow/Red quote restoration on hosted Supabase runtime
 
 ## Auth Setup
 
@@ -138,6 +147,8 @@ Run this immediately after the first deployment:
 14. Create two heavily missed days in the last 7-day window and confirm the shift preview appears.
 15. Apply the shift and confirm Today, Schedule Browser, and GT markers all move together without breaching August 20.
 16. Open `/schedule` and confirm Today is easy to find, future days are view-only, and shifted days still explain their original planned date.
+17. Toggle Green -> Yellow/Red -> Green on the same date and confirm the original daily quote returns.
+18. Refresh the same date on both devices and confirm the current quote remains consistent.
 
 ## Rollback Notes
 

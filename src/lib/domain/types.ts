@@ -68,6 +68,16 @@ export interface GeneratedQuote {
   category: QuoteCategory;
 }
 
+export interface QuoteCategoryCycleState {
+  usedQuoteIds: string[];
+  cycleCount: number;
+}
+
+export interface QuoteState {
+  daySelections: Record<string, Partial<Record<QuoteCategory, string>>>;
+  categoryCycles: Record<QuoteCategory, QuoteCategoryCycleState>;
+}
+
 export interface GeneratedWorkbookNote {
   section: string;
   details: string;
@@ -391,6 +401,7 @@ export interface UserState {
   blockProgress: Record<string, BlockProgress>;
   revisionCompletions: Record<string, RevisionCompletion>;
   backlogItems: Record<string, BacklogItem>;
+  quoteState: QuoteState;
   mcqBulkLogs: Record<string, McqBulkLog>;
   mcqItemLogs: Record<string, McqItemLog>;
   gtLogs: Record<string, GtLog>;
