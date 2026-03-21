@@ -65,6 +65,7 @@ Default local credentials:
 - Quote behavior now matches the spec: build-time CSV quotes, per-category non-repeat cycles, per-day traffic-light quote restoration, separate celebration quote path, and persisted history across refreshes/devices
 - First setup now defaults Day 1 to tomorrow so fresh accounts start with the date pre-selected, with a server-side fallback ensuring a date is always stored on submission
 - Setup gate now keeps users on the Today page until Day 1 is set, hiding navigation and redirecting all other routes back to the setup surface
+- Production Day 1 validation now rejects past dates and same-day selections after 12:00 PM IST server-side, with matching UI date constraints on both setup and settings forms
 - Settings and installability now match the spec: versioned settings/about screen, direct workbook/spec links, downloadable JSON export, generated PWA icons, Apple icon metadata, standalone install guidance, and a safe online-first offline fallback
 - Final release hardening is now in place: calm loading/error/not-found states, mobile/tablet touch and focus cleanup, deferred secondary analytics charts, explicit forbidden-scope guardrail tests, and a release smoke-test script
 - Supabase auth, persistence, RLS, and Realtime integration path for shared-state deployment

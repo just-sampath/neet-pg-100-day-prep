@@ -77,10 +77,21 @@ export async function setDayOneDateAction(formData: FormData) {
   const theme = asString(formData.get("theme"));
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    userState.settings.dayOneDate = dayOneDate || addDaysToDateOnly(
+    const resolvedDate = dayOneDate || addDaysToDateOnly(
       toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE),
       1,
     );
+    if (process.env.NODE_ENV === "production") {
+      const now = getEffectiveNow(store);
+      const todayIST = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+      if (resolvedDate < todayIST) {
+        return;
+      }
+      if (resolvedDate === todayIST && getMinutesInTimeZone(now, IST_TIME_ZONE) >= 720) {
+        return;
+      }
+    }
+    userState.settings.dayOneDate = resolvedDate;
     if (theme === "dark" || theme === "light") {
       userState.settings.theme = theme;
     }

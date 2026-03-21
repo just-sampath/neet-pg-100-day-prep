@@ -8,7 +8,7 @@ import { getEffectiveNow, mutateStore } from "@/lib/data/local-store";
 import { APP_DESCRIPTION, APP_VERSION, STUDY_DOCUMENT_LINKS } from "@/lib/domain/app-meta";
 import { EXAM_DATE, HARD_BOUNDARY_DATE } from "@/lib/domain/constants";
 import { getRuntimeLabel, getRuntimeMode } from "@/lib/runtime/mode";
-import { addDaysToDateOnly, IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
+import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
 import { resetAppStateAction, setDayOneDateAction, setThemeAction } from "@/lib/server/actions";
 
 export default async function SettingsPage() {
@@ -16,15 +16,21 @@ export default async function SettingsPage() {
   await requireDayOneSetup(user.id);
   const runtimeMode = getRuntimeMode();
   const showDevelopmentReset = process.env.NODE_ENV !== "production";
-  const { settings, simulatedNow, todayDate } = await mutateStore((store) => {
+  const { settings, simulatedNow, todayDate, nowIso } = await mutateStore((store) => {
     applyAutomations(store, user.id);
     const now = getEffectiveNow(store);
     return {
       settings: structuredClone(store.userState[user.id].settings),
       simulatedNow: store.dev.simulatedNowIso,
       todayDate: toDateOnlyInTimeZone(now, IST_TIME_ZONE),
+      nowIso: now.toISOString(),
     };
   });
+  const minDate = process.env.NODE_ENV === "production"
+    ? getMinutesInTimeZone(new Date(nowIso), IST_TIME_ZONE) >= 720
+      ? addDaysToDateOnly(todayDate, 1)
+      : todayDate
+    : undefined;
 
   return (
     <div className="grid gap-6">
@@ -72,7 +78,7 @@ export default async function SettingsPage() {
         <form action={setDayOneDateAction} className="mt-4 flex flex-wrap items-end gap-3">
           <label className="grow">
             <span className="mb-2 block text-sm text-[var(--muted)]">Day 1</span>
-            <input className="field" type="date" name="dayOneDate" defaultValue={settings.dayOneDate ?? addDaysToDateOnly(todayDate, 1)} />
+            <input className="field" type="date" name="dayOneDate" defaultValue={settings.dayOneDate ?? addDaysToDateOnly(todayDate, 1)} min={minDate} />
           </label>
           <input type="hidden" name="theme" value={settings.theme} />
           <button className="button-primary min-h-11" type="submit">

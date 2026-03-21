@@ -1,6 +1,6 @@
 # 003 Production Day 1 Validation
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -17,16 +17,16 @@ The product decision is to keep Day 1 selection realistic in production while st
 
 ## Checklist
 
-- [ ] Add server-side production-only validation for past Day 1 values.
-- [ ] Add server-side production-only validation for choosing the current IST date after 12:00 PM IST.
-- [ ] Keep non-production behavior permissive for local testing.
-- [ ] Mirror the rules in the UI where possible without relying on the client as the source of truth.
+- [x] Add server-side production-only validation for past Day 1 values.
+- [x] Add server-side production-only validation for choosing the current IST date after 12:00 PM IST.
+- [x] Keep non-production behavior permissive for local testing.
+- [x] Mirror the rules in the UI where possible without relying on the client as the source of truth.
 
 ## Acceptance Criteria
 
-- [ ] In production, a user cannot save a Day 1 date earlier than the current effective IST date.
-- [ ] In production, a user cannot save the current effective IST date once the effective IST time is after 12:00 PM.
-- [ ] In non-production, time-travel and arbitrary test setups still work.
+- [x] In production, a user cannot save a Day 1 date earlier than the current effective IST date.
+- [x] In production, a user cannot save the current effective IST date once the effective IST time is after 12:00 PM.
+- [x] In non-production, time-travel and arbitrary test setups still work.
 
 ## Implementation Notes
 

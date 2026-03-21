@@ -31,7 +31,7 @@ import {
   setTrafficLightAction,
   updateBlockAction,
 } from "@/lib/server/actions";
-import { addDaysToDateOnly } from "@/lib/utils/date";
+import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE } from "@/lib/utils/date";
 import { formatDateLabel } from "@/lib/utils/format";
 
 const paceCopy = {
@@ -99,6 +99,11 @@ export default async function TodayPage() {
   }));
 
   const tomorrowDefault = addDaysToDateOnly(data.todayDate, 1);
+  const minDate = process.env.NODE_ENV === "production"
+    ? getMinutesInTimeZone(new Date(data.nowIso), IST_TIME_ZONE) >= 720
+      ? addDaysToDateOnly(data.todayDate, 1)
+      : data.todayDate
+    : undefined;
 
   if (!data.settings.dayOneDate) {
     return (
@@ -114,7 +119,7 @@ export default async function TodayPage() {
           <form action={setDayOneDateAction} className="mt-8 grid gap-4 md:max-w-md">
             <label>
               <span className="mb-2 block text-sm text-[var(--muted)]">Day 1 date</span>
-              <input className="field" type="date" name="dayOneDate" defaultValue={tomorrowDefault} required />
+              <input className="field" type="date" name="dayOneDate" defaultValue={tomorrowDefault} min={minDate} required />
             </label>
             <input type="hidden" name="theme" value={data.settings.theme} />
             <button className="button-primary" type="submit">
