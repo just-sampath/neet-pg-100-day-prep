@@ -56,6 +56,9 @@ export type McqCauseCode = "R" | "C" | "A" | "D" | "I" | "M" | "V" | "B" | "T" |
 export type McqPriority = "P1" | "P2" | "P3";
 export type McqFixCode = "N" | "Q20" | "Q40M" | "A1" | "A3" | "T2" | "I10" | "F5" | "E" | "AI" | "G";
 export type McqTag = "protocol" | "volatile" | "management" | "image" | "emergency" | "screening" | "staging";
+export type GtDevice = "laptop" | "mobile" | "tablet";
+export type GtOverallFeeling = "calm" | "rushed" | "blank" | "fatigued" | "overthinking";
+export type GtTimeLostCode = "image" | "lengthy_clinical" | "biostats" | "algorithms";
 export type TimelineSlotKind = "study" | "break" | "meal";
 
 export interface GeneratedQuote {
@@ -299,7 +302,7 @@ export interface GtSectionBreakdown {
   timeEnough: boolean | null;
   panicStarted: boolean | null;
   guessedTooMuch: boolean | null;
-  timeLostOn: string[];
+  timeLostOn: GtTimeLostCode[];
 }
 
 export interface GtLog {
@@ -312,9 +315,9 @@ export interface GtLog {
   wrong: number | null;
   unattempted: number | null;
   airPercentile: string | null;
-  device: "laptop" | "mobile" | "tablet" | null;
+  device: GtDevice | null;
   attemptedLive: boolean | null;
-  overallFeeling: "calm" | "rushed" | "blank" | "fatigued" | "overthinking" | null;
+  overallFeeling: GtOverallFeeling | null;
   sectionA: GtSectionBreakdown;
   sectionB: GtSectionBreakdown;
   sectionC: GtSectionBreakdown;
@@ -322,6 +325,7 @@ export interface GtLog {
   sectionE: GtSectionBreakdown;
   errorTypes: string | null;
   recurringTopics: string | null;
+  weakestSubjects: string[];
   knowledgeVsBehaviour: number | null;
   unsureRightCount: number | null;
   changeBeforeNextGt: string | null;

@@ -5,12 +5,12 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import { DEFAULT_LOCAL_USER } from "@/lib/domain/constants";
+import { normalizeStoredGtLog } from "@/lib/domain/gt";
 import { normalizeStoredMcqBulkLog, normalizeStoredMcqItemLog } from "@/lib/domain/mcq";
 import type {
   AppSettings,
   BacklogItem,
   BlockProgress,
-  GtLog,
   LocalSession,
   LocalStore,
   LocalUser,
@@ -382,6 +382,7 @@ function normalizeUserState(userState: UserState | undefined): UserState {
     mcqItemLogs: Object.fromEntries(
       Object.entries(base.mcqItemLogs ?? {}).map(([id, log]) => [id, normalizeStoredMcqItemLog(log)]),
     ),
+    gtLogs: Object.fromEntries(Object.entries(base.gtLogs ?? {}).map(([id, log]) => [id, normalizeStoredGtLog(log)])),
     revisionCompletions: normalizeRevisionCompletions(base.revisionCompletions),
     processedDates: normalizeProcessedDates(base.processedDates),
   };
@@ -557,7 +558,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
   }
 
   for (const row of gtLogsResult.data ?? []) {
-    const log: GtLog = {
+    const log = normalizeStoredGtLog({
       id: row.id,
       gtNumber: row.gt_number,
       gtDate: row.gt_date,
@@ -577,11 +578,12 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       sectionE: row.section_e ?? {},
       errorTypes: row.error_types,
       recurringTopics: row.recurring_topics,
+      weakestSubjects: row.weakest_subjects ?? [],
       knowledgeVsBehaviour: row.knowledge_vs_behaviour,
       unsureRightCount: row.unsure_right_count,
       changeBeforeNextGt: row.change_before_next_gt,
       createdAt: row.created_at,
-    };
+    });
     userState.gtLogs[log.id] = log;
   }
 
@@ -814,6 +816,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
         section_e: entry.sectionE,
         error_types: entry.errorTypes,
         recurring_topics: entry.recurringTopics,
+        weakest_subjects: entry.weakestSubjects,
         knowledge_vs_behaviour: entry.knowledgeVsBehaviour,
         unsure_right_count: entry.unsureRightCount,
         change_before_next_gt: entry.changeBeforeNextGt,
@@ -1005,6 +1008,7 @@ export async function persistSupabaseStoreForUser(nextStore: LocalStore, previou
         section_e: entry.sectionE,
         error_types: entry.errorTypes,
         recurring_topics: entry.recurringTopics,
+        weakest_subjects: entry.weakestSubjects,
         knowledge_vs_behaviour: entry.knowledgeVsBehaviour,
         unsure_right_count: entry.unsureRightCount,
         change_before_next_gt: entry.changeBeforeNextGt,

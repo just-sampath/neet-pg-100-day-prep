@@ -35,6 +35,17 @@ import {
 } from "@/lib/domain/schedule";
 import { getTrafficLightBacklogSourceTag, previewOverrunCascade, shouldCreateBacklogItem } from "@/lib/domain/backlog";
 import {
+  buildGtComparisonSummary,
+  buildGtDashboardSummary,
+  buildGtScoreTrend,
+  buildGtSectionPatterns,
+  buildGtSectionTimeLostSummary,
+  buildGtWeaknessPatterns,
+  buildGtWrapperTrend,
+  getMappedGtSchedule,
+  getSuggestedGtPlanItem,
+} from "@/lib/domain/gt";
+import {
   buildMcqAccuracyBySubject,
   buildMcqBreakdownData,
   buildMcqDashboardSummary,
@@ -729,6 +740,43 @@ export function getMcqAnalyticsData(store: LocalStore, userId: string) {
     accuracyBySubject: buildMcqAccuracyBySubject(userState),
     wrongSubjects: getMcqTopWrongSubjects(userState),
     causeCodes: getMcqTopCauseCodes(userState),
+  };
+}
+
+export function getGtPageData(store: LocalStore, userId: string) {
+  applyAutomations(store, userId);
+
+  const userState = store.userState[userId];
+  const now = getEffectiveNow(store);
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+  const logs = Object.values(userState.gtLogs).toSorted((left, right) => right.gtDate.localeCompare(left.gtDate));
+  const schedule = getMappedGtSchedule(userState.settings, todayDate);
+  const suggestedPlanItem = getSuggestedGtPlanItem(userState.settings, todayDate);
+
+  return {
+    todayDate,
+    summary: buildGtDashboardSummary(logs),
+    schedule,
+    suggestedPlanItem,
+    recentLogs: logs.slice(0, 6),
+    subjectOptions: getMcqSubjectOptions(),
+  };
+}
+
+export function getGtAnalyticsData(store: LocalStore, userId: string) {
+  applyAutomations(store, userId);
+
+  const logs = Object.values(store.userState[userId].gtLogs).toSorted((left, right) => left.gtDate.localeCompare(right.gtDate));
+
+  return {
+    summary: buildGtDashboardSummary(logs),
+    scoreTrend: buildGtScoreTrend(logs),
+    sectionPatterns: buildGtSectionPatterns(logs),
+    sectionTimeLost: buildGtSectionTimeLostSummary(logs),
+    comparison: buildGtComparisonSummary(logs),
+    wrapperTrend: buildGtWrapperTrend(logs),
+    weaknesses: buildGtWeaknessPatterns(logs),
+    logs: structuredClone(logs),
   };
 }
 

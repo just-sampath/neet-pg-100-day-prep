@@ -120,6 +120,7 @@ Defaults:
 - `src/lib/domain/constants.ts`: exam date, hard boundary, traffic-light block sets, compression rules
 - `src/lib/domain/backlog.ts`: traffic-light restore rules, backlog-creation guards, and overrun preview logic
 - `src/lib/domain/backlog-queue.ts`: backlog suggestion engine, queue sorting, priority movement, target validation, and assigned-recovery read models
+- `src/lib/domain/gt.ts`: GT validation, mapped GT schedule helpers, comparison analytics, and weakness tracking
 - `src/lib/domain/mcq.ts`: canonical MCQ vocabularies, validation, normalization, recent-suggestion helpers, analytics aggregations, and weekly-summary feed support
 - `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, schedule-browser editability, and anchored schedule-shift preview logic
 - `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
@@ -143,6 +144,7 @@ Defaults:
 - `supabase/migrations/0005_backlog_creation_metadata.sql`: original slot timing metadata for backlog items
 - `supabase/migrations/0006_backlog_queue_priority.sql`: queue priority ordering for backlog items
 - `supabase/migrations/0007_schedule_shift_events.sql`: persistent shift-event history for anchored schedule shifts
+- `supabase/migrations/0008_gt_weakest_subjects.sql`: explicit weakest-subject persistence for GT wrapper analytics
 - `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
 
 ### Server Automation
@@ -270,6 +272,37 @@ The generated schedule bundle includes:
 - Tags: `protocol`, `volatile`, `management`, `image`, `emergency`, `screening`, `staging`
 - Analytics must expose daily trend, right/guessed-right/wrong breakdown, subject accuracy, weak subjects, and cause codes without introducing targets or streaks.
 
+## GT Rules
+
+- GT schedule context comes from workbook `GT_Test_Plan` and shifts with the live mapped schedule.
+- GT number prefills from the mapped GT label, while workbook purpose text stays visible as context.
+- Attempt context is structured:
+  - device: `Laptop`, `Mobile`, `Tablet`
+  - attempted live: `Yes` / `No`
+  - overall feeling: `Calm`, `Rushed`, `Blank`, `Fatigued`, `Overthinking`
+- The section review always uses five expandable sections `A-E`.
+- Each section tracks:
+  - `timeEnough`
+  - `panicStarted`
+  - `guessedTooMuch`
+  - `timeLostOn`
+- The GT wrapper stores:
+  - `errorTypes`
+  - top 3 `recurringTopics`
+  - `weakestSubjects`
+  - `knowledgeVsBehaviour`
+  - `unsureRightCount`
+  - `changeBeforeNextGt`
+- GT analytics must expose:
+  - score trend
+  - section patterns
+  - section time-loss patterns
+  - GT-over-GT comparison
+  - wrapper trend
+  - repeated weak subjects
+  - repeated recurring topics
+- Weekly summaries use the latest GT in the week: GT number, score, AIR/percentile text, and wrapper summary.
+
 ## Testing Checklist
 
 Every feature should be runnable locally. Minimum manual pass:
@@ -299,15 +332,17 @@ Every feature should be runnable locally. Minimum manual pass:
 18. Confirm bulk `wrong` auto-derives from attempted and correct.
 19. Confirm one-by-one `MCQ ID + result tap` works with details closed.
 20. Expand `Add details`, submit once, and confirm subject/source plus expander state persist while optional note fields clear.
-21. Log GT data.
-22. Generate a weekly summary.
-23. Export JSON.
-24. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
-25. Complete that destination block and confirm the assigned backlog item closes with it.
-26. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
-27. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
-28. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
-29. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
+21. Log GT data with mapped GT prefill, section A-E details, and wrapper notes.
+22. Confirm GT recurring topics stop at 3 and weakest-subject chips persist.
+23. Confirm GT analytics show score trend, section patterns, comparison, wrapper trend, and weakness repetition.
+24. Generate a weekly summary.
+25. Export JSON.
+26. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
+27. Complete that destination block and confirm the assigned backlog item closes with it.
+28. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
+29. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+30. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
+31. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
 
 Supabase runtime pass:
 

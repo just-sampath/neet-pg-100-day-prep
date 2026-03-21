@@ -34,6 +34,7 @@ import {
   getShiftPreview,
   reconcileRevisionCompletionsForSource,
 } from "@/lib/domain/schedule";
+import { validateGtDraft } from "@/lib/domain/gt";
 import { validateMcqBulkDraft, validateMcqItemDraft } from "@/lib/domain/mcq";
 import type {
   BacklogBulkScope,
@@ -486,46 +487,60 @@ export async function submitMcqItemAction(formData: FormData) {
 
 export async function submitGtAction(formData: FormData) {
   const user = await requireCurrentUser();
+  let result: { ok: boolean; error?: string } = { ok: true };
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    const id = randomUUID();
-    const section = (prefix: string) => ({
-      timeEnough: asString(formData.get(`${prefix}TimeEnough`)) ? asString(formData.get(`${prefix}TimeEnough`)) === "yes" : null,
-      panicStarted: asString(formData.get(`${prefix}PanicStarted`)) ? asString(formData.get(`${prefix}PanicStarted`)) === "yes" : null,
-      guessedTooMuch: asString(formData.get(`${prefix}GuessedTooMuch`)) ? asString(formData.get(`${prefix}GuessedTooMuch`)) === "yes" : null,
-      timeLostOn: asString(formData.get(`${prefix}TimeLostOn`))
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+    const sectionInput = (prefix: string) => ({
+      timeEnough: asString(formData.get(`${prefix}TimeEnough`)) || null,
+      panicStarted: asString(formData.get(`${prefix}PanicStarted`)) || null,
+      guessedTooMuch: asString(formData.get(`${prefix}GuessedTooMuch`)) || null,
+      timeLostOn: formData.getAll(`${prefix}TimeLostOn`).flatMap((value) => (typeof value === "string" ? [value] : [])),
     });
 
+    const validated = validateGtDraft(
+      {
+        gtNumber: asString(formData.get("gtNumber")) || null,
+        gtDate: asString(formData.get("gtDate")) || null,
+        dayNumber: asString(formData.get("dayNumber")) || null,
+        score: asString(formData.get("score")) || null,
+        correct: asString(formData.get("correct")) || null,
+        wrong: asString(formData.get("wrong")) || null,
+        unattempted: asString(formData.get("unattempted")) || null,
+        airPercentile: asString(formData.get("airPercentile")) || null,
+        device: asString(formData.get("device")) || null,
+        attemptedLive: asString(formData.get("attemptedLive")) || null,
+        overallFeeling: asString(formData.get("overallFeeling")) || null,
+        errorTypes: asString(formData.get("errorTypes")) || null,
+        recurringTopics: asString(formData.get("recurringTopics")) || null,
+        weakestSubjects: formData.getAll("weakestSubjects").map((value) => (typeof value === "string" ? value : null)),
+        knowledgeVsBehaviour: asString(formData.get("knowledgeVsBehaviour")) || null,
+        unsureRightCount: asString(formData.get("unsureRightCount")) || null,
+        changeBeforeNextGt: asString(formData.get("changeBeforeNextGt")) || null,
+        sectionA: sectionInput("sectionA"),
+        sectionB: sectionInput("sectionB"),
+        sectionC: sectionInput("sectionC"),
+        sectionD: sectionInput("sectionD"),
+        sectionE: sectionInput("sectionE"),
+      },
+      toDateOnly(getEffectiveNow(store)),
+    );
+
+    if (!validated.ok) {
+      result = validated;
+      return;
+    }
+
+    const id = randomUUID();
     userState.gtLogs[id] = {
       id,
-      gtNumber: asString(formData.get("gtNumber")),
-      gtDate: asString(formData.get("gtDate")) || toDateOnly(new Date()),
-      dayNumber: Number(asString(formData.get("dayNumber")) || 0) || null,
-      score: Number(asString(formData.get("score")) || 0) || null,
-      correct: Number(asString(formData.get("correct")) || 0) || null,
-      wrong: Number(asString(formData.get("wrong")) || 0) || null,
-      unattempted: Number(asString(formData.get("unattempted")) || 0) || null,
-      airPercentile: asString(formData.get("airPercentile")) || null,
-      device: (asString(formData.get("device")) || null) as never,
-      attemptedLive: asString(formData.get("attemptedLive")) ? asString(formData.get("attemptedLive")) === "yes" : null,
-      overallFeeling: (asString(formData.get("overallFeeling")) || null) as never,
-      sectionA: section("sectionA"),
-      sectionB: section("sectionB"),
-      sectionC: section("sectionC"),
-      sectionD: section("sectionD"),
-      sectionE: section("sectionE"),
-      errorTypes: asString(formData.get("errorTypes")) || null,
-      recurringTopics: asString(formData.get("recurringTopics")) || null,
-      knowledgeVsBehaviour: Number(asString(formData.get("knowledgeVsBehaviour")) || 0) || null,
-      unsureRightCount: Number(asString(formData.get("unsureRightCount")) || 0) || null,
-      changeBeforeNextGt: asString(formData.get("changeBeforeNextGt")) || null,
+      ...validated.value,
       createdAt: new Date().toISOString(),
     };
   });
-  refresh();
+  if (result.ok) {
+    refresh();
+  }
+  return result;
 }
 
 export async function generateWeeklySummaryAction() {

@@ -35,12 +35,13 @@ The generator validates workbook structure before output:
 - `src/lib/domain/constants.ts`
 - `src/lib/domain/backlog.ts`
 - `src/lib/domain/backlog-queue.ts`
+- `src/lib/domain/gt.ts`
 - `src/lib/domain/mcq.ts`
 - `src/lib/domain/schedule.ts`
 - `src/lib/domain/today.ts`
 - `src/lib/domain/quotes.ts`
 
-This layer defines schedule mapping, traffic-light scope, revision derivation, backlog suggestion/queue behavior, shift absorption, backlog-creation rules, overrun preview logic, MCQ validation/analytics vocabularies, and quote category selection.
+This layer defines schedule mapping, traffic-light scope, revision derivation, backlog suggestion/queue behavior, shift absorption, backlog-creation rules, overrun preview logic, GT validation/analytics vocabularies, MCQ validation/analytics vocabularies, and quote category selection.
 
 `src/lib/domain/today.ts` owns the Today-screen-specific pure helpers that should stay easy to test:
 
@@ -72,6 +73,7 @@ This layer decides whether the app is operating in `local` or `supabase` mode an
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
 - `supabase/migrations/0006_backlog_queue_priority.sql`
 - `supabase/migrations/0007_schedule_shift_events.sql`
+- `supabase/migrations/0008_gt_weakest_subjects.sql`
 
 `src/lib/data/local-store.ts` is now the runtime-aware persistence boundary.
 
@@ -129,6 +131,12 @@ Each shift is stored as an explicit event with:
 
 This keeps repeated shifts deterministic and lets mapped-date views recompute from the same event history in both runtimes.
 
+`0008_gt_weakest_subjects.sql` adds explicit GT wrapper weakness persistence:
+
+- `weakest_subjects`
+
+That keeps GT weakness analytics structured instead of relying on free-text inference.
+
 `0003_automation_job_runs.sql` adds a job-run ledger for hosted automation:
 
 - `job_name`
@@ -173,6 +181,15 @@ Implemented MCQ behavior:
 - recent topic and source suggestions are derived from prior entries
 - analytics read models expose trend, breakdown, subject accuracy, weak subjects, and cause-code rankings
 - weekly summaries consume the same canonical wrong-subject and cause-code signals
+
+Implemented GT behavior:
+
+- GT schedule context is derived from the workbook GT plan after schedule shifts are applied
+- the GT form captures the PRD score section, structured attempt context, five expandable sections `A-E`, and the wrapper fields
+- recurring wrapper topics are capped to the top 3
+- weakest subjects are persisted as structured subject values
+- analytics read models expose score trend, section patterns, section time-loss summaries, GT-over-GT deltas, wrapper trend, and repeated weak-subject/topic patterns
+- weekly summaries pull the latest GT in the week from the same GT log model
 
 ### Server Automation Layer
 

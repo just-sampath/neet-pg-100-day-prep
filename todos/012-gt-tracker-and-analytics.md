@@ -1,6 +1,6 @@
 # 012 GT Tracker And Analytics
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -17,21 +17,21 @@ GT logging is one of the highest-value review surfaces in the app. The form and 
 
 ## Checklist
 
-- [ ] Prefill GT schedule context from the generated plan.
-- [ ] Match the GT form fields to the PRD.
-- [ ] Add the exact attempt-context controls rather than generic text input.
-- [ ] Add section A-E score breakdown inputs.
-- [ ] Persist notes and weakness tracking with the right structure.
-- [ ] Build score-trend analytics.
-- [ ] Build section-pattern analytics.
-- [ ] Build GT-over-GT comparison views.
-- [ ] Build wrapper-trend analytics if required by the spec.
-- [ ] Surface repeated weakness patterns across GT entries.
-- [ ] Ensure weekly summaries can pull the necessary GT insights.
+- [x] Prefill GT schedule context from the generated plan.
+- [x] Match the GT form fields to the PRD.
+- [x] Add the exact attempt-context controls rather than generic text input.
+- [x] Add section A-E score breakdown inputs.
+- [x] Persist notes and weakness tracking with the right structure.
+- [x] Build score-trend analytics.
+- [x] Build section-pattern analytics.
+- [x] Build GT-over-GT comparison views.
+- [x] Build wrapper-trend analytics if required by the spec.
+- [x] Surface repeated weakness patterns across GT entries.
+- [x] Ensure weekly summaries can pull the necessary GT insights.
 
 ## Acceptance Criteria
 
-- [ ] Logging a GT captures enough structured detail for useful review.
-- [ ] Analytics make section-level and trend-level weakness visible.
-- [ ] GT schedule dates stay accurate after schedule shifts.
-- [ ] Weekly review can summarize GT performance without manual reconstruction.
+- [x] Logging a GT captures enough structured detail for useful review.
+- [x] Analytics make section-level and trend-level weakness visible.
+- [x] GT schedule dates stay accurate after schedule shifts.
+- [x] Weekly review can summarize GT performance without manual reconstruction.

@@ -98,3 +98,34 @@
 - Breakdown keeps `Right`, `Guessed Right`, and `Wrong` separate so weak confidence is still visible.
 - Subject accuracy only uses entries that were tagged with a subject.
 - Weekly summaries pull top wrong subjects and top cause codes from the same MCQ analytics source.
+
+## GT Tracker
+
+- GT schedule context is preloaded from workbook `GT_Test_Plan`.
+- GT days move with schedule shifts, so the suggested GT label and mapped day always follow the live calendar.
+- GT number prefills from the mapped label while workbook purpose text stays visible as context.
+- Attempt context is structured:
+  - device
+  - attempted live
+  - overall feeling
+- The section review uses five expandable sections `A-E`.
+- Each section tracks time sufficiency, panic, guess pressure, and time-loss causes.
+- The wrapper keeps:
+  - dominant error types
+  - top 3 recurring topics
+  - weakest subjects
+  - knowledge vs behaviour split
+  - unsure-right count
+  - next-change note
+
+## GT Analytics
+
+- Score trend plots only GTs with a real score.
+- Section pattern analytics count repeated time-pressure, panic, and over-guessing by section.
+- GT-over-GT comparison shows deltas for score, correct, wrong, unattempted, and AIR/percentile.
+- AIR and percentile deltas are direction-aware:
+  - lower AIR is better
+  - higher percentile is better
+- Wrapper trend tracks knowledge vs behaviour drift and unsure-right counts.
+- Weakness analytics surface repeated weakest subjects and recurring wrapper topics.
+- Weekly summaries pull the latest GT in the week with its score, AIR/percentile text, and wrapper summary.
