@@ -3,6 +3,7 @@
 This folder is the final production-readiness task list for Beside You.
 
 It is derived from:
+
 - `specs/beside-you-prd.md`
 - `specs/beside-you-technical-architecture.md`
 
@@ -17,6 +18,7 @@ It is derived from:
 ## Release Definition
 
 The codebase is production-ready only when:
+
 - All task files in this folder are fully checked off.
 - `npm run verify` passes locally.
 - The hosted path is Supabase-backed, not file-store-backed.
@@ -26,22 +28,7 @@ The codebase is production-ready only when:
 
 ## Task Order
 
-1. [x] [001-runtime-platform-and-auth.md](./001-runtime-platform-and-auth.md)
-2. [x] [002-realtime-sync-and-connectivity.md](./002-realtime-sync-and-connectivity.md)
-3. [x] [003-cron-jobs-and-server-automation.md](./003-cron-jobs-and-server-automation.md)
-4. [x] [004-excel-ingestion-and-static-content.md](./004-excel-ingestion-and-static-content.md)
-5. [x] [005-revision-engine-spec-alignment.md](./005-revision-engine-spec-alignment.md)
-6. [x] [006-today-view-and-wind-down.md](./006-today-view-and-wind-down.md)
-7. [x] [007-traffic-light-and-backlog-creation.md](./007-traffic-light-and-backlog-creation.md)
-8. [x] [008-backlog-suggestion-and-queue.md](./008-backlog-suggestion-and-queue.md)
-9. [x] [009-schedule-shift-mechanism.md](./009-schedule-shift-mechanism.md)
-10. [x] [010-schedule-browser-and-retroactive-editing.md](./010-schedule-browser-and-retroactive-editing.md)
-11. [x] [011-mcq-tracker-and-analytics.md](./011-mcq-tracker-and-analytics.md)
-12. [x] [012-gt-tracker-and-analytics.md](./012-gt-tracker-and-analytics.md)
-13. [x] [013-weekly-summary-and-review.md](./013-weekly-summary-and-review.md)
-14. [x] [014-quotes-system.md](./014-quotes-system.md)
-15. [x] [015-settings-pwa-and-installability.md](./015-settings-pwa-and-installability.md)
-16. [x] [016-design-performance-and-release-hardening.md](./016-design-performance-and-release-hardening.md)
+1.
 
 ## Notes
 
