@@ -30,11 +30,11 @@ export function TimeEditor({ dayNumber, blockKey, start, end, trafficLight, slot
       sleepViolation
         ? { kind: "none" as const }
         : previewOverrunCascade({
-            editedBlockKey: blockKey,
-            newEndTime: actualEnd,
-            trafficLight,
-            slots,
-          }),
+          editedBlockKey: blockKey,
+          newEndTime: actualEnd,
+          trafficLight,
+          slots,
+        }),
     [actualEnd, blockKey, sleepViolation, slots, trafficLight],
   );
 
@@ -73,19 +73,19 @@ export function TimeEditor({ dayNumber, blockKey, start, end, trafficLight, slot
 
   const guidance = sleepViolation
     ? {
-        tone: "warning" as const,
-        message: "This would cut into sleep time. Move to backlog instead?",
-      }
+      tone: "warning" as const,
+      message: "This would cut into sleep time. Move to backlog instead?",
+    }
     : overrunPreview.kind === "decision"
       ? {
-          tone: "neutral" as const,
-          message: overrunPreview.message,
-        }
+        tone: "neutral" as const,
+        message: overrunPreview.message,
+      }
       : overrunPreview.kind === "force_to_backlog"
         ? {
-            tone: "warning" as const,
-            message: overrunPreview.message,
-          }
+          tone: "warning" as const,
+          message: overrunPreview.message,
+        }
         : null;
 
   return (
@@ -102,7 +102,7 @@ export function TimeEditor({ dayNumber, blockKey, start, end, trafficLight, slot
         </label>
       </div>
       {guidance ? (
-        <p className={`mt-3 text-sm ${guidance.tone === "warning" ? "text-[var(--warning)]" : "text-[var(--text-secondary)]"}`}>
+        <p className={`mt-3 text-sm ${guidance.tone === "warning" ? "text-[var(--warning)]" : "text-(--text-secondary)"}`}>
           {guidance.message}
         </p>
       ) : null}

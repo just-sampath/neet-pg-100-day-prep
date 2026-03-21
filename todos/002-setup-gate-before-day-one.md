@@ -1,6 +1,6 @@
 # 002 Setup Gate Before Day 1
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -17,16 +17,16 @@ Before Day 1 is anchored, the rest of the app has no meaningful schedule context
 
 ## Checklist
 
-- [ ] Add a shared guard for app routes that redirects back to `/today` when Day 1 is unset.
-- [ ] Keep `/today` reachable so it can act as the setup surface.
-- [ ] Hide or disable the primary navigation until setup is complete.
-- [ ] Preserve logout access even while setup gating is active.
+- [x] Add a shared guard for app routes that redirects back to `/today` when Day 1 is unset.
+- [x] Keep `/today` reachable so it can act as the setup surface.
+- [x] Hide or disable the primary navigation until setup is complete.
+- [x] Preserve logout access even while setup gating is active.
 
 ## Acceptance Criteria
 
-- [ ] Before Day 1 is set, `/backlog`, `/mcq`, `/gt`, `/schedule`, `/weekly`, and `/settings` redirect back to `/today`.
-- [ ] Before Day 1 is set, the app does not expose normal in-app navigation.
-- [ ] After Day 1 is set, the full app becomes reachable again with no extra unlock step.
+- [x] Before Day 1 is set, `/backlog`, `/mcq`, `/gt`, `/schedule`, `/weekly`, and `/settings` redirect back to `/today`.
+- [x] Before Day 1 is set, the app does not expose normal in-app navigation.
+- [x] After Day 1 is set, the full app becomes reachable again with no extra unlock step.
 
 ## Implementation Notes
 

@@ -20,7 +20,7 @@ export function ScheduleShiftPanel({ health, preview }: Props) {
         <div>
           <div className="eyebrow">Schedule Shift</div>
           <h3 className="display mt-3 text-3xl">You&apos;re {health.missedDays.length} day{health.missedDays.length === 1 ? "" : "s"} behind. Adjust the plan only if recovery no longer fits honestly.</h3>
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
             This is always manual. Review the dry run first, then confirm if the preview still feels right.
           </p>
         </div>
@@ -67,14 +67,14 @@ export function ScheduleShiftPanel({ health, preview }: Props) {
 
           <div className="note-card p-4">
             <div className="metric-label">Preview</div>
-            <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+            <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
               {preview.isCleanShift
                 ? `Clean shift. No content lost. Buffer days used: ${preview.bufferDaysUsed}.`
                 : preview.mergedDays.length
                   ? preview.mergedDays.map((entry) => entry.mergedDescription).join(" ")
                   : "No safe compression path remains. The hard boundary blocks this shift."}
             </p>
-            <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+            <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
               Schedule cannot extend past August 20, 2026.
             </p>
           </div>

@@ -70,7 +70,7 @@ export default async function LoginPage({
 
           <div className="mt-8 grid gap-3 md:grid-cols-3">
             {entryPoints.map((point) => (
-              <div key={point} className="note-card p-4 text-sm leading-7 text-[var(--text-secondary)]">
+              <div key={point} className="note-card p-4 text-sm leading-7 text-(--text-secondary)">
                 {point}
               </div>
             ))}
@@ -87,7 +87,7 @@ export default async function LoginPage({
 
         <div className="note-card mt-6 p-5">
           <div className="eyebrow">{getRuntimeLabel(runtimeMode)}</div>
-          <div className="mt-3 space-y-2 text-sm leading-7 text-[var(--text-secondary)]">
+          <div className="mt-3 space-y-2 text-sm leading-7 text-(--text-secondary)">
             {runtimeMode === "local" ? (
               <>
                 <p>

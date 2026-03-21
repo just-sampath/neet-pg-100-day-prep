@@ -19,8 +19,12 @@ const links: NavLink[] = [
   { href: "/settings", label: "Settings" },
 ];
 
-export function NavBar() {
+export function NavBar({ setupComplete = true }: { setupComplete?: boolean }) {
   const pathname = usePathname();
+
+  if (!setupComplete) {
+    return null;
+  }
 
   return (
     <nav aria-label="Primary" className="sticky bottom-4 z-20">

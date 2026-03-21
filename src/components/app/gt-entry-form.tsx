@@ -30,10 +30,10 @@ const SECTION_BINARY_QUESTIONS: Array<{
   field: "timeEnough" | "panicStarted" | "guessedTooMuch";
   label: string;
 }> = [
-  { field: "timeEnough", label: "Time felt enough?" },
-  { field: "panicStarted", label: "Panic started?" },
-  { field: "guessedTooMuch", label: "Guessed too much?" },
-];
+    { field: "timeEnough", label: "Time felt enough?" },
+    { field: "panicStarted", label: "Panic started?" },
+    { field: "guessedTooMuch", label: "Guessed too much?" },
+  ];
 
 const MAX_RECURRING_TOPICS = 3;
 const YES_NO_OPTIONS = [
@@ -269,9 +269,8 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
               {GT_DEVICE_OPTIONS.map((option) => (
                 <button
                   key={option.value}
-                  className={`rounded-[1.1rem] border px-4 py-3 text-sm ${
-                    device === option.value ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)]"
-                  }`}
+                  className={`rounded-[1.1rem] border px-4 py-3 text-sm ${device === option.value ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)]"
+                    }`}
                   type="button"
                   onClick={() => setDevice(option.value)}
                 >
@@ -287,9 +286,8 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
               {YES_NO_OPTIONS.map((option) => (
                 <button
                   key={option.value}
-                  className={`rounded-[1.1rem] border px-4 py-3 text-sm ${
-                    attemptedLive === option.value ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)]"
-                  }`}
+                  className={`rounded-[1.1rem] border px-4 py-3 text-sm ${attemptedLive === option.value ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)]"
+                    }`}
                   type="button"
                   onClick={() => setAttemptedLive(option.value)}
                 >
@@ -305,9 +303,8 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
               {GT_FEELING_OPTIONS.map((option) => (
                 <button
                   key={option.value}
-                  className={`rounded-[1.1rem] border px-4 py-3 text-left text-sm ${
-                    overallFeeling === option.value ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)]"
-                  }`}
+                  className={`rounded-[1.1rem] border px-4 py-3 text-left text-sm ${overallFeeling === option.value ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)]"
+                    }`}
                   type="button"
                   onClick={() => setOverallFeeling(option.value)}
                 >
@@ -340,9 +337,8 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
                             return (
                               <button
                                 key={option.value}
-                                className={`rounded-[1rem] border px-4 py-3 text-sm ${
-                                  active ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface)]"
-                                }`}
+                                className={`rounded-[1rem] border px-4 py-3 text-sm ${active ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface)]"
+                                  }`}
                                 type="button"
                                 onClick={() =>
                                   updateSection(sectionKey, (current) => ({
@@ -368,9 +364,8 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
                         return (
                           <button
                             key={option.value}
-                            className={`rounded-full border px-3 py-2 text-sm ${
-                              active ? "border-[var(--border-strong)] bg-[var(--accent-faint)] text-[var(--foreground)]" : "border-[var(--border)] bg-[var(--surface)] text-[var(--text-secondary)]"
-                            }`}
+                            className={`rounded-full border px-3 py-2 text-sm ${active ? "border-[var(--border-strong)] bg-[var(--accent-faint)] text-[var(--foreground)]" : "border-[var(--border)] bg-[var(--surface)] text-(--text-secondary)"
+                              }`}
                             type="button"
                             onClick={() => toggleTimeLost(sectionKey, option.value)}
                           >
@@ -410,7 +405,7 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
                 Add
               </button>
             </div>
-            <p className="mt-2 text-sm text-[var(--text-secondary)]">
+            <p className="mt-2 text-sm text-(--text-secondary)">
               {recurringTopics.length}/3 kept. Repeated topics matter more than a long list.
             </p>
             {recurringTopics.length ? (
@@ -432,9 +427,8 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
                 return (
                   <button
                     key={subject}
-                    className={`rounded-full border px-3 py-2 text-sm ${
-                      active ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text-secondary)]"
-                    }`}
+                    className={`rounded-full border px-3 py-2 text-sm ${active ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)] text-(--text-secondary)"
+                      }`}
                     type="button"
                     onClick={() => toggleWeakestSubject(subject)}
                   >
@@ -459,7 +453,7 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
                 setKnowledgeVsBehaviour(event.target.value);
               }}
             />
-            <div className="mt-2 text-sm text-[var(--text-secondary)]">
+            <div className="mt-2 text-sm text-(--text-secondary)">
               {knowledgeVsBehaviourTouched
                 ? `${knowledgeVsBehaviour}% knowledge / ${100 - Number(knowledgeVsBehaviour || "0")}% behaviour`
                 : "Slide only if you want to tag the split for this GT."}
@@ -490,7 +484,7 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
       </section>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm leading-7 text-[var(--text-secondary)]">
+        <p className="text-sm leading-7 text-(--text-secondary)">
           The structured parts are there to make patterns visible by GT-3 or GT-4, not to turn the wrapper into busywork.
         </p>
         <button className="button-primary" disabled={pending} type="submit">
@@ -501,7 +495,7 @@ export function GtEntryForm({ todayDate, subjectOptions, suggestedPlanItem }: Pr
       {feedback ? (
         <p
           aria-live="polite"
-          className={`text-sm ${feedback.tone === "red" ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}`}
+          className={`text-sm ${feedback.tone === "red" ? "text-[var(--danger)]" : "text-(--text-secondary)"}`}
         >
           {feedback.message}
         </p>

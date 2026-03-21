@@ -3,7 +3,7 @@ import {
   GtSectionPatternPanel,
   GtWrapperTrendPanel,
 } from "@/components/app/gt-analytics-panels";
-import { requireCurrentUser } from "@/lib/auth/session";
+import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getGtAnalyticsData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 
@@ -45,6 +45,7 @@ function getGtDeltaLabel(airMetricKind: "air" | "percentile" | null) {
 
 export default async function GtAnalyticsPage() {
   const user = await requireCurrentUser();
+  await requireDayOneSetup(user.id);
   const data = await mutateStore((store) => getGtAnalyticsData(store, user.id));
   const hasGtData = data.summary.totalLogs > 0;
 
@@ -53,7 +54,7 @@ export default async function GtAnalyticsPage() {
       <section className="panel panel-hero p-6">
         <div className="eyebrow">GT Analytics</div>
         <h1 className="display mt-3 text-3xl md:text-4xl">Trend the paper. Trace the section failures. Keep the wrapper honest.</h1>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-(--text-secondary)">
           This is where GT logs turn into patterns: score movement, where panic starts, whether time loss clusters in the same section, and which
           subjects or topics keep returning as weaknesses.
         </p>
@@ -85,7 +86,7 @@ export default async function GtAnalyticsPage() {
           {hasGtData ? (
             <GtScorePanel data={data.scoreTrend} />
           ) : (
-            <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+            <div className="note-card p-5 text-sm leading-7 text-(--text-secondary)">
               No GT entries exist yet. Once the first full paper is logged, the score and accuracy trend will appear here.
             </div>
           )}
@@ -96,7 +97,7 @@ export default async function GtAnalyticsPage() {
         <section className="panel p-6">
           <div className="eyebrow">GT-over-GT</div>
           <h2 className="mt-3 text-2xl font-semibold">Latest vs previous</h2>
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
             {data.comparison.latestLabel && data.comparison.previousLabel
               ? `${data.comparison.latestLabel} compared with ${data.comparison.previousLabel}.`
               : "Log at least two GTs to unlock comparison deltas."}
@@ -131,7 +132,7 @@ export default async function GtAnalyticsPage() {
             {hasGtData ? (
               <GtSectionPatternPanel data={data.sectionPatterns} />
             ) : (
-              <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+              <div className="note-card p-5 text-sm leading-7 text-(--text-secondary)">
                 Section-pattern comparisons unlock after the first GT log with structured section A-E data.
               </div>
             )}
@@ -147,7 +148,7 @@ export default async function GtAnalyticsPage() {
             {hasGtData ? (
               <GtWrapperTrendPanel data={data.wrapperTrend} />
             ) : (
-              <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+              <div className="note-card p-5 text-sm leading-7 text-(--text-secondary)">
                 The wrapper trend appears after GT logs record both knowledge and behaviour splits.
               </div>
             )}
@@ -161,7 +162,7 @@ export default async function GtAnalyticsPage() {
             {data.sectionTimeLost.map((entry) => (
               <article key={entry.section} className="note-card p-4">
                 <div className="font-semibold">Section {entry.section}</div>
-                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                   {entry.reasons.length
                     ? entry.reasons.map((reason) => `${reason.label} (${reason.count})`).join(" · ")
                     : "No repeated time-loss tag yet."}
@@ -189,7 +190,7 @@ export default async function GtAnalyticsPage() {
                 </article>
               ))
             ) : (
-              <p className="text-sm leading-7 text-[var(--text-secondary)]">No repeated weak-subject signal yet.</p>
+              <p className="text-sm leading-7 text-(--text-secondary)">No repeated weak-subject signal yet.</p>
             )}
           </div>
         </section>
@@ -210,7 +211,7 @@ export default async function GtAnalyticsPage() {
                 </article>
               ))
             ) : (
-              <p className="text-sm leading-7 text-[var(--text-secondary)]">No recurring-topic pattern yet.</p>
+              <p className="text-sm leading-7 text-(--text-secondary)">No recurring-topic pattern yet.</p>
             )}
           </div>
         </section>

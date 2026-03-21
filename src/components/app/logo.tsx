@@ -45,7 +45,7 @@ export function AppLogo() {
         id="logo-hidden-note"
         className={`mt-5 overflow-hidden transition-all duration-500 ${revealed ? "max-h-32 opacity-100" : "max-h-0 opacity-0"}`}
       >
-        <div className="note-card p-4 text-sm text-[var(--text-secondary)]">
+        <div className="note-card p-4 text-sm text-(--text-secondary)">
           Even when I can&apos;t be beside you, I&apos;ll still hold the line with you like this.
         </div>
       </div>

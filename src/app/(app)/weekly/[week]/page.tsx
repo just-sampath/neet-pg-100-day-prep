@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { requireCurrentUser } from "@/lib/auth/session";
+import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getWeeklyDetailData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 
@@ -30,6 +30,7 @@ export default async function WeeklyDetailPage({
   params: Promise<{ week: string }>;
 }) {
   const user = await requireCurrentUser();
+  await requireDayOneSetup(user.id);
   const { week } = await params;
   const summary = await mutateStore((store) => getWeeklyDetailData(store, user.id, week));
 
@@ -56,7 +57,7 @@ export default async function WeeklyDetailPage({
             <span className="status-badge" data-tone={summary.scheduleStatusKind === "days_behind" ? "warning" : "neutral"}>
               {summary.scheduleStatus}
             </span>
-            <div className="note-card p-4 text-sm text-[var(--text-secondary)]">
+            <div className="note-card p-4 text-sm text-(--text-secondary)">
               <div className="eyebrow">Generated</div>
               <p className="mt-3">{generatedAtLabel(summary.generatedAt)}</p>
             </div>
@@ -97,7 +98,7 @@ export default async function WeeklyDetailPage({
           <div className="mt-4 grid gap-3 md:grid-cols-3">
             <div className="note-card p-4">
               <div className="metric-label">Traffic Lights</div>
-              <p className="mt-3 text-base leading-7 text-[var(--text-secondary)]">
+              <p className="mt-3 text-base leading-7 text-(--text-secondary)">
                 {summary.greenDays} Green
                 <br />
                 {summary.yellowDays} Yellow
@@ -107,7 +108,7 @@ export default async function WeeklyDetailPage({
             </div>
             <div className="note-card p-4">
               <div className="metric-label">Revision Health</div>
-              <p className="mt-3 text-base leading-7 text-[var(--text-secondary)]">
+              <p className="mt-3 text-base leading-7 text-(--text-secondary)">
                 Overflow days {summary.revisionOverflowDays}
                 <br />
                 Catch-up items {summary.revisionCatchUpCount}
@@ -117,18 +118,18 @@ export default async function WeeklyDetailPage({
             </div>
             <div className="note-card p-4">
               <div className="metric-label">Overruns</div>
-              <p className="mt-3 text-base leading-7 text-[var(--text-secondary)]">Total overrun blocks {summary.overrunBlockCount}</p>
+              <p className="mt-3 text-base leading-7 text-(--text-secondary)">Total overrun blocks {summary.overrunBlockCount}</p>
             </div>
           </div>
 
           <div className="mt-5">
             <div className="eyebrow">Blocks That Ran Over</div>
             {summary.overrunBlocks.length === 0 ? (
-              <p className="mt-3 text-sm text-[var(--text-secondary)]">No tracked study block crossed its planned end time this week.</p>
+              <p className="mt-3 text-sm text-(--text-secondary)">No tracked study block crossed its planned end time this week.</p>
             ) : (
               <div className="mt-3 grid gap-3">
                 {summary.overrunBlocks.map((item) => (
-                  <div key={item.label} className="note-card flex items-center justify-between gap-3 p-4 text-sm text-[var(--text-secondary)]">
+                  <div key={item.label} className="note-card flex items-center justify-between gap-3 p-4 text-sm text-(--text-secondary)">
                     <span>{item.label}</span>
                     <span className="status-badge" data-tone="warning">
                       x{item.count}
@@ -145,7 +146,7 @@ export default async function WeeklyDetailPage({
           <div className="mt-4 grid gap-3">
             <div className="note-card p-4">
               <div className="metric-label">Status</div>
-              <p className="mt-3 text-base text-[var(--text-secondary)]">{summary.scheduleStatus}</p>
+              <p className="mt-3 text-base text-(--text-secondary)">{summary.scheduleStatus}</p>
               <p className="mt-2 text-sm text-[var(--text-dim)]">
                 {summary.daysBehind > 0
                   ? `${summary.daysBehind} recent heavy-miss day${summary.daysBehind === 1 ? "" : "s"} still need schedule recovery.`
@@ -154,7 +155,7 @@ export default async function WeeklyDetailPage({
             </div>
             <div className="note-card p-4">
               <div className="metric-label">Backlog Breakdown</div>
-              <p className="mt-3 text-base leading-7 text-[var(--text-secondary)]">
+              <p className="mt-3 text-base leading-7 text-(--text-secondary)">
                 {summary.backlogSummary.fromMissed} from missed/skipped
                 <br />
                 {summary.backlogSummary.fromYellowRed} from yellow/red reshapes
@@ -165,7 +166,7 @@ export default async function WeeklyDetailPage({
             <div className="note-card p-4">
               <div className="metric-label">Subjects Studied</div>
               {summary.subjectsStudied.length === 0 ? (
-                <p className="mt-3 text-sm text-[var(--text-secondary)]">No fully completed study days were captured in this snapshot yet.</p>
+                <p className="mt-3 text-sm text-(--text-secondary)">No fully completed study days were captured in this snapshot yet.</p>
               ) : (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {summary.subjectsStudied.map((subject) => (
@@ -192,11 +193,11 @@ export default async function WeeklyDetailPage({
             <div className="note-card p-4">
               <div className="metric-label">Top Wrong Subjects</div>
               {summary.topWrongSubjects.length === 0 ? (
-                <p className="mt-3 text-sm text-[var(--text-secondary)]">No tagged wrong-entry subject signal yet.</p>
+                <p className="mt-3 text-sm text-(--text-secondary)">No tagged wrong-entry subject signal yet.</p>
               ) : (
                 <div className="mt-3 grid gap-2">
                   {summary.topWrongSubjects.map((item) => (
-                    <div key={item.label} className="flex items-center justify-between gap-3 text-sm text-[var(--text-secondary)]">
+                    <div key={item.label} className="flex items-center justify-between gap-3 text-sm text-(--text-secondary)">
                       <span>{item.label}</span>
                       <span>{item.count}</span>
                     </div>
@@ -207,11 +208,11 @@ export default async function WeeklyDetailPage({
             <div className="note-card p-4">
               <div className="metric-label">Top Cause Codes</div>
               {summary.topCauseCodes.length === 0 ? (
-                <p className="mt-3 text-sm text-[var(--text-secondary)]">No tagged cause-code signal yet.</p>
+                <p className="mt-3 text-sm text-(--text-secondary)">No tagged cause-code signal yet.</p>
               ) : (
                 <div className="mt-3 grid gap-2">
                   {summary.topCauseCodes.map((item) => (
-                    <div key={item.label} className="flex items-center justify-between gap-3 text-sm text-[var(--text-secondary)]">
+                    <div key={item.label} className="flex items-center justify-between gap-3 text-sm text-(--text-secondary)">
                       <span>{item.label}</span>
                       <span>{item.count}</span>
                     </div>
@@ -229,19 +230,19 @@ export default async function WeeklyDetailPage({
               <div className="note-card p-4">
                 <div className="metric-label">Latest GT In Week</div>
                 <p className="mt-3 text-xl font-semibold">{summary.gtNumber}</p>
-                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                   Score {summary.gtScore ?? "—"} · {summary.gtAir ?? "AIR / percentile not logged"}
                 </p>
               </div>
               <div className="note-card p-4">
                 <div className="metric-label">Wrapper Summary</div>
-                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">{summary.gtWrapperSummary ?? "No wrapper summary recorded."}</p>
+                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">{summary.gtWrapperSummary ?? "No wrapper summary recorded."}</p>
               </div>
             </div>
           ) : (
             <div className="note-card mt-4 p-4">
               <div className="metric-label">No GT Logged</div>
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+              <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                 No GT entry landed inside this weekly window, so the summary keeps the GT section intentionally quiet.
               </p>
             </div>

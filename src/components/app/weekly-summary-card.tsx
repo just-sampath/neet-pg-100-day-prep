@@ -63,7 +63,7 @@ export function WeeklySummaryCard({
         </article>
       </div>
 
-      <div className="mt-5 grid gap-3 text-sm text-[var(--text-secondary)] md:grid-cols-[1.2fr_0.8fr]">
+      <div className="mt-5 grid gap-3 text-sm text-(--text-secondary) md:grid-cols-[1.2fr_0.8fr]">
         <div className="note-card p-4">
           <div className="eyebrow">Traffic + Revision Pressure</div>
           <p className="mt-3 leading-7">

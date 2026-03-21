@@ -5,6 +5,7 @@ import { NavBar } from "@/components/app/nav-bar";
 import { RegisterServiceWorker } from "@/components/app/register-sw";
 import { SyncStatus } from "@/components/app/sync-status";
 import { requireCurrentUser } from "@/lib/auth/session";
+import { readStore } from "@/lib/data/local-store";
 import { getRuntimeMode } from "@/lib/runtime/mode";
 import { logoutAction } from "@/lib/server/actions";
 
@@ -15,6 +16,8 @@ export default async function AppLayout({
 }>) {
   const user = await requireCurrentUser();
   const runtimeMode = getRuntimeMode();
+  const store = await readStore();
+  const setupComplete = !!store.userState[user.id]?.settings?.dayOneDate;
 
   return (
     <main id="main-content" className="app-shell">
@@ -40,7 +43,7 @@ export default async function AppLayout({
           <div className="grid gap-3">
             <div className="note-card p-4">
               <div className="eyebrow">Signed In</div>
-              <p className="mt-3 text-sm text-[var(--text-secondary)]">{user.email}</p>
+              <p className="mt-3 text-sm text-(--text-secondary)">{user.email}</p>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <form action={logoutAction}>
@@ -52,7 +55,7 @@ export default async function AppLayout({
           </div>
         </div>
         <div className="mt-5 border-t border-[var(--border)] pt-4">
-          <div className="grid gap-2 text-sm text-[var(--text-secondary)] md:grid-cols-3">
+          <div className="grid gap-2 text-sm text-(--text-secondary) md:grid-cols-3">
             <p>One aspirant. One source of truth. No social clutter.</p>
             <p>Traffic lights reshape the day without turning the app punitive.</p>
             <p>Manual time travel and cron triggers keep every rule locally testable.</p>
@@ -60,7 +63,7 @@ export default async function AppLayout({
         </div>
       </header>
       <div className="mt-5">
-        <NavBar />
+        <NavBar setupComplete={setupComplete} />
       </div>
       <div className="mt-6">
         <div className="grid gap-6">{children}</div>

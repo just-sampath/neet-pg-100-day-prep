@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { ScheduleBrowserFocus } from "@/components/app/schedule-browser-focus";
-import { requireCurrentUser } from "@/lib/auth/session";
+import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getScheduleListData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 import { formatDateLabel } from "@/lib/utils/format";
@@ -42,6 +42,7 @@ function getStatusLabel(status: string) {
 
 export default async function SchedulePage() {
   const user = await requireCurrentUser();
+  await requireDayOneSetup(user.id);
   const days = await mutateStore((store) => getScheduleListData(store, user.id));
   const todayDay = days.find((day) => day.today);
 
@@ -50,7 +51,7 @@ export default async function SchedulePage() {
       <section className="panel p-6">
         <div className="eyebrow">Schedule Browser</div>
         <h1 className="display mt-3 text-3xl">All 100 days, with the current mapping.</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-(--text-secondary)">
           Opens around today by default. Past days can be corrected from here, while future days stay view-only until their mapped date arrives.
         </p>
       </section>
@@ -78,11 +79,11 @@ export default async function SchedulePage() {
                   : ""}
               </p>
               {day.hiddenShiftLabel ? (
-                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                   This day is currently {day.hiddenShiftLabel}.
                 </p>
               ) : day.mergedPartnerDay ? (
-                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                   This day is carrying merged work from Day {day.mergedPartnerDay}.
                 </p>
               ) : null}

@@ -2,12 +2,13 @@ import Link from "next/link";
 
 import { McqBulkEntryForm } from "@/components/app/mcq-bulk-entry-form";
 import { McqDetailedEntryForm } from "@/components/app/mcq-detailed-entry-form";
-import { requireCurrentUser } from "@/lib/auth/session";
+import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getMcqPageData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 
 export default async function McqPage() {
   const user = await requireCurrentUser();
+  await requireDayOneSetup(user.id);
   const data = await mutateStore((store) => getMcqPageData(store, user.id));
 
   return (
@@ -17,7 +18,7 @@ export default async function McqPage() {
           <div className="max-w-3xl">
             <div className="eyebrow">MCQ Tracker</div>
             <h1 className="display mt-3 text-3xl md:text-4xl">Rapid logging for volume. Enough detail for pattern repair.</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-(--text-secondary)">
               Use the left rail when a whole module is done. Use the right rail when a single question deserves a memory trace, a cause code,
               and a fix plan.
             </p>
@@ -55,7 +56,7 @@ export default async function McqPage() {
         <section className="panel p-6" id="bulk-entry">
           <div className="eyebrow">Bulk Entry</div>
           <h2 className="mt-3 text-2xl font-semibold">Module finished. Log it in one pass.</h2>
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
             This is the fast lane the Today quick-log button lands on. Keep it minimal unless the batch needs a subject label or source trace.
           </p>
           <McqBulkEntryForm todayDate={data.todayDate} subjects={data.subjects} recentSources={data.recentSources} />
@@ -64,7 +65,7 @@ export default async function McqPage() {
         <section className="panel p-6" id="detailed-entry">
           <div className="eyebrow">One-by-One Entry</div>
           <h2 className="mt-3 text-2xl font-semibold">MCQ ID, result tap, done.</h2>
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
             The result buttons are the submit action. Expand details only when a question needs a cause code, a repair plan, or a note you want
             surfaced again later.
           </p>
@@ -94,7 +95,7 @@ export default async function McqPage() {
                   ) : null}
                 </div>
                 <div className="mt-3 font-semibold">{entry.mcqId}</div>
-                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                   {entry.topic || "No topic note yet."}
                 </p>
                 <p className="mt-2 text-xs uppercase tracking-[0.18em] text-[var(--muted)]">

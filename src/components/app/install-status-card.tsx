@@ -17,7 +17,7 @@ const SERVER_PLATFORM = {
 
 function subscribeOnline(callback: () => void) {
   if (typeof window === "undefined") {
-    return () => {};
+    return () => { };
   }
 
   window.addEventListener("online", callback);
@@ -34,7 +34,7 @@ function getOnlineSnapshot() {
 
 function subscribeStandalone(callback: () => void) {
   if (typeof window === "undefined") {
-    return () => {};
+    return () => { };
   }
 
   const media = window.matchMedia("(display-mode: standalone)");
@@ -60,7 +60,7 @@ function getStandaloneSnapshot() {
 }
 
 function subscribeNoop() {
-  return () => {};
+  return () => { };
 }
 
 function getUserAgentSnapshot() {
@@ -127,7 +127,7 @@ export function InstallStatusCard() {
         <div>
           <div className="eyebrow">Install & Connection</div>
           <h2 className="mt-3 text-xl font-semibold">{guide.title}</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">{guide.body}</p>
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-(--text-secondary)">{guide.body}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <span className="status-badge" data-tone={isStandalone ? "green" : "neutral"}>
@@ -140,7 +140,7 @@ export function InstallStatusCard() {
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto] md:items-start">
-        <ol className="space-y-2 text-sm leading-7 text-[var(--text-secondary)]">
+        <ol className="space-y-2 text-sm leading-7 text-(--text-secondary)">
           {guide.steps.map((step) => (
             <li key={step} className="note-card px-4 py-3">
               {step}
@@ -156,7 +156,7 @@ export function InstallStatusCard() {
 
       <div
         aria-live="polite"
-        className="mt-4 note-card p-4 text-sm leading-7 text-[var(--text-secondary)]"
+        className="mt-4 note-card p-4 text-sm leading-7 text-(--text-secondary)"
       >
         {feedback ?? "Beside You is online-first. The current screen stays readable offline, but new writes wait for a connection instead of caching stale study state."}
       </div>

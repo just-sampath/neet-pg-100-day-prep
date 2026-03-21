@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { TimeEditor } from "@/components/app/time-editor";
-import { requireCurrentUser } from "@/lib/auth/session";
+import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getDayDetailData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 import type { BlockKey, ScheduledRecoveryItem } from "@/lib/domain/types";
@@ -36,6 +36,7 @@ export default async function ScheduleDayPage({
   params: Promise<{ day: string }>;
 }) {
   const user = await requireCurrentUser();
+  await requireDayOneSetup(user.id);
   const { day } = await params;
   const detail = await mutateStore((store) => getDayDetailData(store, user.id, Number(day)));
 
@@ -75,17 +76,17 @@ export default async function ScheduleDayPage({
           {detail.mappedDate ? formatDateLabel(detail.mappedDate) : "Day 1 not set"} · {detail.day.deliverable}
         </p>
         {detail.originalPlannedDate && detail.originalPlannedDate !== detail.mappedDate ? (
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
             Originally planned for {formatDateLabel(detail.originalPlannedDate)}. This mapped date has shifted with the active schedule.
           </p>
         ) : null}
         {detail.mergedPartnerDay ? (
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
             This day is currently carrying merged work from Day {detail.mergedPartnerDay}.
           </p>
         ) : null}
         {readOnlyReason ? (
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
             {readOnlyReason}
           </p>
         ) : null}
@@ -94,7 +95,7 @@ export default async function ScheduleDayPage({
       {detail.editState.canAdjustToday ? (
         <section className="panel p-6">
           <h2 className="text-xl font-semibold">Traffic light for today</h2>
-          <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
             The pace dial only changes the current day. Past and future days stay untouched from the browser.
           </p>
           <div className="mt-4 grid grid-cols-3 gap-2">
@@ -103,9 +104,8 @@ export default async function ScheduleDayPage({
                 <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
                 <input type="hidden" name="trafficLight" value={trafficLight} />
                 <button
-                  className={`w-full rounded-full px-4 py-3 text-sm font-semibold ${
-                    detail.state.trafficLight === trafficLight ? "bg-[var(--accent)] text-[#20160a]" : "bg-[var(--surface-muted)]"
-                  }`}
+                  className={`w-full rounded-full px-4 py-3 text-sm font-semibold ${detail.state.trafficLight === trafficLight ? "bg-[var(--accent)] text-[#20160a]" : "bg-[var(--surface-muted)]"
+                    }`}
                   type="submit"
                 >
                   {trafficLight}
@@ -117,7 +117,7 @@ export default async function ScheduleDayPage({
       ) : (
         <section className="panel p-6">
           <h2 className="text-xl font-semibold">Recorded traffic light</h2>
-          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
             This day is currently saved as <span className="font-semibold capitalize">{detail.state.trafficLight}</span>.
           </p>
         </section>
@@ -126,7 +126,7 @@ export default async function ScheduleDayPage({
       {revisionGroups.length ? (
         <section className="panel p-6">
           <h2 className="text-xl font-semibold">Revision work due on this date</h2>
-          <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
             This view only surfaces revision that becomes due on this mapped date. Later recalls stay out of the way until their own day arrives.
           </p>
           <div className="mt-4 grid gap-3">
@@ -136,7 +136,7 @@ export default async function ScheduleDayPage({
                   {group.revisionTypes.join(" · ")} / {group.subject}
                 </div>
                 <div className="mt-2 text-lg font-semibold">{group.sourceTopicLabel}</div>
-                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                   {group.items.length === 1
                     ? "1 revision segment is due from this topic."
                     : `${group.items.length} revision segments are due from this topic.`}
@@ -166,10 +166,10 @@ export default async function ScheduleDayPage({
                   ))}
                 </div>
               </article>
-              ))}
+            ))}
           </div>
           {overflowGroups.length ? (
-            <div className="mt-4 rounded-2xl border border-[var(--border)] p-4 text-sm leading-7 text-[var(--text-secondary)]">
+            <div className="mt-4 rounded-2xl border border-[var(--border)] p-4 text-sm leading-7 text-(--text-secondary)">
               {overflowGroups.map((group) => (
                 <div key={group.id} className="mb-3 last:mb-0">
                   <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
@@ -227,7 +227,7 @@ export default async function ScheduleDayPage({
               {assignedRecovery.length ? (
                 <div className="note-card mt-4 p-4">
                   <div className="eyebrow">Recovery inside this block</div>
-                  <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                     These queue items are already assigned here, so this block now carries them as part of the real plan.
                   </p>
                   <div className="mt-4 grid gap-3">
@@ -242,7 +242,7 @@ export default async function ScheduleDayPage({
                           </span>
                         </div>
                         <div className="mt-3 font-medium">{item.topicDescription}</div>
-                        <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                        <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                           {item.sourceMappedDate ? `${formatDateLabel(item.sourceMappedDate)} origin. ` : ""}
                           {getRecoveryWaitLabel(item.daysInBacklog)}
                         </p>

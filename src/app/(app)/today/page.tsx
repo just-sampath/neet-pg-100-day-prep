@@ -241,7 +241,7 @@ export default async function TodayPage() {
               <div className="note-card min-w-[15rem] p-5">
                 <div className="eyebrow">Mapped Date</div>
                 <div className="display mt-3 text-2xl md:text-3xl">{formatDateLabel(data.todayDate)}</div>
-                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                   Deliverable: {todayScheduleDay.deliverable}
                 </p>
               </div>
@@ -260,7 +260,7 @@ export default async function TodayPage() {
             {todayState.trafficLight === "red" ? (
               <div className="note-card mt-6 p-5">
                 <div className="eyebrow">Salvage Mode</div>
-                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                   A salvage day, not a zero day. Morning recall, one high-confidence review block, easy MCQs, then an early stop.
                 </p>
               </div>
@@ -276,7 +276,7 @@ export default async function TodayPage() {
                 </div>
                 <div>
                   <p className="display text-2xl leading-[1.1] md:text-3xl">&ldquo;{data.lineQuote.quote}&rdquo;</p>
-                  <footer className="mt-4 text-sm text-[var(--text-secondary)]">{data.lineQuote.author}</footer>
+                  <footer className="mt-4 text-sm text-(--text-secondary)">{data.lineQuote.author}</footer>
                 </div>
               </blockquote>
             ) : null}
@@ -312,7 +312,7 @@ export default async function TodayPage() {
             <div className="mt-4 grid gap-3">
               <div className="note-card p-4">
                 <div className="metric-label">Current Mode</div>
-                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                   {todayState.trafficLight === "green"
                     ? "Everything stays visible. This is the original workload."
                     : todayState.trafficLight === "yellow"
@@ -322,7 +322,7 @@ export default async function TodayPage() {
               </div>
               <div className="note-card p-4">
                 <div className="metric-label">Schedule Health</div>
-                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                   {data.shiftHealth.missedDays.length
                     ? `${data.shiftHealth.missedDays.length} missed day(s) detected. A shift can be applied if recovery no longer fits in place.`
                     : "No shift pressure right now. The mapped calendar is still stable."}
@@ -359,11 +359,11 @@ export default async function TodayPage() {
               <div className="eyebrow">Morning Revision</div>
               <h3 className="display mt-3 text-3xl">Open the day with retrieval, not drift.</h3>
               {revisionMinutesLabel ? (
-                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                   Equal split today: {revisionMinutesLabel} across the 06:30-08:00 block.
                 </p>
               ) : null}
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+              <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                 Only revision work that is due today is shown here. Later recalls stay quiet until their own date arrives.
               </p>
             </div>
@@ -385,7 +385,7 @@ export default async function TodayPage() {
                         {group.revisionTypes.join(" · ")} / {group.subject}
                       </div>
                       <div className="mt-2 text-base font-semibold leading-7">{group.sourceTopicLabel}</div>
-                      <div className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                      <div className="mt-2 text-sm leading-7 text-(--text-secondary)">
                         {getRevisionGroupNote(group.items.length)}
                       </div>
                     </div>
@@ -405,7 +405,7 @@ export default async function TodayPage() {
                             <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
                               {item.revisionType}
                             </div>
-                            <div className="mt-1 text-sm leading-7 text-[var(--text-secondary)]">{item.topic}</div>
+                            <div className="mt-1 text-sm leading-7 text-(--text-secondary)">{item.topic}</div>
                           </div>
                           <div className="flex flex-wrap items-center gap-2">
                             {revisionMinutesLabel ? (
@@ -424,7 +424,7 @@ export default async function TodayPage() {
                 </article>
               ))
             ) : (
-              <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+              <div className="note-card p-5 text-sm leading-7 text-(--text-secondary)">
                 No revision items are due for this morning yet.
               </div>
             )}
@@ -435,7 +435,7 @@ export default async function TodayPage() {
               {data.todayRevisionPlan?.overflowSuggestion ? (
                 <div className="note-card p-4">
                   <div className="eyebrow">Revision Pressure</div>
-                  <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                     {data.todayRevisionPlan.overflowSuggestion}
                   </p>
                 </div>
@@ -443,7 +443,7 @@ export default async function TodayPage() {
               {overflowCount ? (
                 <div className="note-card p-4">
                   <div className="eyebrow">Also Review Today</div>
-                  <div className="mt-3 grid gap-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  <div className="mt-3 grid gap-3 text-sm leading-7 text-(--text-secondary)">
                     {overflowGroups.map((group) => (
                       <div key={group.id} className="rounded-2xl border border-[var(--border)] p-3">
                         <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
@@ -464,7 +464,7 @@ export default async function TodayPage() {
               {catchUpCount ? (
                 <div className="note-card p-4">
                   <div className="eyebrow">Catch-Up Revision</div>
-                  <div className="mt-3 grid gap-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  <div className="mt-3 grid gap-3 text-sm leading-7 text-(--text-secondary)">
                     {catchUpGroups.map((group) => (
                       <div key={group.id} className="rounded-2xl border border-[var(--border)] p-3">
                         <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
@@ -483,7 +483,7 @@ export default async function TodayPage() {
               {restudyCount ? (
                 <div className="note-card p-4">
                   <div className="eyebrow">Re-Study Flags</div>
-                  <div className="mt-3 grid gap-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  <div className="mt-3 grid gap-3 text-sm leading-7 text-(--text-secondary)">
                     {restudyGroups.map((group) => (
                       <div key={group.id} className="rounded-2xl border border-[var(--border)] p-3">
                         <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
@@ -509,7 +509,7 @@ export default async function TodayPage() {
               <div>
                 <div className="eyebrow">MCQ Quick Log</div>
                 <h3 className="display mt-3 text-3xl">Capture the question block while it is still warm.</h3>
-                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                   {mcqQuickLogNote}
                 </p>
               </div>
@@ -543,22 +543,22 @@ export default async function TodayPage() {
                   </span>
                 </div>
               );
-          }
+            }
 
-          const completed = entry.progress.status === "completed" || entry.progress.status === "partial";
-          const hiddenStatusTone = completed ? "green" : "neutral";
-          const blockNumber = trackableOrder.get(entry.blockKey) ?? 0;
-          const assignedRecovery = plannedRecoveryByBlock.get(entry.blockKey) ?? [];
+            const completed = entry.progress.status === "completed" || entry.progress.status === "partial";
+            const hiddenStatusTone = completed ? "green" : "neutral";
+            const blockNumber = trackableOrder.get(entry.blockKey) ?? 0;
+            const assignedRecovery = plannedRecoveryByBlock.get(entry.blockKey) ?? [];
 
-          if (entry.mode === "hidden") {
-            return (
-              <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
+            if (entry.mode === "hidden") {
+              return (
+                <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
                         Block {String(blockNumber).padStart(2, "0")} / {entry.label}
                       </div>
-                      <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                      <p className="mt-2 text-sm text-(--text-secondary)">
                         {entry.start} - {entry.end}
                       </p>
                     </div>
@@ -566,7 +566,7 @@ export default async function TodayPage() {
                       {completed ? "Completed" : "Rescheduled"}
                     </span>
                   </div>
-                  <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
+                  <p className="mt-4 text-sm leading-7 text-(--text-secondary)">
                     {completed
                       ? "Already completed before the pace dial tightened. Kept on record."
                       : "Folded into the recovery queue so today stays believable without stretching sleep."}
@@ -586,7 +586,7 @@ export default async function TodayPage() {
                               </span>
                             </div>
                             <div className="mt-3 font-medium">{item.topicDescription}</div>
-                            <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                            <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                               {item.sourceMappedDate ? `${formatDateLabel(item.sourceMappedDate)} origin. ` : ""}
                               {getRecoveryWaitLabel(item.daysInBacklog)}
                             </p>
@@ -611,7 +611,7 @@ export default async function TodayPage() {
                       Block {String(blockNumber).padStart(2, "0")}
                     </div>
                     <div className="mt-3 display text-3xl">{entry.label}</div>
-                    <p className="mt-3 text-sm text-[var(--text-secondary)]">
+                    <p className="mt-3 text-sm text-(--text-secondary)">
                       {entry.start} - {entry.end}
                     </p>
                     <div className="mt-4">
@@ -623,13 +623,13 @@ export default async function TodayPage() {
 
                   <div>
                     <h3 className="text-2xl font-semibold leading-tight">{entry.displayDescription}</h3>
-                    <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                    <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                       {getBlockDurationLabel(todayScheduleDay, entry.blockKey, userState)}
                     </p>
                     {assignedRecovery.length ? (
                       <div className="note-card mt-5 p-4">
                         <div className="eyebrow">Recovery inside this block</div>
-                        <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                        <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                           These items are no longer floating in backlog. They now belong to this block&apos;s plan.
                         </p>
                         <div className="mt-4 grid gap-3">
@@ -644,7 +644,7 @@ export default async function TodayPage() {
                                 </span>
                               </div>
                               <div className="mt-3 font-medium">{item.topicDescription}</div>
-                              <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                                 {item.sourceMappedDate ? `${formatDateLabel(item.sourceMappedDate)} origin. ` : ""}
                                 {getRecoveryWaitLabel(item.daysInBacklog)}
                               </p>
@@ -691,8 +691,8 @@ export default async function TodayPage() {
         <section className="panel panel-hero celebration-panel reveal-rise p-6 md:p-8">
           <div className="eyebrow">Completion Moment</div>
           <p className="display mt-4 max-w-4xl text-3xl md:text-5xl">&ldquo;{data.celebrationQuote.quote}&rdquo;</p>
-          <p className="mt-4 text-sm text-[var(--text-secondary)]">{data.celebrationQuote.author}</p>
-          <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="mt-4 text-sm text-(--text-secondary)">{data.celebrationQuote.author}</p>
+          <p className="mt-4 text-sm leading-7 text-(--text-secondary)">
             The visible day is closed. Let the rest of the night belong to recovery, not extension.
           </p>
         </section>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { requireCurrentUser } from "@/lib/auth/session";
+import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getBacklogPageData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 import type { BacklogBulkScope, BacklogSortMode, BacklogStatus, BacklogViewFilter } from "@/lib/domain/types";
@@ -63,6 +63,7 @@ export default async function BacklogPage({
   searchParams: Promise<{ status?: string; sort?: string }>;
 }) {
   const user = await requireCurrentUser();
+  await requireDayOneSetup(user.id);
   const params = await searchParams;
   const filter = isBacklogFilter(params.status) ? params.status : "pending";
   const sort = isBacklogSort(params.sort) ? params.sort : "priority";
@@ -113,7 +114,7 @@ export default async function BacklogPage({
           <div className="grid gap-3">
             <div>
               <div className="eyebrow">Queue View</div>
-              <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                 Pending is the default view. Rescheduled and completed items are still available if you want the full history.
               </p>
             </div>
@@ -150,7 +151,7 @@ export default async function BacklogPage({
           <div className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
             <div className="note-card p-4">
               <div className="eyebrow">Bulk Reset</div>
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+              <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                 Dismiss all pending items in a category at once. Dismissed items leave the queue permanently.
               </p>
               <form action={bulkBacklogAction} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
@@ -170,7 +171,7 @@ export default async function BacklogPage({
 
             <div className="note-card p-4">
               <div className="eyebrow">Bulk Reschedule</div>
-              <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+              <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                 Accept the suggested time slots for all items in a category. Each item moves from pending to rescheduled.
               </p>
               <form action={bulkBacklogAction} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
@@ -207,13 +208,13 @@ export default async function BacklogPage({
                     <span className="status-badge" data-tone="neutral">
                       {item.sourceLabel}
                     </span>
-                    <span className="font-mono text-[0.72rem] uppercase tracking-[0.22em] text-[var(--muted)]">
+                    <span className="font-mono text-[0.72rem] uppercase tracking-[0.22em] text-(--muted)">
                       Queue {String(index + 1).padStart(2, "0")}
                     </span>
                   </div>
 
                   <h2 className="mt-4 text-2xl font-semibold leading-tight">{item.topicDescription}</h2>
-                  <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                  <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                     Day {item.originalDay}
                     {item.originalMappedDate ? ` · ${formatDateLabel(item.originalMappedDate)}` : ""}
                     {" "}origin. Sitting in recovery for {item.daysInBacklog} day{item.daysInBacklog === 1 ? "" : "s"}.
@@ -222,7 +223,7 @@ export default async function BacklogPage({
                   <div className="mt-5 grid gap-3 xl:grid-cols-4">
                     <div className="note-card p-4">
                       <div className="metric-label">Original Slot</div>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                      <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                         Day {item.originalDay}
                         {item.originalMappedDate ? ` · ${formatDateLabel(item.originalMappedDate)}` : ""}
                         {` / ${item.originalBlockKey.replaceAll("_", " ")}`}
@@ -231,26 +232,26 @@ export default async function BacklogPage({
                     </div>
                     <div className="note-card p-4">
                       <div className="metric-label">Suggested Landing</div>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                      <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                         {item.suggestionLabel ?? "No available slot found."}
                       </p>
                     </div>
                     <div className="note-card p-4">
                       <div className="metric-label">Suggested Note</div>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                      <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                         {item.suggestedNote ?? "Staying in backlog until a compatible slot becomes available."}
                       </p>
                     </div>
                     <div className="note-card p-4">
                       <div className="metric-label">Recovery Placement</div>
-                      <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                      <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                         {item.rescheduledLabel ?? "Not assigned yet."}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="grid gap-3 xl:min-w-[23rem]">
+                <div className="grid gap-3 xl:min-w-92">
                   {item.status === "pending" || item.status === "rescheduled" ? (
                     <>
                       {item.status === "pending" ? (
@@ -281,7 +282,7 @@ export default async function BacklogPage({
                           <button className="button-primary w-full" disabled={!item.suggestionLabel} type="submit">
                             Accept suggested slot
                           </button>
-                          <p className="text-xs leading-6 text-[var(--muted)]">
+                          <p className="text-xs leading-6 text-(--muted)">
                             {item.suggestionLabel ?? "No available slot found."}
                           </p>
                         </form>
@@ -322,7 +323,7 @@ export default async function BacklogPage({
                         <input type="hidden" name="backlogId" value={item.id} />
                         <input type="hidden" name="intent" value="complete" />
                         <label>
-                          <span className="mb-2 block text-sm text-[var(--muted)]">Completion date</span>
+                          <span className="mb-2 block text-sm text-(--muted)">Completion date</span>
                           <input className="field" type="date" name="completionDate" defaultValue={defaultCompletionDate} />
                         </label>
                         <button className="button-primary w-full" type="submit">
@@ -339,7 +340,7 @@ export default async function BacklogPage({
                       </form>
                     </>
                   ) : (
-                    <div className="note-card p-4 text-sm leading-7 text-[var(--text-secondary)]">
+                    <div className="note-card p-4 text-sm leading-7 text-(--text-secondary)">
                       {item.status === "completed" && item.completedAt ? (
                         <p>Completed on {formatDateLabel(item.completedAt.slice(0, 10))}.</p>
                       ) : null}
@@ -358,7 +359,7 @@ export default async function BacklogPage({
         ) : (
           <section className="panel reveal-rise p-6">
             <div className="eyebrow">Queue Clear</div>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
+            <p className="mt-3 max-w-2xl text-sm leading-7 text-(--text-secondary)">
               No items match the current filter. Try switching to a different status tab above.
             </p>
           </section>

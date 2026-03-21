@@ -22,7 +22,7 @@ export function RouteLoadingShell({
       <section className="panel panel-hero p-6 md:p-7">
         <div className="eyebrow">{eyebrow}</div>
         <h1 className="display mt-3 text-3xl md:text-4xl">{title}</h1>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">{body}</p>
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-(--text-secondary)">{body}</p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {Array.from({ length: metricCount }).map((_, index) => (

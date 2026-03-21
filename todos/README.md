@@ -81,8 +81,8 @@ The codebase is production-ready only when:
 
 ## Task Order
 
-1. [ ] `001-day-one-default-tomorrow.md`
-2. [ ] `002-setup-gate-before-day-one.md`
+1. [x] `001-day-one-default-tomorrow.md`
+2. [x] `002-setup-gate-before-day-one.md`
 3. [ ] `003-production-day-one-validation.md`
 4. [ ] `004-remove-duplicate-today-branding.md`
 5. [ ] `005-move-pace-dial-higher.md`

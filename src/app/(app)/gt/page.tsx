@@ -1,12 +1,13 @@
 import Link from "next/link";
 
 import { GtEntryForm } from "@/components/app/gt-entry-form";
-import { requireCurrentUser } from "@/lib/auth/session";
+import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getGtPageData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 
 export default async function GtPage() {
   const user = await requireCurrentUser();
+  await requireDayOneSetup(user.id);
   const data = await mutateStore((store) => getGtPageData(store, user.id));
 
   return (
@@ -16,7 +17,7 @@ export default async function GtPage() {
           <div className="max-w-3xl">
             <div className="eyebrow">GT Tracker</div>
             <h1 className="display mt-3 text-3xl md:text-4xl">Log the score, the behaviour drift, and what changes before the next paper.</h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
+            <p className="mt-4 max-w-2xl text-sm leading-7 text-(--text-secondary)">
               The wrapper is structured on purpose. By GT-3 or GT-4, the app should already show whether time loss, panic, or the same weak
               subjects keep repeating.
             </p>
@@ -70,11 +71,11 @@ export default async function GtPage() {
               </div>
               <div className="mt-3 text-lg font-semibold">{item.label}</div>
               {item.purpose !== item.label ? (
-                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">{item.purpose}</p>
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.purpose}</p>
               ) : null}
-              <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">{item.mappedDate ?? "No mapped date yet"}</p>
-              <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">{item.whatToMeasure}</p>
-              <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">{item.mustOutputAfterTest}</p>
+              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.mappedDate ?? "No mapped date yet"}</p>
+              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.whatToMeasure}</p>
+              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.mustOutputAfterTest}</p>
             </article>
           ))}
         </div>
@@ -83,7 +84,7 @@ export default async function GtPage() {
       <section className="panel p-6">
         <div className="eyebrow">GT Log</div>
         <h2 className="mt-3 text-2xl font-semibold">Capture the full paper, not just the score.</h2>
-        <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+        <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
           If today is not a GT day, you can still log retroactively. The suggested GT number and day come from the workbook plan after schedule
           shifts are applied.
         </p>
@@ -102,16 +103,16 @@ export default async function GtPage() {
                     {log.gtDate}
                   </span>
                 </div>
-                <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
                   Score {log.score ?? "—"} · AIR {log.airPercentile ?? "—"} · {log.overallFeeling ?? "No feeling tag"}
                 </p>
-                <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
                   {log.changeBeforeNextGt ?? "No wrapper note yet."}
                 </p>
               </article>
             ))
           ) : (
-            <p className="text-sm leading-7 text-[var(--text-secondary)]">No GT log yet. The first serious pattern usually shows up by GT-3 or GT-4.</p>
+            <p className="text-sm leading-7 text-(--text-secondary)">No GT log yet. The first serious pattern usually shows up by GT-3 or GT-4.</p>
           )}
         </div>
       </section>

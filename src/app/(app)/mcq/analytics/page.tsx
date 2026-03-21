@@ -3,12 +3,13 @@ import {
   McqSubjectAccuracyPanel,
   McqTrendPanel,
 } from "@/components/app/mcq-analytics-panels";
-import { requireCurrentUser } from "@/lib/auth/session";
+import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getMcqAnalyticsData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 
 export default async function McqAnalyticsPage() {
   const user = await requireCurrentUser();
+  await requireDayOneSetup(user.id);
   const data = await mutateStore((store) => getMcqAnalyticsData(store, user.id));
   const hasMcqData = data.summary.totalSolved > 0;
 
@@ -17,7 +18,7 @@ export default async function McqAnalyticsPage() {
       <section className="panel panel-hero p-6">
         <div className="eyebrow">MCQ Analytics</div>
         <h1 className="display mt-3 text-3xl md:text-4xl">Volume, accuracy, and what keeps going wrong.</h1>
-        <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--text-secondary)]">
+        <p className="mt-4 max-w-3xl text-sm leading-7 text-(--text-secondary)">
           This screen is deliberately diagnostic, not motivational. It should answer three things quickly: how much got solved, where accuracy is
           slipping, and whether the same subjects or cause codes keep repeating.
         </p>
@@ -45,14 +46,14 @@ export default async function McqAnalyticsPage() {
       <section className="panel p-6">
         <div className="eyebrow">Trend Over Time</div>
         <h2 className="mt-3 text-2xl font-semibold">Daily volume and accuracy</h2>
-        <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+        <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
           Bars show how much got solved. The line tracks accuracy without inventing a target streak.
         </p>
         <div className="mt-6">
           {hasMcqData ? (
             <McqTrendPanel data={data.trendData} />
           ) : (
-            <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+            <div className="note-card p-5 text-sm leading-7 text-(--text-secondary)">
               No MCQ activity has been logged yet. Once the first batch or detailed entry lands, the daily trend will appear here.
             </div>
           )}
@@ -67,7 +68,7 @@ export default async function McqAnalyticsPage() {
             {hasMcqData ? (
               <McqBreakdownPanel data={data.breakdownData} />
             ) : (
-              <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+              <div className="note-card p-5 text-sm leading-7 text-(--text-secondary)">
                 There is no result mix to chart yet. Log a few questions first, then come back to see right, guessed-right, and wrong proportions.
               </div>
             )}
@@ -83,7 +84,7 @@ export default async function McqAnalyticsPage() {
                 data={data.accuracyBySubject.map((entry) => ({ subject: entry.subject, accuracy: entry.accuracy }))}
               />
             ) : (
-              <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+              <div className="note-card p-5 text-sm leading-7 text-(--text-secondary)">
                 Subject-accuracy comparison unlocks after a few entries carry subject tags.
               </div>
             )}
@@ -108,7 +109,7 @@ export default async function McqAnalyticsPage() {
                 </article>
               ))
             ) : (
-              <p className="text-sm leading-7 text-[var(--text-secondary)]">No tagged wrong-subject pattern yet.</p>
+              <p className="text-sm leading-7 text-(--text-secondary)">No tagged wrong-subject pattern yet.</p>
             )}
           </div>
         </section>
@@ -129,7 +130,7 @@ export default async function McqAnalyticsPage() {
                 </article>
               ))
             ) : (
-              <p className="text-sm leading-7 text-[var(--text-secondary)]">No cause-code signal yet.</p>
+              <p className="text-sm leading-7 text-(--text-secondary)">No cause-code signal yet.</p>
             )}
           </div>
         </section>

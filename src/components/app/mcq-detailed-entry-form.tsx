@@ -138,13 +138,12 @@ export function McqDetailedEntryForm({ todayDate, subjects, recentTopics, recent
         {MCQ_RESULT_OPTIONS.map((option) => (
           <button
             key={option.value}
-            className={`rounded-[1.4rem] border px-4 py-4 text-left transition ${
-              option.value === "wrong"
+            className={`rounded-[1.4rem] border px-4 py-4 text-left transition ${option.value === "wrong"
                 ? "border-[rgba(227,140,140,0.25)] bg-[rgba(227,140,140,0.08)]"
                 : option.value === "guessed_right"
                   ? "border-[rgba(243,209,123,0.24)] bg-[rgba(243,209,123,0.08)]"
                   : "border-[rgba(142,217,165,0.24)] bg-[rgba(142,217,165,0.08)]"
-            }`}
+              }`}
             disabled={pending || !mcqId.trim()}
             type="button"
             onClick={() => submit(option.value)}
@@ -159,7 +158,7 @@ export function McqDetailedEntryForm({ todayDate, subjects, recentTopics, recent
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="eyebrow">Add details</div>
-            <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+            <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
               Optional notes for patterns, weak spots, and fixes. This expander remembers its last state during the session.
             </p>
           </div>
@@ -256,14 +255,13 @@ export function McqDetailedEntryForm({ todayDate, subjects, recentTopics, recent
                   return (
                     <button
                       key={option.value}
-                      className={`rounded-[1.1rem] border px-4 py-3 text-left ${
-                        active ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)]"
-                      }`}
+                      className={`rounded-[1.1rem] border px-4 py-3 text-left ${active ? "border-[var(--border-strong)] bg-[var(--accent-faint)]" : "border-[var(--border)] bg-[var(--surface-muted)]"
+                        }`}
                       type="button"
                       onClick={() => setPriority((current) => (current === option.value ? "" : option.value))}
                     >
                       <div className="font-semibold">{option.value}</div>
-                      <div className="mt-1 text-sm text-[var(--text-secondary)]">{option.label}</div>
+                      <div className="mt-1 text-sm text-(--text-secondary)">{option.label}</div>
                     </button>
                   );
                 })}
@@ -278,9 +276,8 @@ export function McqDetailedEntryForm({ todayDate, subjects, recentTopics, recent
                   return (
                     <button
                       key={option.value}
-                      className={`rounded-full border px-3 py-2 text-sm ${
-                        active ? "border-[var(--border-strong)] bg-[var(--accent-faint)] text-[var(--foreground)]" : "border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text-secondary)]"
-                      }`}
+                      className={`rounded-full border px-3 py-2 text-sm ${active ? "border-[var(--border-strong)] bg-[var(--accent-faint)] text-[var(--foreground)]" : "border-[var(--border)] bg-[var(--surface-muted)] text-(--text-secondary)"
+                        }`}
                       type="button"
                       onClick={() => toggleFixCode(option.value)}
                     >
@@ -299,9 +296,8 @@ export function McqDetailedEntryForm({ todayDate, subjects, recentTopics, recent
                   return (
                     <button
                       key={option}
-                      className={`rounded-full border px-3 py-2 text-sm capitalize ${
-                        active ? "border-[var(--border-strong)] bg-[var(--accent-faint)] text-[var(--foreground)]" : "border-[var(--border)] bg-[var(--surface-muted)] text-[var(--text-secondary)]"
-                      }`}
+                      className={`rounded-full border px-3 py-2 text-sm capitalize ${active ? "border-[var(--border-strong)] bg-[var(--accent-faint)] text-[var(--foreground)]" : "border-[var(--border)] bg-[var(--surface-muted)] text-(--text-secondary)"
+                        }`}
                       type="button"
                       onClick={() => toggleTag(option)}
                     >
@@ -339,7 +335,7 @@ export function McqDetailedEntryForm({ todayDate, subjects, recentTopics, recent
       {feedback ? (
         <p
           aria-live="polite"
-          className={`text-sm ${feedback.tone === "red" ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}`}
+          className={`text-sm ${feedback.tone === "red" ? "text-[var(--danger)]" : "text-(--text-secondary)"}`}
         >
           {feedback.message}
         </p>

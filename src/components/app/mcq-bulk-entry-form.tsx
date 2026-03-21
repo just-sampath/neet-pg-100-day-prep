@@ -22,12 +22,12 @@ export function McqBulkEntryForm({ todayDate, subjects, recentSources }: Props) 
   const correctNumber = correct.trim() ? Number(correct) : null;
   const computedWrong =
     attemptedNumber !== null &&
-    correctNumber !== null &&
-    Number.isInteger(attemptedNumber) &&
-    Number.isInteger(correctNumber) &&
-    attemptedNumber >= 0 &&
-    correctNumber >= 0 &&
-    correctNumber <= attemptedNumber
+      correctNumber !== null &&
+      Number.isInteger(attemptedNumber) &&
+      Number.isInteger(correctNumber) &&
+      attemptedNumber >= 0 &&
+      correctNumber >= 0 &&
+      correctNumber <= attemptedNumber
       ? String(attemptedNumber - correctNumber)
       : "";
   const submitDisabled = pending || !computedWrong || attemptedNumber === null || attemptedNumber <= 0;
@@ -137,7 +137,7 @@ export function McqBulkEntryForm({ todayDate, subjects, recentSources }: Props) 
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="text-sm leading-7 text-[var(--text-secondary)]">
+          <p className="text-sm leading-7 text-(--text-secondary)">
             Keep this fast: date, attempted, correct, wrong. Subject and source are there when the batch needs context.
           </p>
           {totalAttempted && correct && !computedWrong ? (
@@ -152,7 +152,7 @@ export function McqBulkEntryForm({ todayDate, subjects, recentSources }: Props) 
       {feedback ? (
         <p
           aria-live="polite"
-          className={`text-sm ${feedback.tone === "red" ? "text-[var(--danger)]" : "text-[var(--text-secondary)]"}`}
+          className={`text-sm ${feedback.tone === "red" ? "text-[var(--danger)]" : "text-(--text-secondary)"}`}
         >
           {feedback.message}
         </p>

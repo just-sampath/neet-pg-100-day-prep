@@ -25,7 +25,7 @@ export function WindDownPrompts({
   lateNightSweepProcessed,
 }: Props) {
   const hydrated = useSyncExternalStore(
-    () => () => {},
+    () => () => { },
     () => true,
     () => false,
   );
@@ -90,7 +90,7 @@ export function WindDownPrompts({
 
   if (prompt.kind === "auto_move_done") {
     return (
-      <div aria-live="polite" className="note-card p-4 text-sm leading-7 text-[var(--text-secondary)]">
+      <div aria-live="polite" className="note-card p-4 text-sm leading-7 text-(--text-secondary)">
         {prompt.message}
       </div>
     );
@@ -100,7 +100,7 @@ export function WindDownPrompts({
     return (
       <div aria-live="polite" className="panel p-4 md:p-5">
         <div className="eyebrow">{prompt.label}</div>
-        <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+        <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
           {pending ? "Moving remaining blocks to backlog now." : prompt.message}
         </p>
       </div>
@@ -111,7 +111,7 @@ export function WindDownPrompts({
     return (
       <div aria-live="polite" className="panel p-4 md:p-5">
         <div className="eyebrow">{prompt.label}</div>
-        <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+        <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
           {prompt.message}
         </p>
         <div className="mt-3 flex gap-2">
@@ -157,7 +157,7 @@ export function WindDownPrompts({
   return (
     <div aria-live="polite" className="panel p-4 md:p-5">
       <div className="eyebrow">{prompt.label}</div>
-      <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+      <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
         {prompt.message}
       </p>
       <div className="mt-3 flex gap-2">

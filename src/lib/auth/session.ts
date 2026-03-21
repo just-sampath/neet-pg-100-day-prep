@@ -72,6 +72,13 @@ export async function requireCurrentUser() {
   return user;
 }
 
+export async function requireDayOneSetup(userId: string) {
+  const store = await readStore();
+  if (!store.userState[userId]?.settings?.dayOneDate) {
+    redirect("/today");
+  }
+}
+
 async function loginLocal(email: string, password: string) {
   const user = await mutateStore((store) => {
     return Object.values(store.users).find(
