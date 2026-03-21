@@ -33,7 +33,7 @@ The codebase is production-ready only when:
 5. [x] [005-revision-engine-spec-alignment.md](./005-revision-engine-spec-alignment.md)
 6. [x] [006-today-view-and-wind-down.md](./006-today-view-and-wind-down.md)
 7. [x] [007-traffic-light-and-backlog-creation.md](./007-traffic-light-and-backlog-creation.md)
-8. [008-backlog-suggestion-and-queue.md](./008-backlog-suggestion-and-queue.md)
+8. [x] [008-backlog-suggestion-and-queue.md](./008-backlog-suggestion-and-queue.md)
 9. [009-schedule-shift-mechanism.md](./009-schedule-shift-mechanism.md)
 10. [010-schedule-browser-and-retroactive-editing.md](./010-schedule-browser-and-retroactive-editing.md)
 11. [011-mcq-tracker-and-analytics.md](./011-mcq-tracker-and-analytics.md)

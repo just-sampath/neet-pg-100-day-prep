@@ -7,6 +7,14 @@ import { redirect } from "next/navigation";
 
 import { loginUser, logoutUser, requireCurrentUser } from "@/lib/auth/session";
 import {
+  completeAssignedRecoveryForTarget,
+  dismissBacklogScope,
+  isValidBacklogRescheduleTarget,
+  moveBacklogItemPriority,
+  refreshBacklogSuggestions,
+  rescheduleBacklogScopeToSuggestions,
+} from "@/lib/domain/backlog-queue";
+import {
   applyOverrunCascadeBacklog,
   applyTrafficLightToDay,
   generateWeeklySummary,
@@ -17,7 +25,16 @@ import {
 } from "@/lib/data/app-state";
 import { createEmptyUserState, getEffectiveNow, mutateStore } from "@/lib/data/local-store";
 import { createRevisionId, getCurrentDayNumber, reconcileRevisionCompletionsForSource } from "@/lib/domain/schedule";
-import type { BlockKey, McqCauseCode, McqPriority, McqResult, RevisionSourceBlockKey, TrafficLight } from "@/lib/domain/types";
+import type {
+  BacklogBulkScope,
+  BacklogMoveDirection,
+  BlockKey,
+  McqCauseCode,
+  McqPriority,
+  McqResult,
+  RevisionSourceBlockKey,
+  TrafficLight,
+} from "@/lib/domain/types";
 import { getMinutesInTimeZone, IST_TIME_ZONE, toDateOnly, toDateOnlyInTimeZone, weekBounds } from "@/lib/utils/date";
 
 function asString(value: FormDataEntryValue | null) {
@@ -125,6 +142,7 @@ export async function updateBlockAction(formData: FormData) {
           item.completedAt = progress.completedAt;
         }
       }
+      completeAssignedRecoveryForTarget(userState, dayNumber, blockKey, progress.completedAt);
     } else if (intent === "partial") {
       progress.status = "partial";
       progress.completedAt = completionIsoForDateOnly(completionDate);
@@ -190,20 +208,29 @@ export async function updateBacklogAction(formData: FormData) {
   const completionDate = asString(formData.get("completionDate")) || null;
   const rescheduledToDay = Number(asString(formData.get("rescheduledToDay")) || 0);
   const rescheduledToBlockKey = asString(formData.get("rescheduledToBlockKey")) as BlockKey;
+  const moveDirection = asString(formData.get("direction")) as BacklogMoveDirection;
 
   await mutateStore((store) => {
     const userState = store.userState[user.id];
+    const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
+    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+    refreshBacklogSuggestions(userState, userState.settings, todayDayNumber);
     const item = userState.backlogItems[backlogId];
     if (!item) {
       return;
     }
 
     if (intent === "complete") {
-      item.status = "completed";
-      item.completedAt = completionIsoForDateOnly(completionDate);
+      const completedAt = completionIsoForDateOnly(completionDate);
+      for (const entry of Object.values(userState.backlogItems)) {
+        if (entry.originalDay === item.originalDay && entry.originalBlockKey === item.originalBlockKey && entry.status !== "dismissed") {
+          entry.status = "completed";
+          entry.completedAt = completedAt;
+        }
+      }
       const progress = getOrCreateProgress(userState, item.originalDay, item.originalBlockKey);
       progress.status = "completed";
-      progress.completedAt = item.completedAt;
+      progress.completedAt = completedAt;
       progress.sourceTag = null;
       reconcileRevisionCompletionsForSource(
         userState.revisionCompletions,
@@ -214,12 +241,65 @@ export async function updateBacklogAction(formData: FormData) {
     } else if (intent === "dismiss") {
       item.status = "dismissed";
       item.dismissedAt = new Date().toISOString();
+    } else if (intent === "accept_suggestion") {
+      if (
+        item.suggestedDay &&
+        item.suggestedBlockKey &&
+        isValidBacklogRescheduleTarget(
+          userState,
+          userState.settings,
+          todayDayNumber,
+          item.suggestedDay,
+          item.suggestedBlockKey,
+          item.id,
+        )
+      ) {
+        item.status = "rescheduled";
+        item.rescheduledToDay = item.suggestedDay;
+        item.rescheduledToBlockKey = item.suggestedBlockKey;
+      }
     } else if (intent === "reschedule") {
-      item.status = "rescheduled";
-      item.rescheduledToDay = rescheduledToDay || item.suggestedDay;
-      item.rescheduledToBlockKey = rescheduledToBlockKey || item.suggestedBlockKey;
+      const targetDay = rescheduledToDay || item.suggestedDay;
+      const targetBlockKey = rescheduledToBlockKey || item.suggestedBlockKey;
+      if (
+        targetDay &&
+        targetBlockKey &&
+        isValidBacklogRescheduleTarget(userState, userState.settings, todayDayNumber, targetDay, targetBlockKey, item.id)
+      ) {
+        item.status = "rescheduled";
+        item.rescheduledToDay = targetDay;
+        item.rescheduledToBlockKey = targetBlockKey;
+      }
+    } else if ((intent === "move_up" || intent === "move_down") && (moveDirection === "up" || moveDirection === "down")) {
+      moveBacklogItemPriority(userState, backlogId, moveDirection);
     }
   });
+  refresh();
+}
+
+export async function bulkBacklogAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const intent = asString(formData.get("intent"));
+  const scope = asString(formData.get("scope")) as BacklogBulkScope;
+
+  if (!["dismiss_scope", "accept_scope_suggestions", "reschedule_scope_to_suggestions"].includes(intent)) {
+    return;
+  }
+
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
+    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+    refreshBacklogSuggestions(userState, userState.settings, todayDayNumber);
+
+    if (intent === "dismiss_scope") {
+      dismissBacklogScope(userState, scope);
+      return;
+    }
+
+    rescheduleBacklogScopeToSuggestions(userState, userState.settings, todayDayNumber, scope);
+  });
+
   refresh();
 }
 

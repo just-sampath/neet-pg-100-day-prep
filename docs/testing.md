@@ -35,6 +35,8 @@ npm run build:webpack
   - midnight miss creation with morning-revision exclusion
   - wind-down backlog creation with morning-revision exclusion
   - overrun preview and forced-sleep backlog branches
+  - PRD backlog suggestion precedence for content, MCQ, PYQ/weekend, consolidation, and night recall
+  - queue ordering, original mapped-date metadata, bulk reschedule, and assigned-recovery destination sync
 
 ## Local Mode Manual Pass
 
@@ -65,6 +67,9 @@ Then verify:
 17. Log a GT entry.
 18. Generate a weekly summary.
 19. Export JSON.
+20. Reschedule a backlog item and confirm it renders inside the destination block card rather than a detached recovery strip.
+21. Complete the destination block and confirm the assigned backlog item closes automatically.
+22. In a separate pass, skip or miss the destination block and confirm the assigned backlog item returns to `pending`.
 
 ## Time-Based Manual Pass
 
@@ -78,6 +83,7 @@ Then verify:
 8. Confirm `morning_revision` does not enter the backlog queue from the wind-down or midnight path.
 9. Trigger `/api/dev/midnight` or set next day `00:01`.
 10. Confirm missed blocks are marked and weekly automation can run.
+11. If a backlog item had been assigned to a target slot, confirm midnight releases it back to `pending` when that target slot was never completed.
 
 ## Supabase Runtime Pass
 

@@ -35,6 +35,7 @@ This must apply:
 - `supabase/migrations/0003_automation_job_runs.sql`
 - `supabase/migrations/0004_revision_completion_identity.sql`
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
+- `supabase/migrations/0006_backlog_queue_priority.sql`
 
 `0002_runtime_rls_realtime.sql` is required for:
 
@@ -59,6 +60,11 @@ This must apply:
 
 - preserving original scheduled slot timing on backlog items
 - queue displays that explain exactly where a moved block came from
+
+`0006_backlog_queue_priority.sql` is required for:
+
+- stable backlog priority ordering
+- queue reordering that persists cleanly across sessions and runtimes
 
 ## Auth Setup
 
@@ -119,6 +125,8 @@ Run this immediately after the first deployment:
 8. Trigger `/api/cron/midnight` with the bearer token once and confirm a successful response.
 9. Trigger `/api/cron/weekly` with the bearer token once and confirm a successful response.
 10. Inspect `automation_job_runs` and confirm the run was recorded.
+11. Reschedule a backlog item into a future block, open that target day, and confirm the item renders inside the destination block.
+12. Complete the destination block and confirm the assigned backlog item closes automatically.
 
 ## Rollback Notes
 

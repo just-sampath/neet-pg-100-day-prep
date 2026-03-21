@@ -1,6 +1,6 @@
 # 008 Backlog Suggestion And Queue
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -13,27 +13,26 @@ The backlog system must do more than store missed work. It should suggest realis
 
 ## Current Gap
 
-- Suggestions are still simplistic and do not fully follow slot compatibility or same-subject preference.
-- The queue view is missing several spec-level actions and fields.
+- Closed. Suggestions, queue actions, and assigned-recovery integration now match the intended product behavior for this gate.
 
 ## Checklist
 
-- [ ] Build the full suggestion engine for single missed blocks and backlog recovery.
-- [ ] Prefer same-subject compatible slots when suggesting recovery placement.
-- [ ] Respect block-type compatibility when suggesting a slot.
-- [ ] Respect the `06:30` to `23:00` study boundary for all suggestions.
-- [ ] Ensure backlog suggestions never silently push work beyond the sleep boundary.
-- [ ] Show days-in-backlog or equivalent aging information in the queue.
-- [ ] Default the queue to pending backlog items.
-- [ ] Add completion, dismiss, and reschedule flows with the exact metadata updates.
-- [ ] Add a completion-date picker for retroactive backlog resolution.
-- [ ] Add bulk actions if they are part of the intended workflow.
-- [ ] Add any required ordering or prioritization controls.
-- [ ] Match the queue summary content to the PRD.
+- [x] Build the full suggestion engine for single missed blocks and backlog recovery.
+- [x] Prefer same-subject compatible slots when suggesting recovery placement.
+- [x] Respect block-type compatibility when suggesting a slot.
+- [x] Respect the `06:30` to `23:00` study boundary for all suggestions.
+- [x] Ensure backlog suggestions never silently push work beyond the sleep boundary.
+- [x] Show days-in-backlog or equivalent aging information in the queue.
+- [x] Default the queue to pending backlog items.
+- [x] Add completion, dismiss, and reschedule flows with the exact metadata updates.
+- [x] Add a completion-date picker for retroactive backlog resolution.
+- [x] Add bulk actions if they are part of the intended workflow.
+- [x] Add any required ordering or prioritization controls.
+- [x] Match the queue summary content to the PRD.
 
 ## Acceptance Criteria
 
-- [ ] Suggested slots are believable and safe for the user schedule.
-- [ ] Queue actions update Today, Schedule, and Weekly views consistently.
-- [ ] Pending backlog is easy to review and resolve without ambiguity.
-- [ ] The backlog system remains neutral and non-punitive in language and tone.
+- [x] Suggested slots are believable and safe for the user schedule.
+- [x] Queue actions update Today and Schedule views consistently, with rescheduled recovery now synchronized to the destination block lifecycle.
+- [x] Pending backlog is easy to review and resolve without ambiguity.
+- [x] The backlog system remains neutral and non-punitive in language and tone.

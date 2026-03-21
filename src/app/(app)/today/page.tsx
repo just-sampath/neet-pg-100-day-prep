@@ -7,7 +7,7 @@ import { WindDownPrompts } from "@/components/app/wind-down-prompts";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { getHomeData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
-import type { BlockStatus } from "@/lib/domain/types";
+import type { BlockKey, BlockStatus, ScheduledRecoveryItem } from "@/lib/domain/types";
 import {
   buildTodayTimeline,
   getBacklogIndicatorLabel,
@@ -86,6 +86,10 @@ function getRevisionGroupNote(itemCount: number) {
     : `${itemCount} revision segments are due from this topic.`;
 }
 
+function getRecoveryWaitLabel(daysInBacklog: number) {
+  return `Waiting ${daysInBacklog} day${daysInBacklog === 1 ? "" : "s"} before landing here.`;
+}
+
 export default async function TodayPage() {
   const user = await requireCurrentUser();
   const { data, userState } = await mutateStore((store) => ({
@@ -153,6 +157,13 @@ export default async function TodayPage() {
   const overflowCount = data.todayRevisionPlan?.overflow.length ?? 0;
   const catchUpCount = data.todayRevisionPlan?.catchUp.length ?? 0;
   const restudyCount = data.todayRevisionPlan?.restudyFlags.length ?? 0;
+  const plannedRecovery = data.plannedRecovery;
+  const plannedRecoveryByBlock = plannedRecovery.reduce((map, item) => {
+    const entries = map.get(item.targetBlockKey) ?? [];
+    entries.push(item);
+    map.set(item.targetBlockKey, entries);
+    return map;
+  }, new Map<BlockKey, ScheduledRecoveryItem[]>());
   const revisionGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.queue) : [];
   const overflowGroups = data.todayRevisionPlan
     ? groupRevisionItemsForDisplay(data.todayRevisionPlan.overflow.map((entry) => entry.item))
@@ -573,15 +584,16 @@ export default async function TodayPage() {
                   </span>
                 </div>
               );
-            }
+          }
 
-            const completed = entry.progress.status === "completed" || entry.progress.status === "partial";
-            const hiddenStatusTone = completed ? "green" : "neutral";
-            const blockNumber = trackableOrder.get(entry.blockKey) ?? 0;
+          const completed = entry.progress.status === "completed" || entry.progress.status === "partial";
+          const hiddenStatusTone = completed ? "green" : "neutral";
+          const blockNumber = trackableOrder.get(entry.blockKey) ?? 0;
+          const assignedRecovery = plannedRecoveryByBlock.get(entry.blockKey) ?? [];
 
-            if (entry.mode === "hidden") {
-              return (
-                <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
+          if (entry.mode === "hidden") {
+            return (
+              <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
@@ -600,6 +612,30 @@ export default async function TodayPage() {
                       ? "Already completed before the pace dial tightened. Kept on record."
                       : "Folded into the recovery queue so today stays believable without stretching sleep."}
                   </p>
+                  {assignedRecovery.length ? (
+                    <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/85 p-4">
+                      <div className="eyebrow">Recovery still assigned here</div>
+                      <div className="mt-3 grid gap-3">
+                        {assignedRecovery.map((item) => (
+                          <article key={item.id} className="rounded-2xl border border-[var(--border)] p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="status-badge" data-tone="neutral">
+                                {item.subject}
+                              </span>
+                              <span className="status-badge" data-tone="neutral">
+                                from Day {item.sourceDay}
+                              </span>
+                            </div>
+                            <div className="mt-3 font-medium">{item.topicDescription}</div>
+                            <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                              {item.sourceMappedDate ? `${formatDateLabel(item.sourceMappedDate)} origin. ` : ""}
+                              {getRecoveryWaitLabel(item.daysInBacklog)}
+                            </p>
+                          </article>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </article>
               );
             }
@@ -631,6 +667,33 @@ export default async function TodayPage() {
                     <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
                       {getBlockDurationLabel(todayScheduleDay, entry.blockKey, userState)}
                     </p>
+                    {assignedRecovery.length ? (
+                      <div className="note-card mt-5 p-4">
+                        <div className="eyebrow">Recovery inside this block</div>
+                        <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                          These items are no longer floating in backlog. They now belong to this block&apos;s plan.
+                        </p>
+                        <div className="mt-4 grid gap-3">
+                          {assignedRecovery.map((item) => (
+                            <article key={item.id} className="rounded-2xl border border-[var(--border)] p-3">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="status-badge" data-tone="neutral">
+                                  {item.subject}
+                                </span>
+                                <span className="status-badge" data-tone="neutral">
+                                  from Day {item.sourceDay}
+                                </span>
+                              </div>
+                              <div className="mt-3 font-medium">{item.topicDescription}</div>
+                              <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                                {item.sourceMappedDate ? `${formatDateLabel(item.sourceMappedDate)} origin. ` : ""}
+                                {getRecoveryWaitLabel(item.daysInBacklog)}
+                              </p>
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="mt-5 flex flex-wrap gap-2">
                       <form action={updateBlockAction}>
                         <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />

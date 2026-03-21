@@ -56,6 +56,7 @@ Default local credentials:
 - Dev-only time travel controls for 22:30 / 23:00 / 23:15 / midnight behavior
 - Open-app wind-down state machine with 22:30 wrap-up, one 22:45 reappearance, 23:00 night recall handling, and 23:15 safety-net backlog sweep
 - Traffic-light restoration and backlog creation now preserve original slot timing, keep morning revision out of the backlog queue, and support overrun-triggered recovery paths
+- Backlog queue now uses block-type-aware recovery suggestions, bulk reschedule-to-suggestion flows, original mapped-date metadata, and target-day integration directly inside destination block cards
 - Supabase auth, persistence, RLS, and Realtime integration path for shared-state deployment
 - Production cron routes for IST midnight rollover and weekly summary automation
 - Job telemetry in `automation_job_runs` plus manual cron setup SQL for Supabase

@@ -119,7 +119,8 @@ Defaults:
 - `src/lib/domain/types.ts`: all shared domain types
 - `src/lib/domain/constants.ts`: exam date, hard boundary, traffic-light block sets, compression rules
 - `src/lib/domain/backlog.ts`: traffic-light restore rules, backlog-creation guards, and overrun preview logic
-- `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, shift preview, backlog suggestions
+- `src/lib/domain/backlog-queue.ts`: backlog suggestion engine, queue sorting, priority movement, target validation, and assigned-recovery read models
+- `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, and shift preview
 - `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
 - `src/lib/domain/quotes.ts`: quote selection
 - `src/lib/data/local-store.ts`: runtime-aware persistence boundary for local and Supabase modes
@@ -139,6 +140,7 @@ Defaults:
 - `supabase/migrations/0003_automation_job_runs.sql`: hosted job ledger for cron telemetry and idempotence
 - `supabase/migrations/0004_revision_completion_identity.sql`: block-aware revision completion identity
 - `supabase/migrations/0005_backlog_creation_metadata.sql`: original slot timing metadata for backlog items
+- `supabase/migrations/0006_backlog_queue_priority.sql`: queue priority ordering for backlog items
 - `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
 
 ### Server Automation
@@ -215,6 +217,7 @@ The generated schedule bundle includes:
 - Wind-down wrap-up and the 23:15 sweep move remaining visible study blocks into backlog as `missed`, excluding `morning_revision`.
 - Overrun-triggered recovery uses `overrun_cascade` as the source tag.
 - Backlog items now preserve `originalStart` and `originalEnd` so the queue can explain where the work came from.
+- The backlog queue defaults to `pending`, shows original mapped date plus queue age, supports manual and bulk reschedule, and keeps assigned recovery synchronized with the destination block lifecycle.
 
 ## Schedule Shift Rules
 
@@ -263,6 +266,9 @@ Every feature should be runnable locally. Minimum manual pass:
 15. Log GT data.
 16. Generate a weekly summary.
 17. Export JSON.
+18. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
+19. Complete that destination block and confirm the assigned backlog item closes with it.
+20. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
 
 Supabase runtime pass:
 

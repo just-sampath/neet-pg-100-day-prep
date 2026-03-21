@@ -4,10 +4,14 @@ import { TimeEditor } from "@/components/app/time-editor";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { getDayDetailData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
-import type { BlockKey } from "@/lib/domain/types";
+import type { BlockKey, ScheduledRecoveryItem } from "@/lib/domain/types";
 import { getRevisionAssignedSlotLabel, groupRevisionItemsForDisplay } from "@/lib/domain/schedule";
 import { completeRevisionAction, setTrafficLightAction, updateBlockAction } from "@/lib/server/actions";
 import { formatDateLabel } from "@/lib/utils/format";
+
+function getRecoveryWaitLabel(daysInBacklog: number) {
+  return `Waiting ${daysInBacklog} day${daysInBacklog === 1 ? "" : "s"} before landing here.`;
+}
 
 export default async function ScheduleDayPage({
   params,
@@ -28,6 +32,12 @@ export default async function ScheduleDayPage({
   const overflowGroups = detail.revisionPlan
     ? groupRevisionItemsForDisplay(detail.revisionPlan.overflow.map((entry) => entry.item))
     : [];
+  const plannedRecoveryByBlock = detail.plannedRecovery.reduce((map, item) => {
+    const entries = map.get(item.targetBlockKey) ?? [];
+    entries.push(item);
+    map.set(item.targetBlockKey, entries);
+    return map;
+  }, new Map<BlockKey, ScheduledRecoveryItem[]>());
   const timeEditorSlots = detail.blocks.map((block) => ({
     key: block.key as BlockKey,
     label: block.label,
@@ -129,62 +139,92 @@ export default async function ScheduleDayPage({
       ) : null}
 
       <section className="grid gap-4">
-        {detail.blocks.map((block) => (
-          <article key={block.key} className="panel p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-              <div>
-                <div className="eyebrow">{block.label}</div>
-                <h2 className="mt-2 text-xl font-semibold">{block.displayDescription}</h2>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  Status: {block.progress.status} · {block.progress.actualStart ?? block.start} - {block.progress.actualEnd ?? block.end}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <form action={updateBlockAction}>
-                  <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-                  <input type="hidden" name="blockKey" value={block.key} />
-                  <input type="hidden" name="intent" value="complete" />
-                  {isPastDay ? <input type="hidden" name="completionDate" value={defaultCompletionDate} /> : null}
-                  <button className="button-primary" type="submit">
-                    Complete
-                  </button>
-                </form>
-                <form action={updateBlockAction}>
-                  <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-                  <input type="hidden" name="blockKey" value={block.key} />
-                  <input type="hidden" name="intent" value="skip" />
-                  <button className="button-secondary" type="submit">
-                    Skip
-                  </button>
-                </form>
-              </div>
-            </div>
-            {isPastDay ? (
-              <form action={updateBlockAction} className="mt-4 grid gap-3 rounded-2xl border border-[var(--border)] p-4 md:grid-cols-[1fr_auto] md:items-end">
+        {detail.blocks.map((block) => {
+          const assignedRecovery = plannedRecoveryByBlock.get(block.key as BlockKey) ?? [];
+          return (
+            <article key={block.key} className="panel p-5">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <label className="mb-2 block text-sm text-[var(--muted)]">Actual completion date</label>
-                  <input className="field" type="date" name="completionDate" defaultValue={defaultCompletionDate} />
+                  <div className="eyebrow">{block.label}</div>
+                  <h2 className="mt-2 text-xl font-semibold">{block.displayDescription}</h2>
+                  <p className="mt-1 text-sm text-[var(--muted)]">
+                    Status: {block.progress.status} · {block.progress.actualStart ?? block.start} - {block.progress.actualEnd ?? block.end}
+                  </p>
                 </div>
                 <div className="flex gap-2">
-                  <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-                  <input type="hidden" name="blockKey" value={block.key} />
-                  <input type="hidden" name="intent" value="complete" />
-                  <button className="button-secondary" type="submit">
-                    Complete with date
-                  </button>
+                  <form action={updateBlockAction}>
+                    <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                    <input type="hidden" name="blockKey" value={block.key} />
+                    <input type="hidden" name="intent" value="complete" />
+                    {isPastDay ? <input type="hidden" name="completionDate" value={defaultCompletionDate} /> : null}
+                    <button className="button-primary" type="submit">
+                      Complete
+                    </button>
+                  </form>
+                  <form action={updateBlockAction}>
+                    <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                    <input type="hidden" name="blockKey" value={block.key} />
+                    <input type="hidden" name="intent" value="skip" />
+                    <button className="button-secondary" type="submit">
+                      Skip
+                    </button>
+                  </form>
                 </div>
-              </form>
-            ) : null}
-            <TimeEditor
-              dayNumber={detail.day.dayNumber}
-              blockKey={block.key as BlockKey}
-              start={block.start}
-              end={block.end}
-              trafficLight={detail.state.trafficLight}
-              slots={timeEditorSlots}
-            />
-          </article>
-        ))}
+              </div>
+              {assignedRecovery.length ? (
+                <div className="note-card mt-4 p-4">
+                  <div className="eyebrow">Recovery inside this block</div>
+                  <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+                    These queue items are already assigned here, so this block now carries them as part of the real plan.
+                  </p>
+                  <div className="mt-4 grid gap-3">
+                    {assignedRecovery.map((item) => (
+                      <article key={item.id} className="rounded-2xl border border-[var(--border)] p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="status-badge" data-tone="neutral">
+                            {item.subject}
+                          </span>
+                          <span className="status-badge" data-tone="neutral">
+                            from Day {item.sourceDay}
+                          </span>
+                        </div>
+                        <div className="mt-3 font-medium">{item.topicDescription}</div>
+                        <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+                          {item.sourceMappedDate ? `${formatDateLabel(item.sourceMappedDate)} origin. ` : ""}
+                          {getRecoveryWaitLabel(item.daysInBacklog)}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              {isPastDay ? (
+                <form action={updateBlockAction} className="mt-4 grid gap-3 rounded-2xl border border-[var(--border)] p-4 md:grid-cols-[1fr_auto] md:items-end">
+                  <div>
+                    <label className="mb-2 block text-sm text-[var(--muted)]">Actual completion date</label>
+                    <input className="field" type="date" name="completionDate" defaultValue={defaultCompletionDate} />
+                  </div>
+                  <div className="flex gap-2">
+                    <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                    <input type="hidden" name="blockKey" value={block.key} />
+                    <input type="hidden" name="intent" value="complete" />
+                    <button className="button-secondary" type="submit">
+                      Complete with date
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+              <TimeEditor
+                dayNumber={detail.day.dayNumber}
+                blockKey={block.key as BlockKey}
+                start={block.start}
+                end={block.end}
+                trafficLight={detail.state.trafficLight}
+                slots={timeEditorSlots}
+              />
+            </article>
+          );
+        })}
       </section>
     </div>
   );

@@ -34,11 +34,12 @@ The generator validates workbook structure before output:
 - `src/lib/domain/types.ts`
 - `src/lib/domain/constants.ts`
 - `src/lib/domain/backlog.ts`
+- `src/lib/domain/backlog-queue.ts`
 - `src/lib/domain/schedule.ts`
 - `src/lib/domain/today.ts`
 - `src/lib/domain/quotes.ts`
 
-This layer defines schedule mapping, traffic-light scope, revision derivation, shift absorption, backlog suggestions, backlog-creation rules, overrun preview logic, and quote category selection.
+This layer defines schedule mapping, traffic-light scope, revision derivation, backlog suggestion/queue behavior, shift absorption, backlog-creation rules, overrun preview logic, and quote category selection.
 
 `src/lib/domain/today.ts` owns the Today-screen-specific pure helpers that should stay easy to test:
 
@@ -68,6 +69,7 @@ This layer decides whether the app is operating in `local` or `supabase` mode an
 - `supabase/migrations/0003_automation_job_runs.sql`
 - `supabase/migrations/0004_revision_completion_identity.sql`
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
+- `supabase/migrations/0006_backlog_queue_priority.sql`
 
 `src/lib/data/local-store.ts` is now the runtime-aware persistence boundary.
 
@@ -104,6 +106,12 @@ That change prevents `block_a` and `block_b` from colliding when they belong to 
 
 That lets the backlog queue explain where a recovered block came from without relying on regenerated display text alone.
 
+`0006_backlog_queue_priority.sql` adds queue ordering persistence:
+
+- `priority_order`
+
+That keeps manual backlog reordering stable across reloads and runtimes.
+
 `0003_automation_job_runs.sql` adds a job-run ledger for hosted automation:
 
 - `job_name`
@@ -136,6 +144,8 @@ Implemented backlog creation behavior:
 - manual skip excludes `morning_revision` from the backlog queue
 - wind-down and midnight keep `morning_revision` in the revision system instead of the backlog queue
 - overrun cascade can either move the next affected block to backlog or force the affected tail to backlog when sleep would be breached
+- assigned backlog recovery now renders inside the destination block on Today and Schedule Day views rather than as a detached side list
+- assigned backlog recovery is synchronized to the destination block lifecycle: completing the destination slot completes the assigned backlog item, while missing that slot releases it back to `pending`
 
 ### Server Automation Layer
 

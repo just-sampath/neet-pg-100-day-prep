@@ -14,7 +14,16 @@
 - Manual skip, midnight miss, wind-down moves, and overrun cascade create backlog items
 - `morning_revision` stays out of the backlog queue and returns to the revision system instead
 - Each backlog item preserves its original slot timing so the queue can show where it came from
-- Backlog suggestions depend on block type
+- The queue defaults to pending items and shows original mapped date plus days in backlog
+- Backlog suggestions depend on block type:
+  - content blocks: same-subject consolidation, then next-day consolidation, then next same-subject focus block
+  - MCQ blocks: next open MCQ block with merge guidance
+  - PYQ/Image blocks: next-day PYQ slot, then next weekend PYQ slot
+  - Consolidation blocks: next-day consolidation, then next same-subject afternoon consolidation
+  - Night recall: next open night recall slot
+- Accepted or manually rescheduled backlog items render inside the destination block on Today and Schedule Day views
+- If that destination block is completed, the assigned backlog item completes with it
+- If that destination block is skipped or missed, the assigned backlog item returns to `pending`
 
 ## Revision Queue
 

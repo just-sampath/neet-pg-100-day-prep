@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  releaseAssignedRecoveryForTarget,
+  getBacklogQueueItems,
+  getBacklogStatusCounts,
+  getBacklogSummary,
+  getNextBacklogPriorityOrder,
+  getScheduledRecoveryForDay,
+  refreshBacklogSuggestions,
+} from "@/lib/domain/backlog-queue";
+import {
   getBacklogCount,
   getBlockProgress,
   getCurrentDayNumber,
@@ -14,7 +23,6 @@ import {
   getScheduleHealth,
   getShiftPreview,
   getSubjectFromPrimaryFocus,
-  getSuggestedBacklogTarget,
   getTrackableBlocks,
   getVisibleBlockKeys,
   buildDailyRevisionPlan,
@@ -26,6 +34,8 @@ import type {
   AppSettings,
   BacklogItem,
   BacklogSourceTag,
+  BacklogSortMode,
+  BacklogViewFilter,
   BlockKey,
   BlockProgress,
   GtLog,
@@ -83,20 +93,20 @@ export function upsertBacklogItem(
   }
   const slot = day.slots.find((entry) => entry.key === blockKey);
   const subject = getSubjectFromPrimaryFocus(day.primaryFocus);
-  const suggestion = getSuggestedBacklogTarget(dayNumber, blockKey);
   const backlogItem: BacklogItem = {
     id: randomUUID(),
     originalDay: dayNumber,
     originalBlockKey: blockKey,
     originalStart: slot?.start ?? null,
     originalEnd: slot?.end ?? null,
+    priorityOrder: getNextBacklogPriorityOrder(userState),
     topicDescription: slot?.description ?? day.primaryFocus,
     subject,
     sourceTag,
     status: "pending",
-    suggestedDay: suggestion.suggestedDay,
-    suggestedBlockKey: suggestion.suggestedBlockKey,
-    suggestedNote: suggestion.suggestedNote,
+    suggestedDay: null,
+    suggestedBlockKey: null,
+    suggestedNote: null,
     rescheduledToDay: null,
     rescheduledToBlockKey: null,
     createdAt: new Date().toISOString(),
@@ -120,6 +130,7 @@ export function moveBlockToBacklog(
     return;
   }
 
+  releaseAssignedRecoveryForTarget(userState, dayNumber, blockKey);
   progress.status = status;
   progress.completedAt = null;
   progress.sourceTag = sourceTag;
@@ -317,6 +328,7 @@ export function runMidnightRollover(userState: UserState, settings: AppSettings,
         progress.sourceTag = "missed";
         missedBlocks += 1;
         if (blockKey !== "morning_revision") {
+          releaseAssignedRecoveryForTarget(userState, previousDayNumber, blockKey);
           upsertBacklogItem(userState, previousDayNumber, blockKey, "missed");
           backlogCreated += 1;
         }
@@ -508,6 +520,8 @@ export function applyAutomations(store: LocalStore, userId: string) {
     runMidnightRollover(userState, settings, todayDate, todayDayNumber);
     runWeeklySummaryAutomation(userState, settings, todayDate);
   }
+
+  refreshBacklogSuggestions(userState, settings, todayDayNumber);
 }
 
 export function getHomeData(store: LocalStore, userId: string) {
@@ -542,6 +556,7 @@ export function getHomeData(store: LocalStore, userId: string) {
 
   const shiftHealth = getScheduleHealth(userState, settings, todayDayNumber);
   const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays.length) : null;
+  const plannedRecovery = getScheduledRecoveryForDay(userState, settings, todayDayNumber, todayDate);
 
   return {
     nowIso: now.toISOString(),
@@ -558,6 +573,31 @@ export function getHomeData(store: LocalStore, userId: string) {
     quote,
     shiftHealth,
     shiftPreview,
+    plannedRecovery,
+  };
+}
+
+export function getBacklogPageData(
+  store: LocalStore,
+  userId: string,
+  options: {
+    filter: BacklogViewFilter;
+    sort: BacklogSortMode;
+  },
+) {
+  applyAutomations(store, userId);
+
+  const userState = store.userState[userId];
+  const now = getEffectiveNow(store);
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+  const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+
+  return {
+    todayDate,
+    todayDayNumber,
+    summary: getBacklogSummary(userState),
+    counts: getBacklogStatusCounts(userState),
+    items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort),
   };
 }
 
@@ -605,6 +645,7 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
   const state = getDayState(userState, dayNumber);
   const mappedDate = getMappedDate(dayNumber, userState.settings);
   const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings) : null;
+  const plannedRecovery = getScheduledRecoveryForDay(userState, userState.settings, dayNumber, todayDate);
 
   return {
     day,
@@ -612,6 +653,7 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
     mappedDate,
     state,
     revisionPlan,
+    plannedRecovery,
     blocks: getTrackableBlocks(day).map((slot) => ({
       ...slot,
       progress: getBlockProgress(userState, dayNumber, slot.key as BlockKey),

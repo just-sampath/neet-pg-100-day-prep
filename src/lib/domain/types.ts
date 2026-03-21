@@ -42,6 +42,10 @@ export type BacklogSourceTag =
   | "overrun_cascade";
 
 export type BacklogStatus = "pending" | "rescheduled" | "completed" | "dismissed";
+export type BacklogViewFilter = BacklogStatus | "all";
+export type BacklogSortMode = "priority" | "oldest" | "newest" | "subject";
+export type BacklogBulkScope = "all_pending" | "missed_skipped" | "yellow_red" | "overrun";
+export type BacklogMoveDirection = "up" | "down";
 
 export type QuoteCategory = "daily" | "tough_day" | "celebration";
 
@@ -168,6 +172,7 @@ export interface BacklogItem {
   originalBlockKey: BlockKey;
   originalStart: string | null;
   originalEnd: string | null;
+  priorityOrder: number;
   topicDescription: string;
   subject: string;
   sourceTag: BacklogSourceTag;
@@ -180,6 +185,35 @@ export interface BacklogItem {
   createdAt: string;
   completedAt: string | null;
   dismissedAt: string | null;
+}
+
+export interface BacklogQueueSummary {
+  totalPending: number;
+  fromMissed: number;
+  fromYellowRed: number;
+  fromOverrun: number;
+}
+
+export interface BacklogQueueViewItem extends BacklogItem {
+  daysInBacklog: number;
+  sourceLabel: string;
+  originalMappedDate: string | null;
+  suggestionLabel: string | null;
+  rescheduledLabel: string | null;
+}
+
+export interface ScheduledRecoveryItem {
+  id: string;
+  sourceDay: number;
+  sourceMappedDate: string | null;
+  subject: string;
+  topicDescription: string;
+  sourceTag: BacklogSourceTag;
+  targetDay: number;
+  targetBlockKey: BlockKey;
+  targetBlockLabel: string;
+  daysInBacklog: number;
+  priorityOrder: number;
 }
 
 export interface McqBulkLog {

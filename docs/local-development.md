@@ -73,6 +73,7 @@ This applies both:
 - `supabase/migrations/0003_automation_job_runs.sql`
 - `supabase/migrations/0004_revision_completion_identity.sql`
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
+- `supabase/migrations/0006_backlog_queue_priority.sql`
 
 Expected behavior in Supabase mode:
 
@@ -131,6 +132,8 @@ In Supabase mode:
 6. Disconnect the network briefly and confirm `No connection` or `Sync reconnecting` appears quietly.
 7. Complete `block_a` or `block_b` on a past day with a retroactive date and confirm the revision queue moves to the new anchor date.
 8. Confirm backlog items show original slot timing and that `morning_revision` stays out of the skip/miss backlog paths.
+9. Reschedule a backlog item and confirm it appears inside the destination block on the target day.
+10. Complete or miss that destination block and confirm the assigned backlog item synchronizes correctly.
 
 ## Cron Manual Check
 

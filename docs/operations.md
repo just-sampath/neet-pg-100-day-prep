@@ -21,6 +21,7 @@ This must include:
 - `supabase/migrations/0003_automation_job_runs.sql`
 - `supabase/migrations/0004_revision_completion_identity.sql`
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
+- `supabase/migrations/0006_backlog_queue_priority.sql`
 
 ## Hosted Automation
 
@@ -104,6 +105,10 @@ npm run generate:data
 - Traffic-light downgrade paths use `yellow_day` or `red_day`.
 - Overrun-triggered recovery uses `overrun_cascade`.
 - Backlog items preserve `originalStart` and `originalEnd` for queue displays and debugging.
+- Backlog items also preserve `priorityOrder`, and the queue now exposes original mapped date plus days-in-backlog.
+- Assigned recovery inside a destination block is authoritative only while that block remains unfinished.
+- If the destination block is completed, the assigned backlog item completes with it.
+- If the destination block is skipped or missed, the assigned backlog item is released back to `pending`.
 
 ## Revision Engine Notes
 
