@@ -76,6 +76,11 @@ npm run build:webpack
   - category exhaustion/reset without premature repeat
   - Green -> Yellow/Red -> Green restoration of the original daily quote
   - stale persisted quote-state normalization
+- settings/PWA branch coverage for:
+  - manifest metadata and icon definitions
+  - install-guidance platform detection
+  - install-guidance state resolution
+  - settings/about download metadata
 
 ## Local Mode Manual Pass
 
@@ -126,6 +131,9 @@ Then verify:
 37. Open a future day from the browser and confirm it is view-only.
 38. Open a past day and confirm only retroactive completion is available.
 39. Open an absorbed or merged shift-hidden day and confirm it is view-only while still showing why the mapping changed.
+40. Open `/settings` and confirm version, runtime label, export, and workbook/spec links render cleanly on mobile width.
+41. Install the app or check the install guidance card and confirm the platform-specific instructions are sensible.
+42. Disconnect the network after loading once and confirm a fresh navigation falls back to the quiet offline page instead of stale app state.
 
 ## Time-Based Manual Pass
 
@@ -170,6 +178,7 @@ Then verify:
 8. Reconnect and confirm the app recovers without logout or manual reload.
 9. Export JSON and confirm the exported data reflects the persisted Supabase state.
 10. Refresh the same date in both sessions and confirm the current quote for that date/category remains consistent.
+11. Open Settings in both sessions and confirm theme changes stay in sync.
 
 ## Hosted Automation Pass
 
@@ -191,6 +200,7 @@ In Supabase mode, with `CRON_SECRET` configured:
 - Supabase mode should not rely on the fixed polling loop for core sync.
 - Conflict policy is last-write-wins through authoritative server persistence and refresh on Realtime events.
 - In Supabase mode, midnight and weekly automation should come from cron routes, not page-open refresh behavior.
+- Offline fallback should never be treated as writable cached study state; reconnect before trusting fresh mutations.
 
 ## Static Data Regression Expectations
 

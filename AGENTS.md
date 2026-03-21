@@ -101,6 +101,7 @@ Defaults:
 
 - `src/app/layout.tsx`: root layout, fonts, metadata, theme shell
 - `src/app/manifest.ts`: PWA manifest
+- `src/app/apple-icon.tsx`: generated Apple touch icon
 - `src/app/page.tsx`: redirect to `/today` or `/login`
 - `src/app/(auth)/login/page.tsx`: login
 - `src/app/(app)/layout.tsx`: app shell, nav, sync badge, auth guard
@@ -112,6 +113,8 @@ Defaults:
 - `src/app/(app)/weekly/*`: weekly summaries
 - `src/app/(app)/settings/page.tsx`: setup, theme, export, dev tools
 - `src/app/api/*`: export and dev-only helper routes
+- `src/app/icons/*.png/route.ts`: generated PWA icon routes
+- `src/app/api/docs/*`: direct workbook/spec download routes
 - `proxy.ts`: request-time auth routing and Supabase session refresh
 
 ### Domain And Data
@@ -126,9 +129,13 @@ Defaults:
 - `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, schedule-browser editability, and anchored schedule-shift preview logic
 - `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
 - `src/lib/domain/quotes.ts`: quote selection, per-category cycle state, and Today-view quote routing
+- `src/lib/domain/pwa.ts`: install-guidance logic and manifest icon definitions
+- `src/lib/domain/app-meta.ts`: shared app description, version, PWA colors, and settings/doc links
 - `src/lib/data/local-store.ts`: runtime-aware persistence boundary for local and Supabase modes
 - `src/lib/data/app-state.ts`: automations, read models, weekly summary generation
 - `src/lib/server/actions.ts`: all UI mutations
+- `src/lib/server/pwa-icon.tsx`: generated PNG icon artwork for manifest/apple-icon routes
+- `src/lib/server/repo-docs.ts`: shared download helpers for export and spec/workbook routes
 - `src/lib/auth/session.ts`: runtime-aware auth/session boundary
 - `src/lib/runtime/mode.ts`: runtime selection and env checks
 
@@ -164,6 +171,7 @@ Defaults:
 - `src/components/app/auto-refresh.tsx`: local-only polling/visibility refresh
 - `src/components/app/sync-status.tsx`: Supabase realtime subscription manager and degraded-sync badge
 - `src/components/app/dev-toolbar.tsx`: dev time travel and manual automation helpers
+- `src/components/app/install-status-card.tsx`: install guidance and online-first connection messaging
 
 ### Generated Data
 
@@ -196,6 +204,30 @@ The generated schedule bundle includes:
 - The exam date is fixed to `2026-08-30`.
 - The hard study boundary is `2026-08-20`.
 - Time-based features must stay locally testable without waiting for wall-clock time.
+- Offline fallback must never cache mutable study state as an authoritative source of truth.
+
+## Settings And PWA Rules
+
+- Settings must expose:
+  - Day 1 date
+  - fixed exam date
+  - dark/light theme
+  - JSON export
+  - app version and study-document links
+- Theme persists through the shared runtime settings model and must stay consistent across refreshes and devices.
+- Export must read from the active runtime store, not from a dev-only cache or mocked read model.
+- The app is installable through:
+  - Safari Add to Home Screen on iPhone/iPad
+  - Chromium install prompt or browser-menu install on Android/tablet
+- The manifest must provide:
+  - standalone display
+  - portrait orientation
+  - dark navy theme color
+  - production-ready PNG icons including a maskable Android icon
+- Offline handling is online-first:
+  - service worker may cache only the static offline fallback page
+  - mutable study state must not be cached as offline truth
+  - reconnect messaging stays quiet and neutral
 
 ## Quote Rules
 
@@ -378,6 +410,9 @@ Every feature should be runnable locally. Minimum manual pass:
 33. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
 34. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
 35. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
+36. Open Settings and confirm version, runtime label, exam date, export, and the workbook/spec links render correctly.
+37. Install the app or open the install guidance and confirm the platform-specific instructions are sensible.
+38. Disconnect the network after loading once and confirm the offline fallback stays quiet and does not expose stale writable state.
 
 Supabase runtime pass:
 

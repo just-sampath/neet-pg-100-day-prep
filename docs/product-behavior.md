@@ -82,6 +82,20 @@
 - The Today screen includes a direct MCQ quick-log entry point.
 - Completion uses a quiet celebration treatment rather than a loud success screen.
 
+## Settings And Installability
+
+- Settings exposes Day 1, fixed exam date, current theme, JSON export, app version, runtime label, and direct links to the workbook and spec documents.
+- Theme stays persisted through the shared runtime store, so refreshes and cross-device sessions keep the same preference.
+- Export downloads a portable JSON file from the active runtime store, not a reduced debug snapshot.
+- Install guidance is platform-aware:
+  - installed standalone mode is acknowledged directly
+  - Chromium gets an install button when the browser exposes a prompt
+  - iPhone/iPad gets Share-sheet guidance
+- The app remains online-first:
+  - connectivity loss is shown quietly
+  - offline navigation falls back to a static reconnect page
+  - mutable study state is not cached offline
+
 ## Quotes
 
 - Quotes are loaded from the build-time `resources/quotes.csv` source file.

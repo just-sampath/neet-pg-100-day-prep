@@ -400,7 +400,20 @@ This keeps the runtime schedule traceable back to the workbook instead of relyin
 ## PWA
 
 - `src/app/manifest.ts`
+- `src/app/apple-icon.tsx`
+- `src/app/icons/*.png/route.ts`
 - `public/sw.js`
+- `public/offline.html`
 - `src/components/app/register-sw.tsx`
+- `src/components/app/install-status-card.tsx`
+- `src/lib/domain/pwa.ts`
+- `src/lib/domain/app-meta.ts`
 
-Installability is supported with a minimal service worker and manifest. Offline-first behavior is still intentionally out of scope.
+Implemented task-15 behavior:
+
+- the manifest now exposes standalone display, portrait orientation, dark navy theme color, and production PNG icons including a maskable Android icon
+- `apple-icon.tsx` provides Apple touch icon metadata for Add to Home Screen flows
+- the settings page now exposes version, runtime label, exam date, JSON export, and direct links to the workbook/PRD/architecture documents
+- install guidance is platform-aware and distinguishes installed, prompt-capable, iPhone/iPad Share-sheet, and generic menu-install cases
+- the service worker is online-first and caches only `offline.html` for navigation fallback
+- offline fallback is intentionally static and never treated as cached writable study state

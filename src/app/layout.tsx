@@ -4,6 +4,7 @@ import { Fraunces, JetBrains_Mono, Manrope } from "next/font/google";
 import { getCurrentUser } from "@/lib/auth/session";
 import { readStore } from "@/lib/data/local-store";
 import { APP_NAME } from "@/lib/domain/constants";
+import { APP_DESCRIPTION, PWA_THEME_COLOR } from "@/lib/domain/app-meta";
 
 import "./globals.css";
 
@@ -27,8 +28,14 @@ export const metadata: Metadata = {
     default: APP_NAME,
     template: `%s | ${APP_NAME}`,
   },
-  description: "A quiet NEET PG 2026 study companion for schedule tracking, backlog recovery, and exam prep analytics.",
+  description: APP_DESCRIPTION,
   applicationName: APP_NAME,
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
+    shortcut: [{ url: "/icon.svg", type: "image/svg+xml" }],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -37,7 +44,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#070b12",
+  themeColor: PWA_THEME_COLOR,
   colorScheme: "dark light",
   width: "device-width",
   initialScale: 1,

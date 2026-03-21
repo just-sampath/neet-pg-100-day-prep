@@ -87,6 +87,7 @@ Expected behavior in Supabase mode:
 - Cross-session updates arrive through Realtime subscriptions
 - The header shows a quiet degraded-sync badge if the network drops
 - Midnight and weekly automation are expected to run from cron routes, not from simply opening the app
+- Settings export reads from the active runtime store and remains available from the Settings page
 
 ## Verification Commands
 
@@ -146,6 +147,7 @@ In Supabase mode:
 16. Open a past day and confirm retroactive completion is available with an editable actual completion date.
 17. Toggle Green -> Yellow/Red -> Green on the same date and confirm the original daily quote returns.
 18. Refresh both sessions and confirm the quote shown for the current date/category stays consistent.
+19. Open Settings and confirm theme changes, export, and runtime label stay consistent across both sessions.
 
 ## Cron Manual Check
 
@@ -183,3 +185,15 @@ This now regenerates:
 - validated subject metadata from `Subject_Strategy`
 - validated GT plan entries from `GT_Test_Plan`
 - workbook readme metadata from `Readme`
+
+## Installability Check
+
+After one clean load:
+
+1. Open `/settings`.
+2. Confirm the install card chooses the right branch for the device:
+   - install prompt in Chromium when available
+   - Share-sheet instructions on iPhone/iPad
+   - installed acknowledgment in standalone mode
+3. Disconnect the network and navigate once.
+4. Confirm the fallback page is calm and clearly says reconnect is required before trusting new writes.

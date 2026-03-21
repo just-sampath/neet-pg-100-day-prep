@@ -63,6 +63,7 @@ Default local credentials:
 - GT tracking now matches the spec: workbook-preloaded GT context, structured attempt context, section A-E review, wrapper trend fields, repeated weak-subject tracking, and analytics for score trend, section patterns, comparison, wrapper drift, and time-loss patterns
 - Weekly summaries now match the spec: Sunday `23:30` IST automation, safe week-key regeneration, partial manual snapshots through today, and full review detail pages for schedule, revision, MCQ, GT, backlog, and subject coverage
 - Quote behavior now matches the spec: build-time CSV quotes, per-category non-repeat cycles, per-day traffic-light quote restoration, separate celebration quote path, and persisted history across refreshes/devices
+- Settings and installability now match the spec: versioned settings/about screen, direct workbook/spec links, downloadable JSON export, generated PWA icons, Apple icon metadata, standalone install guidance, and a safe online-first offline fallback
 - Supabase auth, persistence, RLS, and Realtime integration path for shared-state deployment
 - Production cron routes for IST midnight rollover and weekly summary automation
 - Job telemetry in `automation_job_runs` plus manual cron setup SQL for Supabase

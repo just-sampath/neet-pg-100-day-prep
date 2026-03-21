@@ -1,21 +1,23 @@
 import type { MetadataRoute } from "next";
 
+import { APP_DESCRIPTION, PWA_BACKGROUND_COLOR, PWA_THEME_COLOR } from "@/lib/domain/app-meta";
+import { PWA_MANIFEST_ICONS } from "@/lib/domain/pwa";
+
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Beside You",
     short_name: "Beside You",
-    description: "A calm NEET PG 2026 study companion.",
-    start_url: "/today",
+    description: APP_DESCRIPTION,
+    id: "/",
+    start_url: "/",
+    scope: "/",
     display: "standalone",
-    background_color: "#070b12",
-    theme_color: "#070b12",
-    icons: [
-      {
-        src: "/icon.svg",
-        sizes: "512x512",
-        type: "image/svg+xml",
-        purpose: "maskable",
-      },
-    ],
+    orientation: "portrait",
+    background_color: PWA_BACKGROUND_COLOR,
+    theme_color: PWA_THEME_COLOR,
+    lang: "en-IN",
+    categories: ["education", "productivity"],
+    prefer_related_applications: false,
+    icons: [...PWA_MANIFEST_ICONS],
   };
 }

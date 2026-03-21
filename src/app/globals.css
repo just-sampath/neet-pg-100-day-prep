@@ -73,6 +73,7 @@ body {
   position: relative;
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
+  overscroll-behavior-y: none;
   background:
     radial-gradient(circle at top left, rgba(223, 176, 111, 0.18), transparent 28%),
     radial-gradient(circle at 85% 0%, rgba(79, 110, 165, 0.18), transparent 24%),
@@ -145,6 +146,13 @@ button {
   width: min(100%, 80rem);
   margin: 0 auto;
   padding: max(env(safe-area-inset-top), 1.1rem) 1rem max(env(safe-area-inset-bottom), 2.4rem);
+}
+
+@media (display-mode: standalone) {
+  .app-shell {
+    padding-top: max(env(safe-area-inset-top), 1.5rem);
+    padding-bottom: max(env(safe-area-inset-bottom), 2.8rem);
+  }
 }
 
 

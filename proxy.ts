@@ -13,8 +13,12 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname === "/favicon.ico" ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
+    pathname === "/offline.html" ||
     pathname.startsWith("/icon") ||
-    pathname.startsWith("/apple-icon");
+    pathname.startsWith("/apple-icon") ||
+    pathname.startsWith("/icons/");
 
   if (isAsset) {
     return NextResponse.next();

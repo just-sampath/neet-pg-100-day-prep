@@ -1,6 +1,6 @@
 # 015 Settings, PWA, And Installability
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -13,25 +13,25 @@ The app is meant to behave like a reliable installed companion, not only a brows
 
 ## Current Gap
 
-- Basic settings exist, but some metadata and installability details are still minimal.
-- PWA assets and offline-state behavior are not fully production-grade.
+- The settings surface now exposes Day 1, theme, fixed exam date, version, runtime label, full export, and direct study-document links.
+- Installability now uses a real manifest, generated icons, Apple icon metadata, standalone guidance, and an online-first fallback page instead of a bare placeholder PWA shell.
 
 ## Checklist
 
-- [ ] Keep Day 1 setup and editing reliable and easy to discover.
-- [ ] Keep theme toggle working across sessions and devices.
-- [ ] Show the fixed exam date clearly.
-- [ ] Export all user data as JSON from the real runtime store.
-- [ ] Add app version and key links to the settings/about area.
-- [ ] Complete the manifest with production-ready icons and metadata.
-- [ ] Add the required installability assets for iPhone and Android.
-- [ ] Ensure the standalone installed experience looks intentional.
-- [ ] Define and implement safe offline caching behavior.
-- [ ] Show quiet connectivity or degraded-state messaging when needed.
+- [x] Keep Day 1 setup and editing reliable and easy to discover.
+- [x] Keep theme toggle working across sessions and devices.
+- [x] Show the fixed exam date clearly.
+- [x] Export all user data as JSON from the real runtime store.
+- [x] Add app version and key links to the settings/about area.
+- [x] Complete the manifest with production-ready icons and metadata.
+- [x] Add the required installability assets for iPhone and Android.
+- [x] Ensure the standalone installed experience looks intentional.
+- [x] Define and implement safe offline caching behavior.
+- [x] Show quiet connectivity or degraded-state messaging when needed.
 
 ## Acceptance Criteria
 
-- [ ] The app can be installed cleanly on supported mobile devices.
-- [ ] Settings changes persist correctly.
-- [ ] Exported data is complete and portable.
-- [ ] Offline and reconnect behavior is understandable and safe.
+- [x] The app can be installed cleanly on supported mobile devices.
+- [x] Settings changes persist correctly.
+- [x] Exported data is complete and portable.
+- [x] Offline and reconnect behavior is understandable and safe.
