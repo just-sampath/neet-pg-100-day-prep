@@ -177,6 +177,19 @@ export interface ScheduleShiftPreview {
   signature: string;
 }
 
+export type ScheduleDayRelation = "past" | "today" | "future" | "unmapped";
+
+export interface ScheduleDayEditState {
+  relation: ScheduleDayRelation;
+  isPast: boolean;
+  isToday: boolean;
+  isFuture: boolean;
+  isShiftHidden: boolean;
+  isReadOnly: boolean;
+  canAdjustToday: boolean;
+  canRetroactivelyComplete: boolean;
+}
+
 export interface DayState {
   dayNumber: number;
   trafficLight: TrafficLight;

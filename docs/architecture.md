@@ -309,6 +309,25 @@ Implemented behavior:
   - moving a source block’s actual completion date moves all future revision anchors automatically
   - impossible early revision checkoffs are dropped during reconciliation so the recalculated queue stays honest
 
+## Schedule Browser And Day Detail
+
+The schedule browser read model now carries both live and historical context:
+
+- `mappedDate`: the current visible date after shift events
+- `originalPlannedDate`: the date implied directly by `day_one_date` before shift recovery
+- `status`: `today`, `completed`, `missed`, or `upcoming`
+- `hiddenShiftLabel`: whether the day is absorbed as a buffer day or merged by compression
+- `mergedPartnerDay`: which later day is currently merged into the visible day
+
+Day detail derives a server-side `editState` from the mapped date and shift state:
+
+- past visible day: retroactive completion allowed
+- today: full interactive controls allowed
+- future day: view-only
+- shift-hidden day: view-only
+
+That editability is enforced in both the read model and the server actions so future-day mutation cannot happen through the normal UI flow.
+
 ## Generated Static Bundle
 
 `src/lib/generated/schedule-data.ts` now includes:

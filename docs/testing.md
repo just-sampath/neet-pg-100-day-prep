@@ -46,6 +46,11 @@ npm run build:webpack
   - repeated-shift safety
   - hard-boundary enforcement at August 20, 2026
   - preview-to-apply mapping consistency
+- schedule-browser branch coverage for:
+  - original planned date stability after shifts
+  - past/today/future/shift-hidden editability boundaries
+  - today highlighting in the browser list
+  - day-detail retroactive mode only on past visible days
 
 ## Local Mode Manual Pass
 
@@ -82,6 +87,10 @@ Then verify:
 23. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
 24. Open shift preview and confirm it starts from the earliest missed day, uses Day 84 first, and lists the exact compression pair when needed.
 25. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with it, and backlog from the shifted span is cleared.
+26. Open `/schedule` and confirm the browser scrolls near Today and highlights it.
+27. Open a future day from the browser and confirm it is view-only.
+28. Open a past day and confirm only retroactive completion is available.
+29. Open an absorbed or merged shift-hidden day and confirm it is view-only while still showing why the mapping changed.
 
 ## Time-Based Manual Pass
 

@@ -7,10 +7,27 @@ import { mutateStore } from "@/lib/data/local-store";
 import type { BlockKey, ScheduledRecoveryItem } from "@/lib/domain/types";
 import { getRevisionAssignedSlotLabel, groupRevisionItemsForDisplay } from "@/lib/domain/schedule";
 import { completeRevisionAction, setTrafficLightAction, updateBlockAction } from "@/lib/server/actions";
+import { toDateOnlyInTimeZone } from "@/lib/utils/date";
 import { formatDateLabel } from "@/lib/utils/format";
 
 function getRecoveryWaitLabel(daysInBacklog: number) {
   return `Waiting ${daysInBacklog} day${daysInBacklog === 1 ? "" : "s"} before landing here.`;
+}
+
+function getReadOnlyReason(detail: NonNullable<Awaited<ReturnType<typeof getDayDetailData>>>) {
+  if (detail.hiddenShiftLabel) {
+    return `This day is currently ${detail.hiddenShiftLabel}, so it stays view-only while the shift plan is active.`;
+  }
+
+  if (detail.editState.relation === "future") {
+    return "Future days stay view-only here. They unlock when their mapped date arrives.";
+  }
+
+  if (detail.editState.relation === "unmapped") {
+    return "Set Day 1 first to unlock live dates and correction controls.";
+  }
+
+  return null;
 }
 
 export default async function ScheduleDayPage({
@@ -26,12 +43,11 @@ export default async function ScheduleDayPage({
     notFound();
   }
 
-  const defaultCompletionDate = detail.mappedDate ?? detail.todayDate;
-  const isPastDay = detail.mappedDate ? detail.mappedDate < detail.todayDate : false;
   const revisionGroups = detail.revisionPlan ? groupRevisionItemsForDisplay(detail.revisionPlan.queue) : [];
   const overflowGroups = detail.revisionPlan
     ? groupRevisionItemsForDisplay(detail.revisionPlan.overflow.map((entry) => entry.item))
     : [];
+  const readOnlyReason = getReadOnlyReason(detail);
   const plannedRecoveryByBlock = detail.plannedRecovery.reduce((map, item) => {
     const entries = map.get(item.targetBlockKey) ?? [];
     entries.push(item);
@@ -58,32 +74,54 @@ export default async function ScheduleDayPage({
         <p className="mt-2 text-[var(--muted)]">
           {detail.mappedDate ? formatDateLabel(detail.mappedDate) : "Day 1 not set"} · {detail.day.deliverable}
         </p>
-        {detail.hiddenShiftLabel ? (
+        {detail.originalPlannedDate && detail.originalPlannedDate !== detail.mappedDate ? (
           <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-            This day is currently {detail.hiddenShiftLabel} by the active shift plan.
+            Originally planned for {formatDateLabel(detail.originalPlannedDate)}. This mapped date has shifted with the active schedule.
+          </p>
+        ) : null}
+        {detail.mergedPartnerDay ? (
+          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+            This day is currently carrying merged work from Day {detail.mergedPartnerDay}.
+          </p>
+        ) : null}
+        {readOnlyReason ? (
+          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+            {readOnlyReason}
           </p>
         ) : null}
       </section>
 
-      <section className="panel p-6">
-        <h2 className="text-xl font-semibold">Traffic light for this day</h2>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {(["green", "yellow", "red"] as const).map((trafficLight) => (
-            <form key={trafficLight} action={setTrafficLightAction}>
-              <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-              <input type="hidden" name="trafficLight" value={trafficLight} />
-              <button
-                className={`w-full rounded-full px-4 py-3 text-sm font-semibold ${
-                  detail.state.trafficLight === trafficLight ? "bg-[var(--accent)] text-[#20160a]" : "bg-[var(--surface-muted)]"
-                }`}
-                type="submit"
-              >
-                {trafficLight}
-              </button>
-            </form>
-          ))}
-        </div>
-      </section>
+      {detail.editState.canAdjustToday ? (
+        <section className="panel p-6">
+          <h2 className="text-xl font-semibold">Traffic light for today</h2>
+          <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+            The pace dial only changes the current day. Past and future days stay untouched from the browser.
+          </p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            {(["green", "yellow", "red"] as const).map((trafficLight) => (
+              <form key={trafficLight} action={setTrafficLightAction}>
+                <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                <input type="hidden" name="trafficLight" value={trafficLight} />
+                <button
+                  className={`w-full rounded-full px-4 py-3 text-sm font-semibold ${
+                    detail.state.trafficLight === trafficLight ? "bg-[var(--accent)] text-[#20160a]" : "bg-[var(--surface-muted)]"
+                  }`}
+                  type="submit"
+                >
+                  {trafficLight}
+                </button>
+              </form>
+            ))}
+          </div>
+        </section>
+      ) : (
+        <section className="panel p-6">
+          <h2 className="text-xl font-semibold">Recorded traffic light</h2>
+          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+            This day is currently saved as <span className="font-semibold capitalize">{detail.state.trafficLight}</span>.
+          </p>
+        </section>
+      )}
 
       {revisionGroups.length ? (
         <section className="panel p-6">
@@ -114,9 +152,15 @@ export default async function ScheduleDayPage({
                           <div className="text-sm text-[var(--muted)]">{item.revisionType}</div>
                           <div className="font-medium">{item.topic}</div>
                         </div>
-                        <button className="button-secondary" type="submit">
-                          Check off
-                        </button>
+                        {detail.editState.canAdjustToday ? (
+                          <button className="button-secondary" type="submit">
+                            Check off
+                          </button>
+                        ) : (
+                          <span className="status-badge" data-tone="neutral">
+                            View only
+                          </span>
+                        )}
                       </div>
                     </form>
                   ))}
@@ -146,6 +190,9 @@ export default async function ScheduleDayPage({
       <section className="grid gap-4">
         {detail.blocks.map((block) => {
           const assignedRecovery = plannedRecoveryByBlock.get(block.key as BlockKey) ?? [];
+          const defaultCompletionDate = block.progress.completedAt
+            ? toDateOnlyInTimeZone(block.progress.completedAt)
+            : detail.mappedDate ?? detail.originalPlannedDate ?? detail.todayDate;
           return (
             <article key={block.key} className="panel p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -156,25 +203,26 @@ export default async function ScheduleDayPage({
                     Status: {block.progress.status} · {block.progress.actualStart ?? block.start} - {block.progress.actualEnd ?? block.end}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <form action={updateBlockAction}>
-                    <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-                    <input type="hidden" name="blockKey" value={block.key} />
-                    <input type="hidden" name="intent" value="complete" />
-                    {isPastDay ? <input type="hidden" name="completionDate" value={defaultCompletionDate} /> : null}
-                    <button className="button-primary" type="submit">
-                      Complete
-                    </button>
-                  </form>
-                  <form action={updateBlockAction}>
-                    <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-                    <input type="hidden" name="blockKey" value={block.key} />
-                    <input type="hidden" name="intent" value="skip" />
-                    <button className="button-secondary" type="submit">
-                      Skip
-                    </button>
-                  </form>
-                </div>
+                {detail.editState.canAdjustToday ? (
+                  <div className="flex gap-2">
+                    <form action={updateBlockAction}>
+                      <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                      <input type="hidden" name="blockKey" value={block.key} />
+                      <input type="hidden" name="intent" value="complete" />
+                      <button className="button-primary" type="submit">
+                        Complete
+                      </button>
+                    </form>
+                    <form action={updateBlockAction}>
+                      <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                      <input type="hidden" name="blockKey" value={block.key} />
+                      <input type="hidden" name="intent" value="skip" />
+                      <button className="button-secondary" type="submit">
+                        Skip
+                      </button>
+                    </form>
+                  </div>
+                ) : null}
               </div>
               {assignedRecovery.length ? (
                 <div className="note-card mt-4 p-4">
@@ -203,11 +251,17 @@ export default async function ScheduleDayPage({
                   </div>
                 </div>
               ) : null}
-              {isPastDay ? (
+              {detail.editState.canRetroactivelyComplete ? (
                 <form action={updateBlockAction} className="mt-4 grid gap-3 rounded-2xl border border-[var(--border)] p-4 md:grid-cols-[1fr_auto] md:items-end">
                   <div>
                     <label className="mb-2 block text-sm text-[var(--muted)]">Actual completion date</label>
-                    <input className="field" type="date" name="completionDate" defaultValue={defaultCompletionDate} />
+                    <input
+                      className="field"
+                      type="date"
+                      name="completionDate"
+                      defaultValue={defaultCompletionDate}
+                      max={detail.todayDate}
+                    />
                   </div>
                   <div className="flex gap-2">
                     <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
@@ -219,14 +273,16 @@ export default async function ScheduleDayPage({
                   </div>
                 </form>
               ) : null}
-              <TimeEditor
-                dayNumber={detail.day.dayNumber}
-                blockKey={block.key as BlockKey}
-                start={block.start}
-                end={block.end}
-                trafficLight={detail.state.trafficLight}
-                slots={timeEditorSlots}
-              />
+              {detail.editState.canAdjustToday ? (
+                <TimeEditor
+                  dayNumber={detail.day.dayNumber}
+                  blockKey={block.key as BlockKey}
+                  start={block.start}
+                  end={block.end}
+                  trafficLight={detail.state.trafficLight}
+                  slots={timeEditorSlots}
+                />
+              ) : null}
             </article>
           );
         })}

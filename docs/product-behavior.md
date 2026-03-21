@@ -37,6 +37,17 @@
 - Applying a shift clears active backlog from the shifted span and resets unresolved progress from the anchor forward
 - GT markers and all mapped-date schedule views move through the same shift mapping, so the preview and applied calendar stay aligned
 
+## Schedule Browser
+
+- The browser lists all 100 days.
+- Each row shows day number, mapped date, phase, primary focus, and GT indicator when relevant.
+- Today is auto-focused when opening the browser.
+- Past visible days can be corrected retroactively.
+- Future days are view-only.
+- Shift-hidden days remain visible for auditability but are read-only.
+- When a shift changed the live mapping, the browser and day detail surface both the current mapped date and the original planned date.
+- Day detail also explains absorbed buffer days and merged compression days so schedule changes stay legible.
+
 ## Revision Queue
 
 - Built from `block_a` and `block_b` anchors plus actual completion shifts

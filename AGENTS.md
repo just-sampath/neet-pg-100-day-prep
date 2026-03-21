@@ -120,7 +120,7 @@ Defaults:
 - `src/lib/domain/constants.ts`: exam date, hard boundary, traffic-light block sets, compression rules
 - `src/lib/domain/backlog.ts`: traffic-light restore rules, backlog-creation guards, and overrun preview logic
 - `src/lib/domain/backlog-queue.ts`: backlog suggestion engine, queue sorting, priority movement, target validation, and assigned-recovery read models
-- `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, and anchored schedule-shift preview logic
+- `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, schedule-browser editability, and anchored schedule-shift preview logic
 - `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
 - `src/lib/domain/quotes.ts`: quote selection
 - `src/lib/data/local-store.ts`: runtime-aware persistence boundary for local and Supabase modes
@@ -233,6 +233,17 @@ The generated schedule bundle includes:
 - Shift preview must be reviewed before apply; apply must validate the preview server-side.
 - Applying a shift clears active backlog items from the shifted span and resets unresolved progress from the shifted anchor forward.
 
+## Schedule Browser Rules
+
+- The browser shows all 100 days with day number, mapped date, phase, primary focus, and GT indicator when present.
+- Opening `/schedule` should default-scroll near Today.
+- Browser rows use status colors for `today`, `completed`, `missed`, and `upcoming`.
+- Future days are view-only.
+- Past days expose retroactive completion only; they do not expose skip, time-edit, or pace-dial controls.
+- Shift-hidden days remain visible for auditability but are read-only.
+- Day detail should surface original planned date when the mapped date has shifted.
+- Day detail should explain absorbed or merged shift state when relevant.
+
 ## Revision Logic
 
 - Revisions are derived from actual completion when available.
@@ -267,16 +278,19 @@ Every feature should be runnable locally. Minimum manual pass:
    - 23:15 late-night sweep
    - next-day midnight rollover
 13. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.
-14. Log MCQ bulk and item data.
-15. Log GT data.
-16. Generate a weekly summary.
-17. Export JSON.
-18. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
-19. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
-20. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
-18. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
-19. Complete that destination block and confirm the assigned backlog item closes with it.
-20. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
+14. Open `/schedule` and confirm it auto-focuses near Today.
+15. Open a future day and confirm the page is view-only.
+16. Open a shift-hidden day and confirm it stays view-only while still explaining the active mapping.
+17. Log MCQ bulk and item data.
+18. Log GT data.
+19. Generate a weekly summary.
+20. Export JSON.
+21. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
+22. Complete that destination block and confirm the assigned backlog item closes with it.
+23. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
+24. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+25. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
+26. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
 
 Supabase runtime pass:
 

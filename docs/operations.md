@@ -124,6 +124,16 @@ npm run generate:data
 - Preview/apply must stay in lockstep: the server recalculates the preview and validates its signature before mutating state.
 - Shift cleanup dismisses active backlog items from the shifted span and resets unresolved progress from the anchor forward.
 
+## Schedule Browser Notes
+
+- Browser rows now expose both `mappedDate` and `originalPlannedDate` when they differ.
+- Day detail editability is derived on the server:
+  - past visible day: retroactive completion only
+  - today: full controls
+  - future day: read-only
+  - shift-hidden day: read-only
+- If browser behavior drifts, check the `editState` branch in `getDayDetailData()` before changing UI code.
+
 ## Inspect Automation Runs
 
 Use the `automation_job_runs` table to investigate:

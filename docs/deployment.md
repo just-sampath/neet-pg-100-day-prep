@@ -136,6 +136,7 @@ Run this immediately after the first deployment:
 12. Complete the destination block and confirm the assigned backlog item closes automatically.
 13. Create two heavily missed days in the last 7-day window and confirm the shift preview appears.
 14. Apply the shift and confirm Today, Schedule Browser, and GT markers all move together without breaching August 20.
+15. Open `/schedule` and confirm Today is easy to find, future days are view-only, and shifted days still explain their original planned date.
 
 ## Rollback Notes
 

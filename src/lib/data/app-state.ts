@@ -18,8 +18,11 @@ import {
   getDayState,
   getDisplayBlockDescription,
   getMappedDate,
+  getMergedPartner,
+  getOriginalPlannedDate,
   getSafeDayCountLabel,
   getScheduleDay,
+  getScheduleDayEditState,
   getScheduleHealth,
   getShiftPreview,
   getSubjectFromPrimaryFocus,
@@ -693,25 +696,23 @@ export function getScheduleListData(store: LocalStore, userId: string) {
 
   return scheduleData.days.map((day) => {
     const mappedDate = getMappedDate(day.dayNumber, userState.settings);
+    const originalPlannedDate = getOriginalPlannedDate(day.dayNumber, userState.settings);
     const dayState = getDayState(userState, day.dayNumber);
     const completed = getDayCompletionState(day, userState, dayState.trafficLight);
-    const hasPendingPast =
-      mappedDate !== null &&
-      mappedDate < todayDate &&
-      getVisibleBlockKeys(dayState.trafficLight).some((block) => {
-        const progress = getBlockProgress(userState, day.dayNumber, block);
-        return progress.status === "pending";
-      });
+    const mergedPartnerDay = getMergedPartner(day.dayNumber, userState.settings);
+    const isPastVisibleDay = mappedDate !== null && mappedDate < todayDate;
 
     return {
       ...day,
       mappedDate,
+      originalPlannedDate,
       trafficLight: dayState.trafficLight,
       today: day.dayNumber === todayDayNumber,
       completed,
+      mergedPartnerDay,
       hiddenByCompression: isCompressedHiddenDay(day.dayNumber, userState.settings),
       hiddenShiftLabel: getShiftHiddenDayLabel(day.dayNumber, userState.settings),
-      status: completed ? "completed" : hasPendingPast ? "pending" : day.dayNumber === todayDayNumber ? "today" : day.dayNumber < todayDayNumber ? "past" : "upcoming",
+      status: day.dayNumber === todayDayNumber ? "today" : completed ? "completed" : isPastVisibleDay ? "missed" : "upcoming",
     };
   });
 }
@@ -728,15 +729,24 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
 
   const state = getDayState(userState, dayNumber);
   const mappedDate = getMappedDate(dayNumber, userState.settings);
-  const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings) : null;
+  const originalPlannedDate = getOriginalPlannedDate(dayNumber, userState.settings);
+  const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
+  const revisionPlan =
+    mappedDate && !editState.isFuture && !editState.isShiftHidden
+      ? buildDailyRevisionPlan(mappedDate, userState, userState.settings)
+      : null;
   const plannedRecovery = getScheduledRecoveryForDay(userState, userState.settings, dayNumber, todayDate);
 
   return {
     day,
     todayDate,
+    todayDayNumber: getCurrentDayNumber(userState.settings, todayDate),
     mappedDate,
+    originalPlannedDate,
     state,
+    editState,
     hiddenShiftLabel: getShiftHiddenDayLabel(dayNumber, userState.settings),
+    mergedPartnerDay: getMergedPartner(dayNumber, userState.settings),
     revisionPlan,
     plannedRecovery,
     blocks: getTrackableBlocks(day).map((slot) => ({

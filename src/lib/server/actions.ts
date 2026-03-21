@@ -28,6 +28,8 @@ import { createEmptyUserState, getEffectiveNow, mutateStore } from "@/lib/data/l
 import {
   createRevisionId,
   getCurrentDayNumber,
+  getMappedDate,
+  getScheduleDayEditState,
   getScheduleHealth,
   getShiftPreview,
   reconcileRevisionCompletionsForSource,
@@ -50,6 +52,10 @@ function asString(value: FormDataEntryValue | null) {
 
 function completionIsoForDateOnly(dateOnly: string | null) {
   return dateOnly ? `${dateOnly}T12:00:00.000Z` : new Date().toISOString();
+}
+
+function isDateOnly(value: string | null) {
+  return value === null || /^\d{4}-\d{2}-\d{2}$/u.test(value);
 }
 
 export async function loginAction(formData: FormData) {
@@ -102,6 +108,11 @@ export async function setTrafficLightAction(formData: FormData) {
   await mutateStore((store) => {
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
+    const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
+    if (!editState.canAdjustToday) {
+      return;
+    }
+
     const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
     applyTrafficLightToDay(userState, dayNumber, trafficLight, {
       allowRestore: dayNumber === todayDayNumber,
@@ -123,6 +134,32 @@ export async function updateBlockAction(formData: FormData) {
 
   await mutateStore((store) => {
     const userState = store.userState[user.id];
+    const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
+    const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
+    const isRetroactiveCompletion = intent === "complete" && editState.canRetroactivelyComplete;
+    const canMutateToday = editState.canAdjustToday;
+
+    if (!canMutateToday && !isRetroactiveCompletion) {
+      return;
+    }
+
+    if (!isDateOnly(completionDate)) {
+      return;
+    }
+
+    let resolvedCompletionDate = completionDate;
+    if (isRetroactiveCompletion) {
+      resolvedCompletionDate = completionDate || getMappedDate(dayNumber, userState.settings) || todayDate;
+
+      if (resolvedCompletionDate > todayDate) {
+        return;
+      }
+
+      if (userState.settings.dayOneDate && resolvedCompletionDate < userState.settings.dayOneDate) {
+        return;
+      }
+    }
+
     const progressKey = `${dayNumber}:${blockKey}`;
     const progress =
       userState.blockProgress[progressKey] ??
@@ -139,7 +176,7 @@ export async function updateBlockAction(formData: FormData) {
 
     if (intent === "complete") {
       progress.status = "completed";
-      progress.completedAt = completionIsoForDateOnly(completionDate);
+      progress.completedAt = completionIsoForDateOnly(resolvedCompletionDate);
       progress.sourceTag = null;
       progress.note = note;
       reconcileRevisionCompletionsForSource(userState.revisionCompletions, dayNumber, blockKey, progress.completedAt);

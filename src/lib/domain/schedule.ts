@@ -25,6 +25,8 @@ import type {
   RevisionDisplayGroup,
   RevisionSourceBlockKey,
   RevisionQueueItem,
+  ScheduleDayEditState,
+  ScheduleDayRelation,
   ScheduleHealth,
   ScheduleShiftEvent,
   ScheduleShiftPreview,
@@ -158,6 +160,14 @@ export function getShiftHiddenDayLabel(dayNumber: number, settings: AppSettings)
   return null;
 }
 
+export function getOriginalPlannedDate(dayNumber: number, settings: AppSettings): string | null {
+  if (!settings.dayOneDate) {
+    return null;
+  }
+
+  return addDaysToDateOnly(settings.dayOneDate, dayNumber - 1);
+}
+
 export function getMappedDate(dayNumber: number, settings: AppSettings): string | null {
   if (!settings.dayOneDate) {
     return null;
@@ -213,6 +223,52 @@ export function getCurrentDayNumber(settings: AppSettings, todayDate: string): n
   }
 
   return currentDay;
+}
+
+export function getScheduleDayRelation(
+  dayNumber: number,
+  settings: AppSettings,
+  todayDate: string,
+): ScheduleDayRelation {
+  const mappedDate = getMappedDate(dayNumber, settings);
+  if (!mappedDate) {
+    return "unmapped";
+  }
+
+  if (mappedDate < todayDate) {
+    return "past";
+  }
+
+  if (mappedDate > todayDate) {
+    return "future";
+  }
+
+  return "today";
+}
+
+export function getScheduleDayEditState(
+  dayNumber: number,
+  settings: AppSettings,
+  todayDate: string,
+): ScheduleDayEditState {
+  const relation = getScheduleDayRelation(dayNumber, settings, todayDate);
+  const isShiftHidden = Boolean(getShiftHiddenDayLabel(dayNumber, settings));
+  const isPast = relation === "past";
+  const isToday = relation === "today";
+  const isFuture = relation === "future";
+  const canAdjustToday = isToday && !isShiftHidden;
+  const canRetroactivelyComplete = isPast && !isShiftHidden;
+
+  return {
+    relation,
+    isPast,
+    isToday,
+    isFuture,
+    isShiftHidden,
+    isReadOnly: !canAdjustToday && !canRetroactivelyComplete,
+    canAdjustToday,
+    canRetroactivelyComplete,
+  };
 }
 
 export function getPreviousVisibleDayNumber(dayNumber: number, settings: AppSettings) {

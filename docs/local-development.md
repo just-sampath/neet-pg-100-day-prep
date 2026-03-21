@@ -138,6 +138,9 @@ In Supabase mode:
 11. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
 12. Open the shift preview and confirm it anchors from the earliest missed day, consumes Day 84 first, and blocks apply if August 20 would be breached.
 13. Apply the shift and confirm Today, Schedule Browser, and GT markers all move together.
+14. Open `/schedule` and confirm it lands near Today with the current day highlighted.
+15. Open a future day and confirm it is view-only.
+16. Open a past day and confirm retroactive completion is available with an editable actual completion date.
 
 ## Cron Manual Check
 
