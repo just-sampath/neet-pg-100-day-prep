@@ -82,6 +82,13 @@
 - The Today screen includes a direct MCQ quick-log entry point.
 - Completion uses a quiet celebration treatment rather than a loud success screen.
 
+## Loading And Recovery States
+
+- Routine interactions avoid spinners.
+- Route loading uses calm placeholder panels rather than animated waiting indicators.
+- Unknown routes recover with a clear not-found path back to Today or Schedule.
+- Route failures recover with retry buttons and a neutral path back into the main shell.
+
 ## Settings And Installability
 
 - Settings exposes Day 1, fixed exam date, current theme, JSON export, app version, runtime label, and direct links to the workbook and spec documents.
@@ -124,6 +131,7 @@
 - Breakdown keeps `Right`, `Guessed Right`, and `Wrong` separate so weak confidence is still visible.
 - Subject accuracy only uses entries that were tagged with a subject.
 - Weekly summaries pull top wrong subjects and top cause codes from the same MCQ analytics source.
+- Empty analytics states stay explicit and readable instead of rendering broken chart shells.
 
 ## GT Tracker
 
@@ -155,6 +163,7 @@
 - Wrapper trend tracks knowledge vs behaviour drift and unsure-right counts.
 - Weakness analytics surface repeated weakest subjects and recurring wrapper topics.
 - Weekly summaries pull the latest GT in the week with its score, AIR/percentile text, and wrapper summary.
+- Heavy analytics charts are deferred on the client so the route shell settles before secondary visualization code arrives.
 
 ## Weekly Summaries
 

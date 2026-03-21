@@ -1,6 +1,8 @@
-import { GtScoreChart } from "@/components/charts/gt-score-chart";
-import { GtSectionPatternChart } from "@/components/charts/gt-section-pattern-chart";
-import { GtWrapperTrendChart } from "@/components/charts/gt-wrapper-trend-chart";
+import {
+  GtScorePanel,
+  GtSectionPatternPanel,
+  GtWrapperTrendPanel,
+} from "@/components/app/gt-analytics-panels";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { getGtAnalyticsData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
@@ -44,6 +46,7 @@ function getGtDeltaLabel(airMetricKind: "air" | "percentile" | null) {
 export default async function GtAnalyticsPage() {
   const user = await requireCurrentUser();
   const data = await mutateStore((store) => getGtAnalyticsData(store, user.id));
+  const hasGtData = data.summary.totalLogs > 0;
 
   return (
     <div className="grid gap-6">
@@ -79,7 +82,13 @@ export default async function GtAnalyticsPage() {
         <div className="eyebrow">GT Trend</div>
         <h2 className="mt-3 text-2xl font-semibold">Score and accuracy across completed GTs</h2>
         <div className="mt-6">
-          <GtScoreChart data={data.scoreTrend} />
+          {hasGtData ? (
+            <GtScorePanel data={data.scoreTrend} />
+          ) : (
+            <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+              No GT entries exist yet. Once the first full paper is logged, the score and accuracy trend will appear here.
+            </div>
+          )}
         </div>
       </section>
 
@@ -119,7 +128,13 @@ export default async function GtAnalyticsPage() {
           <div className="eyebrow">Section Patterns</div>
           <h2 className="mt-3 text-2xl font-semibold">Where pressure keeps hitting</h2>
           <div className="mt-6">
-            <GtSectionPatternChart data={data.sectionPatterns} />
+            {hasGtData ? (
+              <GtSectionPatternPanel data={data.sectionPatterns} />
+            ) : (
+              <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+                Section-pattern comparisons unlock after the first GT log with structured section A-E data.
+              </div>
+            )}
           </div>
         </section>
       </section>
@@ -129,7 +144,13 @@ export default async function GtAnalyticsPage() {
           <div className="eyebrow">Wrapper Trend</div>
           <h2 className="mt-3 text-2xl font-semibold">Knowledge vs behaviour drift</h2>
           <div className="mt-6">
-            <GtWrapperTrendChart data={data.wrapperTrend} />
+            {hasGtData ? (
+              <GtWrapperTrendPanel data={data.wrapperTrend} />
+            ) : (
+              <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+                The wrapper trend appears after GT logs record both knowledge and behaviour splits.
+              </div>
+            )}
           </div>
         </section>
 

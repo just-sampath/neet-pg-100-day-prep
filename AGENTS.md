@@ -103,6 +103,12 @@ Defaults:
 - `src/app/manifest.ts`: PWA manifest
 - `src/app/apple-icon.tsx`: generated Apple touch icon
 - `src/app/page.tsx`: redirect to `/today` or `/login`
+- `src/app/(app)/loading.tsx`: calm loading shell for app routes
+- `src/app/(auth)/loading.tsx`: calm loading shell for auth routes
+- `src/app/(app)/error.tsx`: app-route recovery surface
+- `src/app/global-error.tsx`: top-level recovery surface
+- `src/app/not-found.tsx`: root not-found page
+- `src/app/(app)/not-found.tsx`: app-shell not-found page
 - `src/app/(auth)/login/page.tsx`: login
 - `src/app/(app)/layout.tsx`: app shell, nav, sync badge, auth guard
 - `src/app/(app)/today/page.tsx`: main Today view
@@ -138,6 +144,9 @@ Defaults:
 - `src/lib/server/repo-docs.ts`: shared download helpers for export and spec/workbook routes
 - `src/lib/auth/session.ts`: runtime-aware auth/session boundary
 - `src/lib/runtime/mode.ts`: runtime selection and env checks
+- `src/components/app/route-loading-shell.tsx`: shared loading placeholder shell for streamed routes
+- `src/components/app/mcq-analytics-panels.tsx`: client wrappers for deferred MCQ analytics charts
+- `src/components/app/gt-analytics-panels.tsx`: client wrappers for deferred GT analytics charts
 
 ### Supabase
 
@@ -192,6 +201,7 @@ The generated schedule bundle includes:
 
 - `AGENTS.md`: this file
 - `docs/*`: human/operator docs
+- `docs/release-smoke-test.md`: final release smoke checklist
 - `todos/*`: production-readiness gates
 
 ## Product Invariants
@@ -205,6 +215,8 @@ The generated schedule bundle includes:
 - The hard study boundary is `2026-08-20`.
 - Time-based features must stay locally testable without waiting for wall-clock time.
 - Offline fallback must never cache mutable study state as an authoritative source of truth.
+- Routine interactions should not rely on spinners; prefer calm placeholders or inline state.
+- Secondary analytics routes may defer chart bundles, but Today and schedule flows must stay immediate.
 
 ## Settings And PWA Rules
 
@@ -413,6 +425,9 @@ Every feature should be runnable locally. Minimum manual pass:
 36. Open Settings and confirm version, runtime label, exam date, export, and the workbook/spec links render correctly.
 37. Install the app or open the install guidance and confirm the platform-specific instructions are sensible.
 38. Disconnect the network after loading once and confirm the offline fallback stays quiet and does not expose stale writable state.
+39. Trigger a route loading state and confirm it uses calm placeholder panels rather than a spinner.
+40. Open an unknown route and confirm the app offers a useful way back to Today or Schedule.
+41. Open MCQ and GT analytics with little data and confirm empty states stay readable while charts defer cleanly.
 
 Supabase runtime pass:
 

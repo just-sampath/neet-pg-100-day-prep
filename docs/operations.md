@@ -113,6 +113,23 @@ supabase db push
 - `public/sw.js` is intentionally online-first and only caches `public/offline.html` for navigation fallback.
 - If installability drifts, inspect `src/lib/domain/pwa.ts` before changing UI copy.
 
+## Release Hardening Notes
+
+- Route loading and recovery surfaces live in:
+  - `src/components/app/route-loading-shell.tsx`
+  - `src/app/(app)/loading.tsx`
+  - `src/app/(auth)/loading.tsx`
+  - `src/app/(app)/error.tsx`
+  - `src/app/global-error.tsx`
+  - `src/app/(app)/not-found.tsx`
+  - `src/app/not-found.tsx`
+- Deferred analytics chart loaders live in:
+  - `src/components/app/mcq-analytics-panels.tsx`
+  - `src/components/app/gt-analytics-panels.tsx`
+- Final release boundary checks live in:
+  - `tests/release-guardrails.test.ts`
+  - `docs/release-smoke-test.md`
+
 ## Reset Local State
 
 - UI: Settings dev tools

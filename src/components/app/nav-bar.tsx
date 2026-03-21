@@ -43,6 +43,7 @@ export function NavBar() {
                   href={link.href}
                   className="nav-pill"
                   data-active={active}
+                  aria-current={active ? "page" : undefined}
                 >
                   {link.label}
                 </Link>

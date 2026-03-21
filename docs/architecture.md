@@ -417,3 +417,21 @@ Implemented task-15 behavior:
 - install guidance is platform-aware and distinguishes installed, prompt-capable, iPhone/iPad Share-sheet, and generic menu-install cases
 - the service worker is online-first and caches only `offline.html` for navigation fallback
 - offline fallback is intentionally static and never treated as cached writable study state
+
+## Release Hardening
+
+- Route streaming now has explicit calm loading shells via:
+  - `src/app/(app)/loading.tsx`
+  - `src/app/(auth)/loading.tsx`
+  - `src/components/app/route-loading-shell.tsx`
+- Route failures and unknown paths now have explicit recovery surfaces:
+  - `src/app/(app)/error.tsx`
+  - `src/app/global-error.tsx`
+  - `src/app/(app)/not-found.tsx`
+  - `src/app/not-found.tsx`
+- Secondary analytics charts are deferred behind small client wrappers so heavy visualization code does not dominate secondary-route startup:
+  - `src/components/app/mcq-analytics-panels.tsx`
+  - `src/components/app/gt-analytics-panels.tsx`
+- Release boundary enforcement now includes:
+  - `tests/release-guardrails.test.ts`
+  - `docs/release-smoke-test.md`

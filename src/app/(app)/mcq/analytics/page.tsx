@@ -1,6 +1,8 @@
-import { McqBreakdownChart } from "@/components/charts/mcq-breakdown-chart";
-import { McqSubjectAccuracyChart } from "@/components/charts/mcq-subject-accuracy-chart";
-import { McqTrendChart } from "@/components/charts/mcq-trend-chart";
+import {
+  McqBreakdownPanel,
+  McqSubjectAccuracyPanel,
+  McqTrendPanel,
+} from "@/components/app/mcq-analytics-panels";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { getMcqAnalyticsData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
@@ -8,6 +10,7 @@ import { mutateStore } from "@/lib/data/local-store";
 export default async function McqAnalyticsPage() {
   const user = await requireCurrentUser();
   const data = await mutateStore((store) => getMcqAnalyticsData(store, user.id));
+  const hasMcqData = data.summary.totalSolved > 0;
 
   return (
     <div className="grid gap-6">
@@ -46,7 +49,13 @@ export default async function McqAnalyticsPage() {
           Bars show how much got solved. The line tracks accuracy without inventing a target streak.
         </p>
         <div className="mt-6">
-          <McqTrendChart data={data.trendData} />
+          {hasMcqData ? (
+            <McqTrendPanel data={data.trendData} />
+          ) : (
+            <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+              No MCQ activity has been logged yet. Once the first batch or detailed entry lands, the daily trend will appear here.
+            </div>
+          )}
         </div>
       </section>
 
@@ -55,7 +64,13 @@ export default async function McqAnalyticsPage() {
           <div className="eyebrow">Right vs Wrong</div>
           <h2 className="mt-3 text-2xl font-semibold">Result breakdown</h2>
           <div className="mt-6">
-            <McqBreakdownChart data={data.breakdownData} />
+            {hasMcqData ? (
+              <McqBreakdownPanel data={data.breakdownData} />
+            ) : (
+              <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+                There is no result mix to chart yet. Log a few questions first, then come back to see right, guessed-right, and wrong proportions.
+              </div>
+            )}
           </div>
         </section>
 
@@ -63,7 +78,15 @@ export default async function McqAnalyticsPage() {
           <div className="eyebrow">Subject Accuracy</div>
           <h2 className="mt-3 text-2xl font-semibold">When subject tags exist, accuracy becomes comparable.</h2>
           <div className="mt-6">
-            <McqSubjectAccuracyChart data={data.accuracyBySubject.map((entry) => ({ subject: entry.subject, accuracy: entry.accuracy }))} />
+            {data.accuracyBySubject.length ? (
+              <McqSubjectAccuracyPanel
+                data={data.accuracyBySubject.map((entry) => ({ subject: entry.subject, accuracy: entry.accuracy }))}
+              />
+            ) : (
+              <div className="note-card p-5 text-sm leading-7 text-[var(--text-secondary)]">
+                Subject-accuracy comparison unlocks after a few entries carry subject tags.
+              </div>
+            )}
           </div>
         </section>
       </section>

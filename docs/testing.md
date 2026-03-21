@@ -81,6 +81,11 @@ npm run build:webpack
   - install-guidance platform detection
   - install-guidance state resolution
   - settings/about download metadata
+- release-hardening branch coverage for:
+  - forbidden push, reminder, background-sync, and share API drift
+  - online-first service-worker fallback shape
+
+For the final ship gate, also run [docs/release-smoke-test.md](./release-smoke-test.md).
 
 ## Local Mode Manual Pass
 

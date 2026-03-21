@@ -41,7 +41,7 @@ The codebase is production-ready only when:
 13. [x] [013-weekly-summary-and-review.md](./013-weekly-summary-and-review.md)
 14. [x] [014-quotes-system.md](./014-quotes-system.md)
 15. [x] [015-settings-pwa-and-installability.md](./015-settings-pwa-and-installability.md)
-16. [016-design-performance-and-release-hardening.md](./016-design-performance-and-release-hardening.md)
+16. [x] [016-design-performance-and-release-hardening.md](./016-design-performance-and-release-hardening.md)
 
 ## Notes
 

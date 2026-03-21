@@ -98,6 +98,15 @@ npm run build:webpack
 
 `npm run generate:data` is intentionally strict. If workbook fields, sheet names, GT references, or block durations drift from the expected source format, generation fails immediately instead of silently producing bad schedule data.
 
+## Device Hardening Check
+
+Before calling a branch release-ready, run [docs/release-smoke-test.md](./release-smoke-test.md), especially:
+
+- iPhone 12 portrait `390 x 844`
+- Samsung Galaxy Tab S9 portrait `800 x 1280`
+- route loading, not-found, and error recovery surfaces
+- analytics empty-state and deferred-chart behavior
+
 ## Time Travel
 
 Use the dev toolbar on Today or Settings.

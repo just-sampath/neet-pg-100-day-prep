@@ -152,6 +152,9 @@ Run this immediately after the first deployment:
 19. Open `/settings` and confirm version, runtime label, JSON export, and workbook/spec links all work on the deployed runtime.
 20. Install the app on iPhone/iPad and Android/Chrome and confirm the standalone shell opens without browser chrome.
 21. Disconnect the network after one load and confirm a fresh navigation falls back to the quiet offline page instead of stale mutable state.
+22. Open a loading route, an unknown route, and one analytics route with little data and confirm the shipped recovery and empty states remain calm.
+
+Use [docs/release-smoke-test.md](./release-smoke-test.md) as the final deployment rehearsal before calling the release production-ready.
 
 ## Rollback Notes
 

@@ -36,8 +36,15 @@ import type {
 } from "@/lib/domain/types";
 import { addDaysToDateOnly, diffDays, parseDateOnly, timeValue, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
+const SCHEDULE_DAY_BY_NUMBER = new Map(scheduleData.days.map((day) => [day.dayNumber, day]));
+const DAY_SLOT_BY_KEY = new Map(
+  scheduleData.days.map((day) => [day.dayNumber, new Map(day.slots.map((slot) => [slot.key, slot]))]),
+);
+const TRACKABLE_BLOCKS_BY_DAY = new Map(scheduleData.days.map((day) => [day.dayNumber, day.slots.filter((slot) => slot.trackable)]));
+const SUBJECTS_SORTED_BY_LENGTH = [...scheduleData.subjects].sort((left, right) => right.subject.length - left.subject.length);
+
 export function getScheduleDay(dayNumber: number): GeneratedScheduleDay | undefined {
-  return scheduleData.days.find((day) => day.dayNumber === dayNumber);
+  return SCHEDULE_DAY_BY_NUMBER.get(dayNumber);
 }
 
 function getShiftEvents(settings: AppSettings): ScheduleShiftEvent[] {
@@ -336,12 +343,12 @@ export function getBlockProgress(
 }
 
 export function getTrackableBlocks(day: GeneratedScheduleDay) {
-  return day.slots.filter((slot) => slot.trackable);
+  return TRACKABLE_BLOCKS_BY_DAY.get(day.dayNumber) ?? day.slots.filter((slot) => slot.trackable);
 }
 
 export function getSubjectFromPrimaryFocus(primaryFocus: string): string {
-  const sortedSubjects = [...scheduleData.subjects].sort((left, right) => right.subject.length - left.subject.length);
-  const match = sortedSubjects.find((subject) => primaryFocus.toLowerCase().includes(subject.subject.toLowerCase()));
+  const lowerPrimaryFocus = primaryFocus.toLowerCase();
+  const match = SUBJECTS_SORTED_BY_LENGTH.find((subject) => lowerPrimaryFocus.includes(subject.subject.toLowerCase()));
   if (match) {
     return match.subject;
   }
@@ -350,11 +357,11 @@ export function getSubjectFromPrimaryFocus(primaryFocus: string): string {
 }
 
 function getRevisionBlockLabel(day: GeneratedScheduleDay, blockKey: RevisionSourceBlockKey) {
-  return day.slots.find((slot) => slot.key === blockKey)?.label ?? blockKey;
+  return DAY_SLOT_BY_KEY.get(day.dayNumber)?.get(blockKey)?.label ?? blockKey;
 }
 
 function getRevisionTopic(day: GeneratedScheduleDay, blockKey: RevisionSourceBlockKey) {
-  const slot = day.slots.find((entry) => entry.key === blockKey);
+  const slot = DAY_SLOT_BY_KEY.get(day.dayNumber)?.get(blockKey);
   const description = slot?.description ?? day.primaryFocus;
   return description.replace(/^Block [AB]\s+—\s+/u, "").trim() || day.primaryFocus;
 }
