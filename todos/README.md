@@ -84,7 +84,7 @@ The codebase is production-ready only when:
 1. [x] `001-day-one-default-tomorrow.md`
 2. [x] `002-setup-gate-before-day-one.md`
 3. [x] `003-production-day-one-validation.md`
-4. [ ] `004-remove-duplicate-today-branding.md`
+4. [x] `004-remove-duplicate-today-branding.md`
 5. [ ] `005-move-pace-dial-higher.md`
 6. [ ] `006-hide-empty-recovery-radar.md`
 7. [ ] `007-collapse-actual-timing-by-default.md`

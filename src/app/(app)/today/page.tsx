@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { AppLogo } from "@/components/app/logo";
 import { DevToolbar } from "@/components/app/dev-toolbar";
 import { ScheduleShiftPanel } from "@/components/app/schedule-shift-panel";
 import { TimeEditor } from "@/components/app/time-editor";
@@ -108,7 +107,6 @@ export default async function TodayPage() {
   if (!data.settings.dayOneDate) {
     return (
       <div className="grid gap-6">
-        <AppLogo />
         <section className="panel panel-hero reveal-rise p-6 md:p-8">
           <div className="eyebrow">First Setup</div>
           <h2 className="display mt-3 text-4xl md:text-5xl">Set Day 1 once, and let the whole hundred-day arc lock into place.</h2>
@@ -135,7 +133,6 @@ export default async function TodayPage() {
   if (!data.todayScheduleDay) {
     return (
       <div className="grid gap-6">
-        <AppLogo />
         <section className="panel panel-hero reveal-rise p-6 md:p-8">
           <div className="eyebrow">Plan Boundary</div>
           <h2 className="display mt-3 text-4xl md:text-5xl">Today sits outside the tracked hundred-day window.</h2>
@@ -233,7 +230,6 @@ export default async function TodayPage() {
     <div className="grid gap-6">
       <section className="grid gap-6 xl:grid-cols-[1.28fr_0.72fr]">
         <div className="grid gap-6">
-          <AppLogo />
           <section className="panel panel-hero grain reveal-rise overflow-hidden p-6 md:p-8">
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="max-w-3xl">
