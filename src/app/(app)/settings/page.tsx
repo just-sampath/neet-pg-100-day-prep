@@ -8,11 +8,12 @@ import { mutateStore } from "@/lib/data/local-store";
 import { APP_DESCRIPTION, APP_VERSION, STUDY_DOCUMENT_LINKS } from "@/lib/domain/app-meta";
 import { EXAM_DATE, HARD_BOUNDARY_DATE } from "@/lib/domain/constants";
 import { getRuntimeLabel, getRuntimeMode } from "@/lib/runtime/mode";
-import { setDayOneDateAction, setThemeAction } from "@/lib/server/actions";
+import { resetAppStateAction, setDayOneDateAction, setThemeAction } from "@/lib/server/actions";
 
 export default async function SettingsPage() {
   const user = await requireCurrentUser();
   const runtimeMode = getRuntimeMode();
+  const showDevelopmentReset = process.env.NODE_ENV !== "production";
   const { settings, simulatedNow } = await mutateStore((store) => {
     applyAutomations(store, user.id);
     return {
@@ -108,6 +109,31 @@ export default async function SettingsPage() {
           ))}
         </div>
       </section>
+
+      {showDevelopmentReset ? (
+        <section className="panel p-6">
+          <h2 className="text-xl font-semibold">Reset app state</h2>
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
+            Clear the current account back to a true first-run state: Day 1 mapping, block progress, revision history,
+            backlog, MCQ logs, GT logs, weekly summaries, quote history, and simulated time. The app will sign you out
+            immediately after the reset completes.
+          </p>
+          <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
+            This reset applies to the active runtime only: {getRuntimeLabel(runtimeMode)}.
+          </p>
+          <form action={resetAppStateAction} className="mt-4 grid gap-4 md:max-w-2xl">
+            <label className="note-card flex gap-3 p-4 text-sm leading-7 text-[var(--text-secondary)]">
+              <input className="mt-1 h-4 w-4 shrink-0 accent-[var(--danger)]" type="checkbox" name="confirmReset" value="yes" required />
+              <span>I understand this permanently clears the current account state for this runtime and returns the app to first setup.</span>
+            </label>
+            <div>
+              <button className="button-secondary min-h-11 text-[var(--danger)]" type="submit">
+                Reset everything and sign out
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
 
       <section className="panel p-6">
         <h2 className="text-xl font-semibold">About</h2>

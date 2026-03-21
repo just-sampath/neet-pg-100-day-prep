@@ -576,7 +576,15 @@ export async function clearSimulatedNowAction() {
   refresh();
 }
 
-export async function resetLocalDataAction() {
+export async function resetAppStateAction(formData: FormData) {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+
+  if (asString(formData.get("confirmReset")) !== "yes") {
+    return;
+  }
+
   const user = await requireCurrentUser();
   await mutateStore((store) => {
     store.userState[user.id] = createEmptyUserState();
