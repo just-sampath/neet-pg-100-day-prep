@@ -31,6 +31,7 @@ import {
   setTrafficLightAction,
   updateBlockAction,
 } from "@/lib/server/actions";
+import { addDaysToDateOnly } from "@/lib/utils/date";
 import { formatDateLabel } from "@/lib/utils/format";
 
 const paceCopy = {
@@ -97,6 +98,8 @@ export default async function TodayPage() {
     userState: structuredClone(store.userState[user.id]),
   }));
 
+  const tomorrowDefault = addDaysToDateOnly(data.todayDate, 1);
+
   if (!data.settings.dayOneDate) {
     return (
       <div className="grid gap-6">
@@ -111,7 +114,7 @@ export default async function TodayPage() {
           <form action={setDayOneDateAction} className="mt-8 grid gap-4 md:max-w-md">
             <label>
               <span className="mb-2 block text-sm text-[var(--muted)]">Day 1 date</span>
-              <input className="field" type="date" name="dayOneDate" required />
+              <input className="field" type="date" name="dayOneDate" defaultValue={tomorrowDefault} required />
             </label>
             <input type="hidden" name="theme" value={data.settings.theme} />
             <button className="button-primary" type="submit">

@@ -4,21 +4,24 @@ import { DevToolbar } from "@/components/app/dev-toolbar";
 import { InstallStatusCard } from "@/components/app/install-status-card";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { applyAutomations } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { getEffectiveNow, mutateStore } from "@/lib/data/local-store";
 import { APP_DESCRIPTION, APP_VERSION, STUDY_DOCUMENT_LINKS } from "@/lib/domain/app-meta";
 import { EXAM_DATE, HARD_BOUNDARY_DATE } from "@/lib/domain/constants";
 import { getRuntimeLabel, getRuntimeMode } from "@/lib/runtime/mode";
+import { addDaysToDateOnly, IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
 import { resetAppStateAction, setDayOneDateAction, setThemeAction } from "@/lib/server/actions";
 
 export default async function SettingsPage() {
   const user = await requireCurrentUser();
   const runtimeMode = getRuntimeMode();
   const showDevelopmentReset = process.env.NODE_ENV !== "production";
-  const { settings, simulatedNow } = await mutateStore((store) => {
+  const { settings, simulatedNow, todayDate } = await mutateStore((store) => {
     applyAutomations(store, user.id);
+    const now = getEffectiveNow(store);
     return {
       settings: structuredClone(store.userState[user.id].settings),
       simulatedNow: store.dev.simulatedNowIso,
+      todayDate: toDateOnlyInTimeZone(now, IST_TIME_ZONE),
     };
   });
 
@@ -68,7 +71,7 @@ export default async function SettingsPage() {
         <form action={setDayOneDateAction} className="mt-4 flex flex-wrap items-end gap-3">
           <label className="grow">
             <span className="mb-2 block text-sm text-[var(--muted)]">Day 1</span>
-            <input className="field" type="date" name="dayOneDate" defaultValue={settings.dayOneDate ?? ""} />
+            <input className="field" type="date" name="dayOneDate" defaultValue={settings.dayOneDate ?? addDaysToDateOnly(todayDate, 1)} />
           </label>
           <input type="hidden" name="theme" value={settings.theme} />
           <button className="button-primary min-h-11" type="submit">

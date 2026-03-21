@@ -44,7 +44,7 @@ import type {
   RevisionSourceBlockKey,
   TrafficLight,
 } from "@/lib/domain/types";
-import { getMinutesInTimeZone, IST_TIME_ZONE, toDateOnly, toDateOnlyInTimeZone, weekBounds } from "@/lib/utils/date";
+import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE, toDateOnly, toDateOnlyInTimeZone, weekBounds } from "@/lib/utils/date";
 
 function asString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value : "";
@@ -77,7 +77,10 @@ export async function setDayOneDateAction(formData: FormData) {
   const theme = asString(formData.get("theme"));
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    userState.settings.dayOneDate = dayOneDate || null;
+    userState.settings.dayOneDate = dayOneDate || addDaysToDateOnly(
+      toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE),
+      1,
+    );
     if (theme === "dark" || theme === "light") {
       userState.settings.theme = theme;
     }

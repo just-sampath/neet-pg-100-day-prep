@@ -1,6 +1,6 @@
 # 001 Day 1 Defaults To Tomorrow
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -17,16 +17,16 @@ The first setup state should feel ready to use immediately. Leaving Day 1 blank 
 
 ## Checklist
 
-- [ ] Prefill tomorrow on the first setup form in `src/app/(app)/today/page.tsx` when `dayOneDate` is absent.
-- [ ] Prefill tomorrow in `src/app/(app)/settings/page.tsx` only when `settings.dayOneDate` is still unset.
-- [ ] Keep an explicit stored Day 1 date authoritative once it exists.
-- [ ] Ensure `setDayOneDateAction()` does not depend on an empty client field to determine the intended fallback.
+- [x] Prefill tomorrow on the first setup form in `src/app/(app)/today/page.tsx` when `dayOneDate` is absent.
+- [x] Prefill tomorrow in `src/app/(app)/settings/page.tsx` only when `settings.dayOneDate` is still unset.
+- [x] Keep an explicit stored Day 1 date authoritative once it exists.
+- [x] Ensure `setDayOneDateAction()` does not depend on an empty client field to determine the intended fallback.
 
 ## Acceptance Criteria
 
-- [ ] A fresh account opens the first setup state with tomorrow already selected.
-- [ ] Settings shows the saved Day 1 when present and tomorrow only as the fallback when unset.
-- [ ] The first-run setup requires less manual input without changing the mapped-schedule rules.
+- [x] A fresh account opens the first setup state with tomorrow already selected.
+- [x] Settings shows the saved Day 1 when present and tomorrow only as the fallback when unset.
+- [x] The first-run setup requires less manual input without changing the mapped-schedule rules.
 
 ## Implementation Notes
 
