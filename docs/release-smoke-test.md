@@ -1,6 +1,7 @@
 # Release Smoke Test
 
 Use this checklist before calling the app production-ready. It is the final manual gate for task `016`.
+For the full executable manual suite with per-feature acceptance criteria, use [docs/end-to-end-validation-runbook.md](./end-to-end-validation-runbook.md).
 
 ## 1. Clean Environment Rehearsal
 

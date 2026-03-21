@@ -86,6 +86,7 @@ npm run build:webpack
   - online-first service-worker fallback shape
 
 For the final ship gate, also run [docs/release-smoke-test.md](./release-smoke-test.md).
+For the full local-to-deployed manual suite, run [docs/end-to-end-validation-runbook.md](./end-to-end-validation-runbook.md).
 
 ## Local Mode Manual Pass
 
