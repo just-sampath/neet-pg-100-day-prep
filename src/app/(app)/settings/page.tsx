@@ -94,12 +94,12 @@ export default async function SettingsPage() {
       <section className="panel p-6">
         <h2 className="text-xl font-semibold">Backup & documents</h2>
         <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-          Export the active runtime state as JSON, or open the source plan documents directly from the app.
+          Export the active runtime state as JSON, or open the source schedule workbook directly from the app.
         </p>
         <Link className="button-secondary mt-4 inline-flex min-h-11 items-center" href="/api/export">
           Export JSON
         </Link>
-        <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <div className="mt-5 grid max-w-md gap-3">
           {STUDY_DOCUMENT_LINKS.map((link) => (
             <a key={link.href} className="note-card block p-4" href={link.href} target="_blank" rel="noreferrer">
               <div className="eyebrow">{link.label}</div>

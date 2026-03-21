@@ -120,7 +120,7 @@ Defaults:
 - `src/app/(app)/settings/page.tsx`: setup, theme, export, dev tools
 - `src/app/api/*`: export and dev-only helper routes
 - `src/app/icons/*.png/route.ts`: generated PWA icon routes
-- `src/app/api/docs/*`: direct workbook/spec download routes
+- `src/app/api/docs/schedule-workbook/route.ts`: direct schedule-workbook download route
 - `proxy.ts`: request-time auth routing and Supabase session refresh
 
 ### Domain And Data
@@ -225,7 +225,7 @@ The generated schedule bundle includes:
   - fixed exam date
   - dark/light theme
   - JSON export
-  - app version and study-document links
+  - app version
 - Theme persists through the shared runtime settings model and must stay consistent across refreshes and devices.
 - Export must read from the active runtime store, not from a dev-only cache or mocked read model.
 - The app is installable through:

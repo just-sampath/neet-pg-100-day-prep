@@ -59,19 +59,26 @@ function getStandaloneSnapshot() {
   );
 }
 
+function subscribeNoop() {
+  return () => {};
+}
+
+function getUserAgentSnapshot() {
+  return typeof navigator === "undefined" ? "" : navigator.userAgent;
+}
+
 export function InstallStatusCard() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [platform, setPlatform] = useState(SERVER_PLATFORM);
   const isOnline = useSyncExternalStore(subscribeOnline, getOnlineSnapshot, () => true);
   const isStandalone = useSyncExternalStore(subscribeStandalone, getStandaloneSnapshot, () => false);
+  const userAgent = useSyncExternalStore(subscribeNoop, getUserAgentSnapshot, () => "");
+  const platform = userAgent ? detectPlatform(userAgent) : SERVER_PLATFORM;
 
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
-
-    setPlatform(detectPlatform(navigator.userAgent));
 
     const onBeforeInstallPrompt = (event: Event) => {
       const promptEvent = event as BeforeInstallPromptEvent;

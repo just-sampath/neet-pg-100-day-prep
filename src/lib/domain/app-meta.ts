@@ -12,14 +12,4 @@ export const STUDY_DOCUMENT_LINKS = [
     label: "Schedule workbook",
     description: "The source 100-day Excel schedule used to generate the app data.",
   },
-  {
-    href: "/api/docs/product-spec",
-    label: "Product spec",
-    description: "The PRD that defines the intended quiet study-companion behavior.",
-  },
-  {
-    href: "/api/docs/technical-architecture",
-    label: "Technical architecture",
-    description: "The system blueprint for persistence, sync, and product flows.",
-  },
 ] as const;

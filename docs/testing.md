@@ -11,7 +11,7 @@ npm run build:webpack
 
 - static data generation
 - lint
-- typecheck
+- Next route type generation plus typecheck
 - vitest
 - workbook-to-generated-data regression checks
 - revision-engine branch coverage for:
@@ -137,7 +137,7 @@ Then verify:
 37. Open a future day from the browser and confirm it is view-only.
 38. Open a past day and confirm only retroactive completion is available.
 39. Open an absorbed or merged shift-hidden day and confirm it is view-only while still showing why the mapping changed.
-40. Open `/settings` and confirm version, runtime label, export, and workbook/spec links render cleanly on mobile width.
+40. Open `/settings` and confirm version, runtime label, export, and the schedule workbook link render cleanly on mobile width.
 41. Install the app or check the install guidance card and confirm the platform-specific instructions are sensible.
 42. Disconnect the network after loading once and confirm a fresh navigation falls back to the quiet offline page instead of stale app state.
 

@@ -1111,7 +1111,7 @@ Acceptance:
 - theme toggle exists and persists on refresh
 - JSON export exists
 - app version exists
-- study-document links exist
+- the schedule workbook link exists
 - runtime label is visible
 
 ### SETTINGS-02 Export Uses Active Runtime State

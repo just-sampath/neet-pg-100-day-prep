@@ -24,11 +24,7 @@ describe("settings, pwa, and installability", () => {
 
   it("keeps the about/download metadata complete", () => {
     expect(APP_VERSION).toMatch(/^\d+\.\d+\.\d+$/u);
-    expect(STUDY_DOCUMENT_LINKS.map((link) => link.href)).toEqual([
-      "/api/docs/schedule-workbook",
-      "/api/docs/product-spec",
-      "/api/docs/technical-architecture",
-    ]);
+    expect(STUDY_DOCUMENT_LINKS.map((link) => link.href)).toEqual(["/api/docs/schedule-workbook"]);
 
     expect(
       createDownloadHeaders({

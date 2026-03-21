@@ -149,7 +149,7 @@ Run this immediately after the first deployment:
 16. Open `/schedule` and confirm Today is easy to find, future days are view-only, and shifted days still explain their original planned date.
 17. Toggle Green -> Yellow/Red -> Green on the same date and confirm the original daily quote returns.
 18. Refresh the same date on both devices and confirm the current quote remains consistent.
-19. Open `/settings` and confirm version, runtime label, JSON export, and workbook/spec links all work on the deployed runtime.
+19. Open `/settings` and confirm version, runtime label, JSON export, and the schedule workbook link work on the deployed runtime.
 20. Install the app on iPhone/iPad and Android/Chrome and confirm the standalone shell opens without browser chrome.
 21. Disconnect the network after one load and confirm a fresh navigation falls back to the quiet offline page instead of stale mutable state.
 22. Open a loading route, an unknown route, and one analytics route with little data and confirm the shipped recovery and empty states remain calm.
