@@ -80,8 +80,26 @@ describe("schedule engine", () => {
   });
 
   it("absorbs one day when the buffer is used", () => {
-    expect(getAbsorptionSavings(83, { dayOneDate: "2026-05-01", theme: "dark", scheduleShiftDays: 1, shiftAppliedAt: null })).toBe(0);
-    expect(getAbsorptionSavings(84, { dayOneDate: "2026-05-01", theme: "dark", scheduleShiftDays: 1, shiftAppliedAt: null })).toBe(1);
+    const settings = {
+      dayOneDate: "2026-05-01",
+      theme: "dark" as const,
+      scheduleShiftDays: 1,
+      shiftAppliedAt: "2026-05-10T00:00:00.000Z",
+      shiftEvents: [
+        {
+          id: "shift-1",
+          anchorDayNumber: 1,
+          shiftDays: 1,
+          appliedAt: "2026-05-10T00:00:00.000Z",
+          missedDays: [],
+          bufferDayUsed: 84,
+          compressedPairs: [],
+        },
+      ],
+    };
+
+    expect(getAbsorptionSavings(83, settings)).toBe(0);
+    expect(getAbsorptionSavings(84, settings)).toBe(1);
   });
 
   it("keeps mapped dates stable when the first shift is absorbed by the buffer", () => {
@@ -89,7 +107,18 @@ describe("schedule engine", () => {
       dayOneDate: "2026-05-01",
       theme: "dark" as const,
       scheduleShiftDays: 1,
-      shiftAppliedAt: null,
+      shiftAppliedAt: "2026-05-10T00:00:00.000Z",
+      shiftEvents: [
+        {
+          id: "shift-1",
+          anchorDayNumber: 1,
+          shiftDays: 1,
+          appliedAt: "2026-05-10T00:00:00.000Z",
+          missedDays: [],
+          bufferDayUsed: 84,
+          compressedPairs: [],
+        },
+      ],
     };
     expect(getMappedDate(84, settings)).toBe("2026-07-23");
   });

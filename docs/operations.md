@@ -22,6 +22,7 @@ This must include:
 - `supabase/migrations/0004_revision_completion_identity.sql`
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
 - `supabase/migrations/0006_backlog_queue_priority.sql`
+- `supabase/migrations/0007_schedule_shift_events.sql`
 
 ## Hosted Automation
 
@@ -115,6 +116,13 @@ npm run generate:data
 - Revision completions are now keyed per source block via `revision_id`.
 - `block_a` and `block_b` from the same study day intentionally produce separate revision series.
 - If a retroactive source completion is moved later, impossible earlier revision checkoffs are pruned during reconciliation.
+
+## Schedule Shift Notes
+
+- Shift history is stored in `app_settings.shift_events`, not only as a flat total.
+- Each event records the anchor day, shift size, consumed buffer day, consumed compression pairs, and the missed days that triggered the change.
+- Preview/apply must stay in lockstep: the server recalculates the preview and validates its signature before mutating state.
+- Shift cleanup dismisses active backlog items from the shifted span and resets unresolved progress from the anchor forward.
 
 ## Inspect Automation Runs
 

@@ -25,6 +25,18 @@
 - If that destination block is completed, the assigned backlog item completes with it
 - If that destination block is skipped or missed, the assigned backlog item returns to `pending`
 
+## Schedule Shift
+
+- Shift suggestion appears only when 2 or more of the last 7 visible study days have at least 5 blocks marked `missed` or `skipped`
+- The earliest such day becomes the shift anchor
+- The preview is always shown before apply
+- Day 84 is consumed first when available
+- Further recovery uses fixed compression pairs in this order: `95+96`, `97+98`, `91+92`
+- Days 99 and 100 are never compressed
+- The hard stop is August 20, 2026; if the shifted plan would place the final visible study day on or after that date, apply is blocked
+- Applying a shift clears active backlog from the shifted span and resets unresolved progress from the anchor forward
+- GT markers and all mapped-date schedule views move through the same shift mapping, so the preview and applied calendar stay aligned
+
 ## Revision Queue
 
 - Built from `block_a` and `block_b` anchors plus actual completion shifts

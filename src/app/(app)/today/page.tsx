@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { AppLogo } from "@/components/app/logo";
 import { DevToolbar } from "@/components/app/dev-toolbar";
+import { ScheduleShiftPanel } from "@/components/app/schedule-shift-panel";
 import { TimeEditor } from "@/components/app/time-editor";
 import { WindDownPrompts } from "@/components/app/wind-down-prompts";
 import { requireCurrentUser } from "@/lib/auth/session";
@@ -24,7 +25,6 @@ import {
 } from "@/lib/domain/schedule";
 import { scheduleData } from "@/lib/generated/schedule-data";
 import {
-  applyShiftAction,
   completeRevisionAction,
   setDayOneDateAction,
   setThemeAction,
@@ -347,51 +347,7 @@ export default async function TodayPage() {
         </div>
       </section>
 
-      {data.shiftPreview ? (
-        <section className="panel reveal-rise p-5 md:p-6">
-          <div className="grid gap-4 lg:grid-cols-[0.8fr_1.2fr] lg:items-end">
-            <div>
-              <div className="eyebrow">Shift Preview</div>
-              <h3 className="display mt-3 text-3xl">The calendar can still be rescued, but it needs a deliberate move.</h3>
-            </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <article className="metric-slab">
-                <div className="metric-label">Missed Days</div>
-                <div className="metric-value">{data.shiftHealth.missedDays.length}</div>
-                <p className="metric-note">Detected from unfinished mapped past days.</p>
-              </article>
-              <article className="metric-slab">
-                <div className="metric-label">Buffer Used</div>
-                <div className="metric-value">{data.shiftPreview.bufferUsed}</div>
-                <p className="metric-note">Day 84 absorption is used before compression.</p>
-              </article>
-              <article className="metric-slab">
-                <div className="metric-label">Projected Day 100</div>
-                <div className="metric-value text-[1.55rem] md:text-[1.85rem]">{formatDateLabel(data.shiftPreview.day100)}</div>
-                <p className="metric-note">
-                  {data.shiftPreview.hardBoundaryExceeded ? "This breaches the August 20 boundary." : "This stays within the hard boundary."}
-                </p>
-              </article>
-            </div>
-          </div>
-          <div className="mt-5 flex flex-wrap items-center gap-3">
-            <p className="text-sm text-[var(--text-secondary)]">
-              Compression pairs:
-              {" "}
-              {data.shiftPreview.compressedPairs.length
-                ? data.shiftPreview.compressedPairs.map((pair) => `${pair[0]}+${pair[1]}`).join(", ")
-                : "none yet"}
-              .
-            </p>
-            <form action={applyShiftAction}>
-              <input type="hidden" name="additionalDays" value={data.shiftHealth.missedDays.length} />
-              <button className="button-primary" disabled={data.shiftPreview.hardBoundaryExceeded} type="submit">
-                Apply suggested shift
-              </button>
-            </form>
-          </div>
-        </section>
-      ) : null}
+      {data.shiftPreview ? <ScheduleShiftPanel health={data.shiftHealth} preview={data.shiftPreview} /> : null}
 
       <section className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
         <section className="panel reveal-rise p-6 md:p-7">

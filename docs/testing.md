@@ -37,6 +37,15 @@ npm run build:webpack
   - overrun preview and forced-sleep backlog branches
   - PRD backlog suggestion precedence for content, MCQ, PYQ/weekend, consolidation, and night recall
   - queue ordering, original mapped-date metadata, bulk reschedule, and assigned-recovery destination sync
+- schedule-shift branch coverage for:
+  - last-7-day shift eligibility detection
+  - earliest-missed-day anchoring
+  - Day 84 buffer consumption
+  - fixed compression order `95+96`, `97+98`, `91+92`
+  - protection of Days 99 and 100
+  - repeated-shift safety
+  - hard-boundary enforcement at August 20, 2026
+  - preview-to-apply mapping consistency
 
 ## Local Mode Manual Pass
 
@@ -70,6 +79,9 @@ Then verify:
 20. Reschedule a backlog item and confirm it renders inside the destination block card rather than a detached recovery strip.
 21. Complete the destination block and confirm the assigned backlog item closes automatically.
 22. In a separate pass, skip or miss the destination block and confirm the assigned backlog item returns to `pending`.
+23. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+24. Open shift preview and confirm it starts from the earliest missed day, uses Day 84 first, and lists the exact compression pair when needed.
+25. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with it, and backlog from the shifted span is cleared.
 
 ## Time-Based Manual Pass
 

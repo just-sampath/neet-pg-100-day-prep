@@ -74,6 +74,7 @@ This applies both:
 - `supabase/migrations/0004_revision_completion_identity.sql`
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
 - `supabase/migrations/0006_backlog_queue_priority.sql`
+- `supabase/migrations/0007_schedule_shift_events.sql`
 
 Expected behavior in Supabase mode:
 
@@ -134,6 +135,9 @@ In Supabase mode:
 8. Confirm backlog items show original slot timing and that `morning_revision` stays out of the skip/miss backlog paths.
 9. Reschedule a backlog item and confirm it appears inside the destination block on the target day.
 10. Complete or miss that destination block and confirm the assigned backlog item synchronizes correctly.
+11. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+12. Open the shift preview and confirm it anchors from the earliest missed day, consumes Day 84 first, and blocks apply if August 20 would be breached.
+13. Apply the shift and confirm Today, Schedule Browser, and GT markers all move together.
 
 ## Cron Manual Check
 

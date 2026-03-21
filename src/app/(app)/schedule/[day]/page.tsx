@@ -58,6 +58,11 @@ export default async function ScheduleDayPage({
         <p className="mt-2 text-[var(--muted)]">
           {detail.mappedDate ? formatDateLabel(detail.mappedDate) : "Day 1 not set"} · {detail.day.deliverable}
         </p>
+        {detail.hiddenShiftLabel ? (
+          <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
+            This day is currently {detail.hiddenShiftLabel} by the active shift plan.
+          </p>
+        ) : null}
       </section>
 
       <section className="panel p-6">

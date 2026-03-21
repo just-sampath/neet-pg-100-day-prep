@@ -25,6 +25,10 @@ import type {
   RevisionDisplayGroup,
   RevisionSourceBlockKey,
   RevisionQueueItem,
+  ScheduleHealth,
+  ScheduleShiftEvent,
+  ScheduleShiftPreview,
+  ShiftMergedDay,
   TrafficLight,
   UserState,
 } from "@/lib/domain/types";
@@ -34,28 +38,107 @@ export function getScheduleDay(dayNumber: number): GeneratedScheduleDay | undefi
   return scheduleData.days.find((day) => day.dayNumber === dayNumber);
 }
 
-export function getConsumedCompressionPairs(settings: AppSettings) {
-  return SHIFT_COMPRESSION_PAIRS.slice(0, Math.max(0, settings.scheduleShiftDays - 1));
+function getShiftEvents(settings: AppSettings): ScheduleShiftEvent[] {
+  return [...(settings.shiftEvents ?? [])].sort((left, right) => left.appliedAt.localeCompare(right.appliedAt));
 }
 
-export function getAbsorptionSavings(dayNumber: number, settings: AppSettings): number {
-  let savings = 0;
+function getConsumedShiftRecoveryKeys(settings: AppSettings) {
+  const keys = new Set<string>();
 
-  if (settings.scheduleShiftDays >= 1 && dayNumber >= BUFFER_DAY) {
-    savings += 1;
-  }
+  for (const event of getShiftEvents(settings)) {
+    if (event.bufferDayUsed) {
+      keys.add(`buffer:${event.bufferDayUsed}`);
+    }
 
-  for (const [, hiddenDay] of getConsumedCompressionPairs(settings)) {
-    if (dayNumber >= hiddenDay) {
-      savings += 1;
+    for (const pair of event.compressedPairs) {
+      keys.add(`compression:${pair[0]}:${pair[1]}`);
     }
   }
 
-  return savings;
+  return keys;
+}
+
+function getMergedDayDescription(pair: [number, number]): ShiftMergedDay {
+  const [leftDay, rightDay] = pair;
+  const left = getScheduleDay(leftDay);
+  const right = getScheduleDay(rightDay);
+
+  return {
+    originalDays: [leftDay, rightDay],
+    mergedDescription: `Days ${leftDay} and ${rightDay}: ${left?.primaryFocus ?? `Day ${leftDay}`} + ${right?.primaryFocus ?? `Day ${rightDay}`} will be merged into a single day.`,
+  };
+}
+
+function getAvailableShiftRecoveries(settings: AppSettings, anchorDayNumber: number) {
+  const consumed = getConsumedShiftRecoveryKeys(settings);
+  const recoveries: Array<
+    | {
+        kind: "buffer";
+        hiddenDay: number;
+      }
+    | {
+        kind: "compression";
+        pair: [number, number];
+        hiddenDay: number;
+      }
+  > = [];
+
+  if (anchorDayNumber <= BUFFER_DAY && !consumed.has(`buffer:${BUFFER_DAY}`)) {
+    recoveries.push({
+      kind: "buffer",
+      hiddenDay: BUFFER_DAY,
+    });
+  }
+
+  for (const pair of SHIFT_COMPRESSION_PAIRS) {
+    const typedPair = [pair[0], pair[1]] as [number, number];
+    if (anchorDayNumber > typedPair[0]) {
+      continue;
+    }
+
+    if (consumed.has(`compression:${typedPair[0]}:${typedPair[1]}`)) {
+      continue;
+    }
+
+    recoveries.push({
+      kind: "compression",
+      pair: typedPair,
+      hiddenDay: typedPair[1],
+    });
+  }
+
+  return recoveries;
+}
+
+export function getConsumedCompressionPairs(settings: AppSettings) {
+  return getShiftEvents(settings).flatMap((event) => event.compressedPairs);
+}
+
+export function getAbsorptionSavings(dayNumber: number, settings: AppSettings): number {
+  return getShiftEvents(settings).reduce((savings, event) => {
+    if (dayNumber < event.anchorDayNumber) {
+      return savings;
+    }
+
+    let eventSavings = 0;
+    if (event.bufferDayUsed && dayNumber >= event.bufferDayUsed) {
+      eventSavings += 1;
+    }
+
+    for (const [, hiddenDay] of event.compressedPairs) {
+      if (dayNumber >= hiddenDay) {
+        eventSavings += 1;
+      }
+    }
+
+    return savings + eventSavings;
+  }, 0);
 }
 
 export function isCompressedHiddenDay(dayNumber: number, settings: AppSettings): boolean {
-  return getConsumedCompressionPairs(settings).some(([, hiddenDay]) => hiddenDay === dayNumber);
+  return getShiftEvents(settings).some(
+    (event) => event.bufferDayUsed === dayNumber || event.compressedPairs.some(([, hiddenDay]) => hiddenDay === dayNumber),
+  );
 }
 
 export function getMergedPartner(dayNumber: number, settings: AppSettings): number | null {
@@ -63,12 +146,28 @@ export function getMergedPartner(dayNumber: number, settings: AppSettings): numb
   return pair ? pair[1] : null;
 }
 
+export function getShiftHiddenDayLabel(dayNumber: number, settings: AppSettings) {
+  if (getShiftEvents(settings).some((event) => event.bufferDayUsed === dayNumber)) {
+    return "absorbed as a buffer day";
+  }
+
+  if (isCompressedHiddenDay(dayNumber, settings)) {
+    return "merged by shift compression";
+  }
+
+  return null;
+}
+
 export function getMappedDate(dayNumber: number, settings: AppSettings): string | null {
   if (!settings.dayOneDate) {
     return null;
   }
 
-  const delta = dayNumber - 1 + settings.scheduleShiftDays - getAbsorptionSavings(dayNumber, settings);
+  const shiftDelta = getShiftEvents(settings).reduce(
+    (sum, event) => (dayNumber >= event.anchorDayNumber ? sum + event.shiftDays : sum),
+    0,
+  );
+  const delta = dayNumber - 1 + shiftDelta - getAbsorptionSavings(dayNumber, settings);
   return addDaysToDateOnly(settings.dayOneDate, delta);
 }
 
@@ -77,7 +176,63 @@ export function getCurrentDayNumber(settings: AppSettings, todayDate: string): n
     return 0;
   }
 
-  return diffDays(todayDate, settings.dayOneDate) + 1;
+  const visibleDays = scheduleData.days
+    .map((day) => day.dayNumber)
+    .filter((dayNumber) => !isCompressedHiddenDay(dayNumber, settings));
+  const firstVisibleDay = visibleDays.at(0);
+  const firstVisibleDate = firstVisibleDay ? getMappedDate(firstVisibleDay, settings) : null;
+
+  if (!firstVisibleDate || todayDate < firstVisibleDate) {
+    return 0;
+  }
+
+  let currentDay = 0;
+  let lastVisibleMappedDate: string | null = null;
+
+  for (const dayNumber of visibleDays) {
+    const mappedDate = getMappedDate(dayNumber, settings);
+    if (!mappedDate) {
+      continue;
+    }
+
+    if (mappedDate <= todayDate) {
+      currentDay = dayNumber;
+      lastVisibleMappedDate = mappedDate;
+      continue;
+    }
+
+    break;
+  }
+
+  if (currentDay === 0 || !lastVisibleMappedDate) {
+    return 0;
+  }
+
+  if (currentDay === visibleDays.at(-1) && todayDate > lastVisibleMappedDate) {
+    return currentDay + diffDays(todayDate, lastVisibleMappedDate);
+  }
+
+  return currentDay;
+}
+
+export function getPreviousVisibleDayNumber(dayNumber: number, settings: AppSettings) {
+  for (let cursor = dayNumber - 1; cursor >= 1; cursor -= 1) {
+    if (!isCompressedHiddenDay(cursor, settings)) {
+      return cursor;
+    }
+  }
+
+  return null;
+}
+
+export function getNextVisibleDayNumber(dayNumber: number, settings: AppSettings) {
+  for (let cursor = dayNumber + 1; cursor <= 100; cursor += 1) {
+    if (!isCompressedHiddenDay(cursor, settings)) {
+      return cursor;
+    }
+  }
+
+  return null;
 }
 
 export function getVisibleBlockKeys(trafficLight: TrafficLight): BlockKey[] {
@@ -509,42 +664,101 @@ export function getSuggestedBacklogTarget(originalDay: number, blockKey: BlockKe
   }
 }
 
-export function getShiftPreview(settings: AppSettings, additionalDays: number) {
-  if (!settings.dayOneDate || additionalDays <= 0) {
+export function createShiftPreviewSignature(preview: Omit<ScheduleShiftPreview, "signature">) {
+  return [
+    preview.anchorDayNumber,
+    preview.shiftDays,
+    preview.missedDays.join(","),
+    preview.bufferDaysAvailable,
+    preview.bufferDaysUsed,
+    preview.compressedPairs.map((pair) => `${pair[0]}-${pair[1]}`).join(","),
+    preview.day100,
+    preview.hardBoundaryExceeded ? "1" : "0",
+  ].join("|");
+}
+
+export function getShiftPreview(settings: AppSettings, missedDays: number[]): ScheduleShiftPreview | null {
+  if (!settings.dayOneDate || missedDays.length < 2) {
     return null;
   }
 
-  const proposedShiftDays = settings.scheduleShiftDays + additionalDays;
-  const availablePairs = SHIFT_COMPRESSION_PAIRS.slice(0, Math.max(0, proposedShiftDays - 1));
-  const day100 = getMappedDate(100, { ...settings, scheduleShiftDays: proposedShiftDays });
+  const orderedMissedDays = [...missedDays].sort((left, right) => left - right);
+  const anchorDayNumber = orderedMissedDays[0];
+  if (!anchorDayNumber) {
+    return null;
+  }
+
+  const shiftDays = orderedMissedDays.length;
+  const recoveries = getAvailableShiftRecoveries(settings, anchorDayNumber);
+  const selectedRecoveries = recoveries.slice(0, shiftDays);
+  const compressedPairs = selectedRecoveries.flatMap((recovery) =>
+    recovery.kind === "compression" ? [recovery.pair] : [],
+  );
+  const bufferDaysAvailable = recoveries.some((recovery) => recovery.kind === "buffer") ? 1 : 0;
+  const bufferDaysUsed = selectedRecoveries.some((recovery) => recovery.kind === "buffer") ? 1 : 0;
+  const projectedSettings: AppSettings = {
+    ...settings,
+    scheduleShiftDays: settings.scheduleShiftDays + shiftDays,
+    shiftEvents: [
+      ...getShiftEvents(settings),
+      {
+        id: "preview",
+        anchorDayNumber,
+        shiftDays,
+        appliedAt: "preview",
+        missedDays: orderedMissedDays,
+        bufferDayUsed: bufferDaysUsed ? BUFFER_DAY : null,
+        compressedPairs,
+      },
+    ],
+  };
+  const day100 = getMappedDate(100, projectedSettings);
   if (!day100) {
     return null;
   }
 
-  const hardBoundaryExceeded = parseDateOnly(day100) >= parseDateOnly(HARD_BOUNDARY_DATE);
-  return {
-    additionalDays,
-    proposedShiftDays,
-    bufferUsed: proposedShiftDays >= 1 ? 1 : 0,
-    compressedPairs: availablePairs,
+  const visibleProjectedDays = scheduleData.days
+    .map((day) => day.dayNumber)
+    .filter((dayNumber) => !isCompressedHiddenDay(dayNumber, projectedSettings));
+  const lastProjectedDay = visibleProjectedDays.at(-1);
+  const projectedLastDate = lastProjectedDay ? getMappedDate(lastProjectedDay, projectedSettings) : day100;
+  const previewBase: Omit<ScheduleShiftPreview, "signature"> = {
+    anchorDayNumber,
+    shiftDays,
+    missedDays: orderedMissedDays,
+    bufferDaysAvailable,
+    bufferDaysUsed,
+    isCleanShift: bufferDaysAvailable >= shiftDays,
+    compressedPairs,
+    mergedDays: compressedPairs.map((pair) => getMergedDayDescription(pair)),
     day100,
-    hardBoundaryExceeded,
+    hardBoundaryExceeded:
+      selectedRecoveries.length < shiftDays ||
+      (projectedLastDate ? parseDateOnly(projectedLastDate) >= parseDateOnly(HARD_BOUNDARY_DATE) : true),
+  };
+
+  return {
+    ...previewBase,
+    signature: createShiftPreviewSignature(previewBase),
   };
 }
 
-export function getScheduleHealth(userState: UserState, settings: AppSettings, todayDayNumber: number) {
+export function getScheduleHealth(userState: UserState, settings: AppSettings, todayDayNumber: number): ScheduleHealth {
+  const lookbackStart = Math.max(1, todayDayNumber - 6);
   const fullMissDays = scheduleData.days
-    .filter((day) => day.dayNumber < todayDayNumber)
+    .filter((day) => day.dayNumber >= lookbackStart && day.dayNumber < todayDayNumber)
+    .filter((day) => !isCompressedHiddenDay(day.dayNumber, settings))
     .filter((day) => {
       const missedCount = TRACKABLE_BLOCK_ORDER.filter((block) => {
         const progress = getBlockProgress(userState, day.dayNumber, block);
-        return progress.status === "missed" || progress.status === "skipped" || progress.status === "rescheduled";
+        return progress.status === "missed" || progress.status === "skipped";
       }).length;
       return missedCount >= 5;
     });
 
   return {
     missedDays: fullMissDays.map((day) => day.dayNumber),
+    anchorDayNumber: fullMissDays[0]?.dayNumber ?? null,
     suggestShift: fullMissDays.length >= 2,
   };
 }

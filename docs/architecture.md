@@ -70,6 +70,7 @@ This layer decides whether the app is operating in `local` or `supabase` mode an
 - `supabase/migrations/0004_revision_completion_identity.sql`
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
 - `supabase/migrations/0006_backlog_queue_priority.sql`
+- `supabase/migrations/0007_schedule_shift_events.sql`
 
 `src/lib/data/local-store.ts` is now the runtime-aware persistence boundary.
 
@@ -111,6 +112,21 @@ That lets the backlog queue explain where a recovered block came from without re
 - `priority_order`
 
 That keeps manual backlog reordering stable across reloads and runtimes.
+
+`0007_schedule_shift_events.sql` adds persistent anchored shift history:
+
+- `shift_events`
+
+Each shift is stored as an explicit event with:
+
+- `anchorDayNumber`
+- `shiftDays`
+- `bufferDayUsed`
+- `compressedPairs`
+- `missedDays`
+- `appliedAt`
+
+This keeps repeated shifts deterministic and lets mapped-date views recompute from the same event history in both runtimes.
 
 `0003_automation_job_runs.sql` adds a job-run ledger for hosted automation:
 
@@ -260,10 +276,12 @@ In `local` mode, time-based behavior remains manually testable without waiting f
 ## Schedule Mapping
 
 - Day 1 date is user-configured.
-- Day N date = `dayOne + (N - 1) + shiftDays - absorptionSavings`
+- Each shift is anchored to the earliest heavily missed day in the last-7-day window.
+- Day N date = `dayOne + (N - 1) + sum(shiftDays for events whose anchor <= N) - absorptionSavings`
 - absorption savings come from:
-  - Day 84 buffer
-  - fixed compression pairs
+  - Day 84 buffer, when that buffer has been consumed by a prior shift event
+  - fixed compression pairs `95+96`, `97+98`, `91+92`, when those pairs have been consumed by prior shift events
+- hidden shift days remain in the 100-day data model but are treated as absorbed/merged in the browser and skipped by lived-day resolution
 
 ## Revision Engine
 

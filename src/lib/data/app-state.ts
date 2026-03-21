@@ -27,6 +27,8 @@ import {
   getVisibleBlockKeys,
   buildDailyRevisionPlan,
   isCompressedHiddenDay,
+  getPreviousVisibleDayNumber,
+  getShiftHiddenDayLabel,
 } from "@/lib/domain/schedule";
 import { getTrafficLightBacklogSourceTag, previewOverrunCascade, shouldCreateBacklogItem } from "@/lib/domain/backlog";
 import { getQuote } from "@/lib/domain/quotes";
@@ -317,10 +319,10 @@ export function runMidnightRollover(userState: UserState, settings: AppSettings,
     };
   }
 
-  const previousDayNumber = todayDayNumber - 1;
+  const previousDayNumber = getPreviousVisibleDayNumber(todayDayNumber, settings);
   let missedBlocks = 0;
   let backlogCreated = 0;
-  if (previousDayNumber >= 1 && previousDayNumber <= 100) {
+  if (previousDayNumber && previousDayNumber >= 1 && previousDayNumber <= 100) {
     for (const blockKey of getVisibleBlockKeys(getDayState(userState, previousDayNumber).trafficLight)) {
       const progress = getOrCreateProgress(userState, previousDayNumber, blockKey);
       if (progress.status === "pending") {
@@ -343,6 +345,87 @@ export function runMidnightRollover(userState: UserState, settings: AppSettings,
     backlogCreated,
     revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate),
   };
+}
+
+export function applyScheduleShiftToUserState(
+  userState: UserState,
+  preview: NonNullable<ReturnType<typeof getShiftPreview>>,
+  appliedAt = new Date().toISOString(),
+) {
+  if (preview.hardBoundaryExceeded || !userState.settings.dayOneDate) {
+    return false;
+  }
+
+  userState.settings.shiftEvents = [
+    ...userState.settings.shiftEvents,
+    {
+      id: randomUUID(),
+      anchorDayNumber: preview.anchorDayNumber,
+      shiftDays: preview.shiftDays,
+      appliedAt,
+      missedDays: [...preview.missedDays],
+      bufferDayUsed: preview.bufferDaysUsed ? 84 : null,
+      compressedPairs: [...preview.compressedPairs],
+    },
+  ].toSorted((left, right) => left.appliedAt.localeCompare(right.appliedAt));
+  userState.settings.scheduleShiftDays = userState.settings.shiftEvents.reduce((sum, event) => sum + event.shiftDays, 0);
+  userState.settings.shiftAppliedAt = appliedAt;
+
+  for (const [key, state] of Object.entries(userState.dayStates)) {
+    if (state.dayNumber >= preview.anchorDayNumber) {
+      userState.dayStates[key] = {
+        dayNumber: state.dayNumber,
+        trafficLight: "green",
+        updatedAt: appliedAt,
+      };
+    }
+  }
+
+  for (const progress of Object.values(userState.blockProgress)) {
+    if (progress.dayNumber < preview.anchorDayNumber) {
+      continue;
+    }
+
+    if (progress.status === "completed" || progress.status === "partial") {
+      continue;
+    }
+
+    progress.status = "pending";
+    progress.actualStart = null;
+    progress.actualEnd = null;
+    progress.completedAt = null;
+    progress.sourceTag = null;
+    progress.note = null;
+  }
+
+  for (const item of Object.values(userState.backlogItems)) {
+    if (item.originalDay < preview.anchorDayNumber) {
+      continue;
+    }
+
+    if (item.status === "pending" || item.status === "rescheduled") {
+      item.status = "dismissed";
+      item.dismissedAt = appliedAt;
+      item.rescheduledToDay = null;
+      item.rescheduledToBlockKey = null;
+    }
+  }
+
+  for (const [revisionId, completion] of Object.entries(userState.revisionCompletions)) {
+    if (completion.sourceDay < preview.anchorDayNumber) {
+      continue;
+    }
+
+    const sourceProgress = getBlockProgress(userState, completion.sourceDay, completion.sourceBlockKey);
+    const sourceStillCompleted =
+      (sourceProgress.status === "completed" || sourceProgress.status === "partial") && Boolean(sourceProgress.completedAt);
+
+    if (!sourceStillCompleted) {
+      delete userState.revisionCompletions[revisionId];
+    }
+  }
+
+  return true;
 }
 
 export function generateWeeklySummary(userState: UserState, settings: AppSettings, weekStartDate: string): WeeklySummary {
@@ -463,7 +546,7 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
     gtWrapperSummary: gt?.changeBeforeNextGt ?? null,
     scheduleStatus: suggestShift ? `${missedDays.length} missed days detected` : "On track",
     backlogCount: getBacklogCount(userState),
-    bufferDaysUsed: settings.scheduleShiftDays >= 1 ? 1 : 0,
+    bufferDaysUsed: userState.settings.shiftEvents.some((event) => event.bufferDayUsed === 84) ? 1 : 0,
     subjectsStudied: [...subjectsStudied],
     generatedAt: new Date().toISOString(),
   };
@@ -555,7 +638,7 @@ export function getHomeData(store: LocalStore, userId: string) {
         : toughQuote;
 
   const shiftHealth = getScheduleHealth(userState, settings, todayDayNumber);
-  const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays.length) : null;
+  const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays) : null;
   const plannedRecovery = getScheduledRecoveryForDay(userState, settings, todayDayNumber, todayDate);
 
   return {
@@ -627,6 +710,7 @@ export function getScheduleListData(store: LocalStore, userId: string) {
       today: day.dayNumber === todayDayNumber,
       completed,
       hiddenByCompression: isCompressedHiddenDay(day.dayNumber, userState.settings),
+      hiddenShiftLabel: getShiftHiddenDayLabel(day.dayNumber, userState.settings),
       status: completed ? "completed" : hasPendingPast ? "pending" : day.dayNumber === todayDayNumber ? "today" : day.dayNumber < todayDayNumber ? "past" : "upcoming",
     };
   });
@@ -652,6 +736,7 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
     todayDate,
     mappedDate,
     state,
+    hiddenShiftLabel: getShiftHiddenDayLabel(dayNumber, userState.settings),
     revisionPlan,
     plannedRecovery,
     blocks: getTrackableBlocks(day).map((slot) => ({

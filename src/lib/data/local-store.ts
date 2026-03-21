@@ -17,6 +17,7 @@ import type {
   McqItemLog,
   RevisionCompletion,
   RevisionSourceBlockKey,
+  ScheduleShiftEvent,
   UserState,
   WeeklySummary,
 } from "@/lib/domain/types";
@@ -36,6 +37,7 @@ function emptySettings(): AppSettings {
     theme: "dark",
     scheduleShiftDays: 0,
     shiftAppliedAt: null,
+    shiftEvents: [],
   };
 }
 
@@ -273,10 +275,97 @@ function normalizeRevisionCompletions(
   );
 }
 
+function normalizeShiftEvents(
+  value: unknown,
+  legacyShiftDays: number,
+  legacyShiftAppliedAt: string | null,
+): ScheduleShiftEvent[] {
+  const normalized = Array.isArray(value)
+    ? value
+        .map((entry) => {
+          if (!entry || typeof entry !== "object") {
+            return null;
+          }
+
+          const candidate = entry as Partial<ScheduleShiftEvent>;
+          return {
+            id: typeof candidate.id === "string" ? candidate.id : randomUUID(),
+            anchorDayNumber:
+              typeof candidate.anchorDayNumber === "number" && Number.isFinite(candidate.anchorDayNumber)
+                ? candidate.anchorDayNumber
+                : 1,
+            shiftDays:
+              typeof candidate.shiftDays === "number" && Number.isFinite(candidate.shiftDays)
+                ? candidate.shiftDays
+                : 0,
+            appliedAt: typeof candidate.appliedAt === "string" ? candidate.appliedAt : new Date(0).toISOString(),
+            missedDays: Array.isArray(candidate.missedDays)
+              ? candidate.missedDays.filter((day): day is number => typeof day === "number" && Number.isFinite(day))
+              : [],
+            bufferDayUsed:
+              typeof candidate.bufferDayUsed === "number" && Number.isFinite(candidate.bufferDayUsed)
+                ? candidate.bufferDayUsed
+                : null,
+            compressedPairs: Array.isArray(candidate.compressedPairs)
+              ? candidate.compressedPairs.flatMap((pair) =>
+                  Array.isArray(pair) &&
+                  pair.length === 2 &&
+                  typeof pair[0] === "number" &&
+                  typeof pair[1] === "number"
+                    ? [[pair[0], pair[1]] as [number, number]]
+                    : [],
+                )
+              : [],
+          } satisfies ScheduleShiftEvent;
+        })
+        .filter((entry): entry is ScheduleShiftEvent => entry !== null && entry.shiftDays > 0)
+    : [];
+
+  if (normalized.length > 0) {
+    return normalized.toSorted((left, right) => left.appliedAt.localeCompare(right.appliedAt));
+  }
+
+  if (legacyShiftDays > 0) {
+    const compressedPairs = [
+      [95, 96],
+      [97, 98],
+      [91, 92],
+    ].slice(0, Math.max(0, legacyShiftDays - 1)) as Array<[number, number]>;
+
+    return [
+      {
+        id: randomUUID(),
+        anchorDayNumber: 1,
+        shiftDays: legacyShiftDays,
+        appliedAt: legacyShiftAppliedAt ?? new Date(0).toISOString(),
+        missedDays: [],
+        bufferDayUsed: legacyShiftDays >= 1 ? 84 : null,
+        compressedPairs,
+      },
+    ];
+  }
+
+  return [];
+}
+
+function normalizeSettings(settings: AppSettings | undefined): AppSettings {
+  const base = settings ?? emptySettings();
+  const shiftEvents = normalizeShiftEvents(base.shiftEvents, base.scheduleShiftDays ?? 0, base.shiftAppliedAt ?? null);
+
+  return {
+    dayOneDate: base.dayOneDate ?? null,
+    theme: base.theme === "light" ? "light" : "dark",
+    scheduleShiftDays: shiftEvents.reduce((sum, event) => sum + event.shiftDays, 0),
+    shiftAppliedAt: shiftEvents.at(-1)?.appliedAt ?? base.shiftAppliedAt ?? null,
+    shiftEvents,
+  };
+}
+
 function normalizeUserState(userState: UserState | undefined): UserState {
   const base = userState ?? createEmptyUserState();
   return {
     ...base,
+    settings: normalizeSettings(base.settings),
     backlogItems: Object.fromEntries(
       Object.entries(base.backlogItems ?? {}).map(([id, item]) => [
         id,
@@ -365,6 +454,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       theme: settingsRow.theme ?? "dark",
       scheduleShiftDays: settingsRow.schedule_shift_days ?? 0,
       shiftAppliedAt: settingsRow.shift_applied_at,
+      shiftEvents: settingsRow.shift_events ?? [],
     };
     userState.processedDates = normalizeProcessedDates(settingsRow.processed_dates);
     store.dev.simulatedNowIso = settingsRow.simulated_now_iso ?? null;
@@ -499,6 +589,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     };
   }
 
+  store.userState[scopedUser.id] = normalizeUserState(userState);
   return store;
 }
 
@@ -567,6 +658,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
       theme: nextState.settings.theme,
       schedule_shift_days: nextState.settings.scheduleShiftDays,
       shift_applied_at: nextState.settings.shiftAppliedAt,
+      shift_events: nextState.settings.shiftEvents,
       processed_dates: nextState.processedDates,
       simulated_now_iso: nextStore.dev.simulatedNowIso,
     },
@@ -757,6 +849,7 @@ export async function persistSupabaseStoreForUser(nextStore: LocalStore, previou
       theme: nextState.settings.theme,
       schedule_shift_days: nextState.settings.scheduleShiftDays,
       shift_applied_at: nextState.settings.shiftAppliedAt,
+      shift_events: nextState.settings.shiftEvents,
       processed_dates: nextState.processedDates,
       simulated_now_iso: nextStore.dev.simulatedNowIso,
     },

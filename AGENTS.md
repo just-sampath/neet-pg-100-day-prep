@@ -120,7 +120,7 @@ Defaults:
 - `src/lib/domain/constants.ts`: exam date, hard boundary, traffic-light block sets, compression rules
 - `src/lib/domain/backlog.ts`: traffic-light restore rules, backlog-creation guards, and overrun preview logic
 - `src/lib/domain/backlog-queue.ts`: backlog suggestion engine, queue sorting, priority movement, target validation, and assigned-recovery read models
-- `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, and shift preview
+- `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, and anchored schedule-shift preview logic
 - `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
 - `src/lib/domain/quotes.ts`: quote selection
 - `src/lib/data/local-store.ts`: runtime-aware persistence boundary for local and Supabase modes
@@ -141,6 +141,7 @@ Defaults:
 - `supabase/migrations/0004_revision_completion_identity.sql`: block-aware revision completion identity
 - `supabase/migrations/0005_backlog_creation_metadata.sql`: original slot timing metadata for backlog items
 - `supabase/migrations/0006_backlog_queue_priority.sql`: queue priority ordering for backlog items
+- `supabase/migrations/0007_schedule_shift_events.sql`: persistent shift-event history for anchored schedule shifts
 - `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
 
 ### Server Automation
@@ -221,12 +222,16 @@ The generated schedule bundle includes:
 
 ## Schedule Shift Rules
 
+- Shift is suggested only when 2 or more of the last 7 visible study days have 5+ blocks marked `missed` or `skipped`.
+- The earliest such day becomes the shift anchor.
 - First absorbed day uses Day 84 buffer.
 - Further absorbed days use fixed compression pairs in this order:
   - `95 + 96`
   - `97 + 98`
   - `91 + 92`
 - Day 99 and Day 100 are never compressed.
+- Shift preview must be reviewed before apply; apply must validate the preview server-side.
+- Applying a shift clears active backlog items from the shifted span and resets unresolved progress from the shifted anchor forward.
 
 ## Revision Logic
 
@@ -266,6 +271,9 @@ Every feature should be runnable locally. Minimum manual pass:
 15. Log GT data.
 16. Generate a weekly summary.
 17. Export JSON.
+18. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+19. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
+20. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
 18. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
 19. Complete that destination block and confirm the assigned backlog item closes with it.
 20. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.

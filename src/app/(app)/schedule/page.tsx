@@ -26,7 +26,7 @@ export default async function SchedulePage() {
               <h2 className="mt-2 text-xl font-semibold">{day.primaryFocus}</h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {day.mappedDate ? formatDateLabel(day.mappedDate) : "Day 1 not set"}
-                {day.hiddenByCompression ? " · merged by shift compression" : ""}
+                {day.hiddenShiftLabel ? ` · ${day.hiddenShiftLabel}` : ""}
               </p>
             </div>
             <div className="text-sm text-[var(--muted)]">

@@ -139,6 +139,42 @@ export interface AppSettings {
   theme: ThemeMode;
   scheduleShiftDays: number;
   shiftAppliedAt: string | null;
+  shiftEvents: ScheduleShiftEvent[];
+}
+
+export interface ScheduleShiftEvent {
+  id: string;
+  anchorDayNumber: number;
+  shiftDays: number;
+  appliedAt: string;
+  missedDays: number[];
+  bufferDayUsed: number | null;
+  compressedPairs: Array<[number, number]>;
+}
+
+export interface ShiftMergedDay {
+  originalDays: number[];
+  mergedDescription: string;
+}
+
+export interface ScheduleHealth {
+  missedDays: number[];
+  anchorDayNumber: number | null;
+  suggestShift: boolean;
+}
+
+export interface ScheduleShiftPreview {
+  anchorDayNumber: number;
+  shiftDays: number;
+  missedDays: number[];
+  bufferDaysAvailable: number;
+  bufferDaysUsed: number;
+  isCleanShift: boolean;
+  compressedPairs: Array<[number, number]>;
+  mergedDays: ShiftMergedDay[];
+  day100: string;
+  hardBoundaryExceeded: boolean;
+  signature: string;
 }
 
 export interface DayState {

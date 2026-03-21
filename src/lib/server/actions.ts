@@ -15,6 +15,7 @@ import {
   rescheduleBacklogScopeToSuggestions,
 } from "@/lib/domain/backlog-queue";
 import {
+  applyScheduleShiftToUserState,
   applyOverrunCascadeBacklog,
   applyTrafficLightToDay,
   generateWeeklySummary,
@@ -24,7 +25,13 @@ import {
   runLateNightSweep,
 } from "@/lib/data/app-state";
 import { createEmptyUserState, getEffectiveNow, mutateStore } from "@/lib/data/local-store";
-import { createRevisionId, getCurrentDayNumber, reconcileRevisionCompletionsForSource } from "@/lib/domain/schedule";
+import {
+  createRevisionId,
+  getCurrentDayNumber,
+  getScheduleHealth,
+  getShiftPreview,
+  reconcileRevisionCompletionsForSource,
+} from "@/lib/domain/schedule";
 import type {
   BacklogBulkScope,
   BacklogMoveDirection,
@@ -333,11 +340,19 @@ export async function runLateNightSweepAction() {
 
 export async function applyShiftAction(formData: FormData) {
   const user = await requireCurrentUser();
-  const additionalDays = Number(asString(formData.get("additionalDays")) || 0);
+  const previewSignature = asString(formData.get("previewSignature"));
   await mutateStore((store) => {
-    const settings = store.userState[user.id].settings;
-    settings.scheduleShiftDays += additionalDays;
-    settings.shiftAppliedAt = new Date().toISOString();
+    const userState = store.userState[user.id];
+    const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
+    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+    const shiftHealth = getScheduleHealth(userState, userState.settings, todayDayNumber);
+    const preview = shiftHealth.suggestShift ? getShiftPreview(userState.settings, shiftHealth.missedDays) : null;
+
+    if (!preview || preview.signature !== previewSignature) {
+      return;
+    }
+
+    applyScheduleShiftToUserState(userState, preview);
   });
   refresh();
 }

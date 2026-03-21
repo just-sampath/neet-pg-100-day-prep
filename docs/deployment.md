@@ -36,6 +36,7 @@ This must apply:
 - `supabase/migrations/0004_revision_completion_identity.sql`
 - `supabase/migrations/0005_backlog_creation_metadata.sql`
 - `supabase/migrations/0006_backlog_queue_priority.sql`
+- `supabase/migrations/0007_schedule_shift_events.sql`
 
 `0002_runtime_rls_realtime.sql` is required for:
 
@@ -65,6 +66,12 @@ This must apply:
 
 - stable backlog priority ordering
 - queue reordering that persists cleanly across sessions and runtimes
+
+`0007_schedule_shift_events.sql` is required for:
+
+- anchored shift-event persistence
+- repeated-shift safety across local and Supabase runtimes
+- preview/apply consistency for schedule remapping after deployment
 
 ## Auth Setup
 
@@ -127,6 +134,8 @@ Run this immediately after the first deployment:
 10. Inspect `automation_job_runs` and confirm the run was recorded.
 11. Reschedule a backlog item into a future block, open that target day, and confirm the item renders inside the destination block.
 12. Complete the destination block and confirm the assigned backlog item closes automatically.
+13. Create two heavily missed days in the last 7-day window and confirm the shift preview appears.
+14. Apply the shift and confirm Today, Schedule Browser, and GT markers all move together without breaching August 20.
 
 ## Rollback Notes
 
