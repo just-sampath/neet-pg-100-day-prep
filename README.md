@@ -59,6 +59,7 @@ Default local credentials:
 - Backlog queue now uses block-type-aware recovery suggestions, bulk reschedule-to-suggestion flows, original mapped-date metadata, and target-day integration directly inside destination block cards
 - Schedule shift now uses an anchored preview/apply flow with Day 84 absorption, fixed Final Assault compression order, repeated-shift safety, and hard-boundary enforcement at August 20, 2026
 - Schedule Browser now auto-focuses today, keeps future days read-only, exposes retroactive completion only on past days, and shows original planned dates when shifts change the live mapping
+- MCQ tracking now matches the spec: derived-wrong bulk entry, canonical 19-subject dropdowns, quick-tap one-by-one result buttons, remembered `Add details` state, recent topic/source suggestions, and analytics for trend, breakdown, subject accuracy, weak subjects, and cause codes
 - Supabase auth, persistence, RLS, and Realtime integration path for shared-state deployment
 - Production cron routes for IST midnight rollover and weekly summary automation
 - Job telemetry in `automation_job_runs` plus manual cron setup SQL for Supabase

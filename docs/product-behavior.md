@@ -81,3 +81,20 @@
 - Break and meal slots stay visible as thin separators between study blocks.
 - The Today screen includes a direct MCQ quick-log entry point.
 - Completion uses a quiet celebration treatment rather than a loud success screen.
+
+## MCQ Tracker
+
+- Bulk entry keeps the high-speed path minimal: date, attempted, correct, derived wrong, with optional subject and source context.
+- Bulk subject values are restricted to the canonical schedule subject list.
+- One-by-one entry keeps the required path to `MCQ ID + result tap`.
+- `Add details` is collapsed by default and remembers its last open/closed state within the current session.
+- After a one-by-one submit, subject, source, and expander state persist; the rest of the optional fields clear.
+- Cause codes, priority codes, fix codes, and tags are enforced to the canonical PRD vocabularies.
+- Topic and source suggestions come from prior entries, not hard-coded lists.
+
+## MCQ Analytics
+
+- Trend uses daily solved volume with an accuracy line and no target or streak framing.
+- Breakdown keeps `Right`, `Guessed Right`, and `Wrong` separate so weak confidence is still visible.
+- Subject accuracy only uses entries that were tagged with a subject.
+- Weekly summaries pull top wrong subjects and top cause codes from the same MCQ analytics source.

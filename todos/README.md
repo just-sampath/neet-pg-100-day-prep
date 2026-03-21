@@ -36,7 +36,7 @@ The codebase is production-ready only when:
 8. [x] [008-backlog-suggestion-and-queue.md](./008-backlog-suggestion-and-queue.md)
 9. [x] [009-schedule-shift-mechanism.md](./009-schedule-shift-mechanism.md)
 10. [x] [010-schedule-browser-and-retroactive-editing.md](./010-schedule-browser-and-retroactive-editing.md)
-11. [011-mcq-tracker-and-analytics.md](./011-mcq-tracker-and-analytics.md)
+11. [x] [011-mcq-tracker-and-analytics.md](./011-mcq-tracker-and-analytics.md)
 12. [012-gt-tracker-and-analytics.md](./012-gt-tracker-and-analytics.md)
 13. [013-weekly-summary-and-review.md](./013-weekly-summary-and-review.md)
 14. [014-quotes-system.md](./014-quotes-system.md)

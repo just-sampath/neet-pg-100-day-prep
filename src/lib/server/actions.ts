@@ -34,13 +34,11 @@ import {
   getShiftPreview,
   reconcileRevisionCompletionsForSource,
 } from "@/lib/domain/schedule";
+import { validateMcqBulkDraft, validateMcqItemDraft } from "@/lib/domain/mcq";
 import type {
   BacklogBulkScope,
   BacklogMoveDirection,
   BlockKey,
-  McqCauseCode,
-  McqPriority,
-  McqResult,
   RevisionSourceBlockKey,
   TrafficLight,
 } from "@/lib/domain/types";
@@ -396,52 +394,94 @@ export async function applyShiftAction(formData: FormData) {
 
 export async function submitMcqBulkAction(formData: FormData) {
   const user = await requireCurrentUser();
+  let result: { ok: boolean; error?: string } = { ok: true };
   await mutateStore((store) => {
     const userState = store.userState[user.id];
+    const validated = validateMcqBulkDraft(
+      {
+        entryDate: asString(formData.get("entryDate")) || null,
+        totalAttempted: asString(formData.get("totalAttempted")) || null,
+        correct: asString(formData.get("correct")) || null,
+        wrong: asString(formData.get("wrong")) || null,
+        subject: asString(formData.get("subject")) || null,
+        source: asString(formData.get("source")) || null,
+      },
+      toDateOnly(getEffectiveNow(store)),
+    );
+
+    if (!validated.ok) {
+      result = validated;
+      return;
+    }
+
     const id = randomUUID();
     userState.mcqBulkLogs[id] = {
       id,
-      entryDate: asString(formData.get("entryDate")) || toDateOnly(new Date()),
-      totalAttempted: Number(asString(formData.get("totalAttempted")) || 0),
-      correct: Number(asString(formData.get("correct")) || 0),
-      wrong: Number(asString(formData.get("wrong")) || 0),
-      subject: asString(formData.get("subject")) || null,
-      source: asString(formData.get("source")) || null,
+      entryDate: validated.value.entryDate,
+      totalAttempted: validated.value.totalAttempted,
+      correct: validated.value.correct,
+      wrong: validated.value.wrong,
+      subject: validated.value.subject,
+      source: validated.value.source,
       createdAt: new Date().toISOString(),
     };
   });
-  refresh();
+  if (result.ok) {
+    refresh();
+  }
+  return result;
 }
 
 export async function submitMcqItemAction(formData: FormData) {
   const user = await requireCurrentUser();
+  let result: { ok: boolean; error?: string } = { ok: true };
   await mutateStore((store) => {
     const userState = store.userState[user.id];
+    const validated = validateMcqItemDraft(
+      {
+        entryDate: asString(formData.get("entryDate")) || null,
+        mcqId: asString(formData.get("mcqId")) || null,
+        result: asString(formData.get("result")) || null,
+        subject: asString(formData.get("subject")) || null,
+        topic: asString(formData.get("topic")) || null,
+        source: asString(formData.get("source")) || null,
+        causeCode: asString(formData.get("causeCode")) || null,
+        priority: asString(formData.get("priority")) || null,
+        correctRule: asString(formData.get("correctRule")) || null,
+        whatFooledMe: asString(formData.get("whatFooledMe")) || null,
+        fixCodes: formData.getAll("fixCodes").map((value) => (typeof value === "string" ? value : null)),
+        tags: formData.getAll("tags").map((value) => (typeof value === "string" ? value : null)),
+      },
+      toDateOnly(getEffectiveNow(store)),
+    );
+
+    if (!validated.ok) {
+      result = validated;
+      return;
+    }
+
     const id = randomUUID();
     userState.mcqItemLogs[id] = {
       id,
-      entryDate: asString(formData.get("entryDate")) || toDateOnly(new Date()),
-      mcqId: asString(formData.get("mcqId")),
-      result: asString(formData.get("result")) as McqResult,
-      subject: asString(formData.get("subject")) || null,
-      topic: asString(formData.get("topic")) || null,
-      source: asString(formData.get("source")) || null,
-      causeCode: (asString(formData.get("causeCode")) || null) as McqCauseCode | null,
-      priority: (asString(formData.get("priority")) || null) as McqPriority | null,
-      correctRule: asString(formData.get("correctRule")) || null,
-      whatFooledMe: asString(formData.get("whatFooledMe")) || null,
-      fixCodes: asString(formData.get("fixCodes"))
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
-      tags: asString(formData.get("tags"))
-        .split(",")
-        .map((item) => item.trim())
-        .filter(Boolean),
+      entryDate: validated.value.entryDate,
+      mcqId: validated.value.mcqId,
+      result: validated.value.result,
+      subject: validated.value.subject,
+      topic: validated.value.topic,
+      source: validated.value.source,
+      causeCode: validated.value.causeCode,
+      priority: validated.value.priority,
+      correctRule: validated.value.correctRule,
+      whatFooledMe: validated.value.whatFooledMe,
+      fixCodes: validated.value.fixCodes,
+      tags: validated.value.tags,
       createdAt: new Date().toISOString(),
     };
   });
-  refresh();
+  if (result.ok) {
+    refresh();
+  }
+  return result;
 }
 
 export async function submitGtAction(formData: FormData) {

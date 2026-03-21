@@ -34,6 +34,17 @@ import {
   getShiftHiddenDayLabel,
 } from "@/lib/domain/schedule";
 import { getTrafficLightBacklogSourceTag, previewOverrunCascade, shouldCreateBacklogItem } from "@/lib/domain/backlog";
+import {
+  buildMcqAccuracyBySubject,
+  buildMcqBreakdownData,
+  buildMcqDashboardSummary,
+  buildMcqTrendData,
+  getMcqRecentSources,
+  getMcqRecentTopics,
+  getMcqSubjectOptions,
+  getMcqTopCauseCodes,
+  getMcqTopWrongSubjects,
+} from "@/lib/domain/mcq";
 import { getQuote } from "@/lib/domain/quotes";
 import type {
   AppSettings,
@@ -536,11 +547,11 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
     overallAccuracy: current.overallAccuracy,
     accuracyVsPrevious,
     topWrongSubjects: [...wrongSubjects.entries()]
-      .sort((left, right) => right[1] - left[1])
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
       .slice(0, 5)
       .map(([label, count]) => ({ label, count })),
     topCauseCodes: [...causeCodes.entries()]
-      .sort((left, right) => right[1] - left[1])
+      .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
       .slice(0, 5)
       .map(([label, count]) => ({ label, count })),
     gtNumber: gt?.gtNumber ?? null,
@@ -684,6 +695,40 @@ export function getBacklogPageData(
     summary: getBacklogSummary(userState),
     counts: getBacklogStatusCounts(userState),
     items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort),
+  };
+}
+
+export function getMcqPageData(store: LocalStore, userId: string) {
+  applyAutomations(store, userId);
+
+  const userState = store.userState[userId];
+  const now = getEffectiveNow(store);
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+  const bulkLogs = Object.values(userState.mcqBulkLogs).toSorted((left, right) => right.entryDate.localeCompare(left.entryDate));
+  const itemLogs = Object.values(userState.mcqItemLogs).toSorted((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+  return {
+    todayDate,
+    summary: buildMcqDashboardSummary(userState),
+    subjects: getMcqSubjectOptions(),
+    recentTopics: getMcqRecentTopics(itemLogs),
+    recentSources: getMcqRecentSources(bulkLogs, itemLogs),
+    recentDetailedEntries: itemLogs.slice(0, 6),
+  };
+}
+
+export function getMcqAnalyticsData(store: LocalStore, userId: string) {
+  applyAutomations(store, userId);
+
+  const userState = store.userState[userId];
+
+  return {
+    summary: buildMcqDashboardSummary(userState),
+    trendData: buildMcqTrendData(userState),
+    breakdownData: buildMcqBreakdownData(userState),
+    accuracyBySubject: buildMcqAccuracyBySubject(userState),
+    wrongSubjects: getMcqTopWrongSubjects(userState),
+    causeCodes: getMcqTopCauseCodes(userState),
   };
 }
 

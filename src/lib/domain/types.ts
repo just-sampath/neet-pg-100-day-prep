@@ -54,6 +54,8 @@ export type McqResult = "right" | "wrong" | "guessed_right";
 export type McqCauseCode = "R" | "C" | "A" | "D" | "I" | "M" | "V" | "B" | "T" | "K";
 
 export type McqPriority = "P1" | "P2" | "P3";
+export type McqFixCode = "N" | "Q20" | "Q40M" | "A1" | "A3" | "T2" | "I10" | "F5" | "E" | "AI" | "G";
+export type McqTag = "protocol" | "volatile" | "management" | "image" | "emergency" | "screening" | "staging";
 export type TimelineSlotKind = "study" | "break" | "meal";
 
 export interface GeneratedQuote {
@@ -288,8 +290,8 @@ export interface McqItemLog {
   priority: McqPriority | null;
   correctRule: string | null;
   whatFooledMe: string | null;
-  fixCodes: string[];
-  tags: string[];
+  fixCodes: McqFixCode[];
+  tags: McqTag[];
   createdAt: string;
 }
 

@@ -51,6 +51,13 @@ npm run build:webpack
   - past/today/future/shift-hidden editability boundaries
   - today highlighting in the browser list
   - day-detail retroactive mode only on past visible days
+- MCQ branch coverage for:
+  - bulk-entry math validation and derived wrong-count behavior
+  - canonical subject/result/cause/priority/fix/tag enforcement
+  - stored legacy MCQ log normalization before analytics
+  - recent topic/source suggestions from prior entries
+  - trend, breakdown, subject-accuracy, weak-subject, and cause-code aggregations
+  - weekly-summary MCQ insight feed
 
 ## Local Mode Manual Pass
 
@@ -78,19 +85,22 @@ Then verify:
 14. Open a past schedule day and complete a block with a retroactive date.
 15. Confirm the old planned revision placement disappears and the new anchor date gains the item.
 16. Log MCQ bulk and item data.
-17. Log a GT entry.
-18. Generate a weekly summary.
-19. Export JSON.
-20. Reschedule a backlog item and confirm it renders inside the destination block card rather than a detached recovery strip.
-21. Complete the destination block and confirm the assigned backlog item closes automatically.
-22. In a separate pass, skip or miss the destination block and confirm the assigned backlog item returns to `pending`.
-23. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
-24. Open shift preview and confirm it starts from the earliest missed day, uses Day 84 first, and lists the exact compression pair when needed.
-25. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with it, and backlog from the shifted span is cleared.
-26. Open `/schedule` and confirm the browser scrolls near Today and highlights it.
-27. Open a future day from the browser and confirm it is view-only.
-28. Open a past day and confirm only retroactive completion is available.
-29. Open an absorbed or merged shift-hidden day and confirm it is view-only while still showing why the mapping changed.
+17. Confirm bulk `wrong` auto-derives from attempted and correct.
+18. Confirm one-by-one `MCQ ID + result tap` works without opening details.
+19. Expand `Add details`, submit once, and confirm subject/source plus expander state persist while the other optional fields clear.
+20. Log a GT entry.
+21. Generate a weekly summary.
+22. Export JSON.
+23. Reschedule a backlog item and confirm it renders inside the destination block card rather than a detached recovery strip.
+24. Complete the destination block and confirm the assigned backlog item closes automatically.
+25. In a separate pass, skip or miss the destination block and confirm the assigned backlog item returns to `pending`.
+26. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+27. Open shift preview and confirm it starts from the earliest missed day, uses Day 84 first, and lists the exact compression pair when needed.
+28. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with it, and backlog from the shifted span is cleared.
+29. Open `/schedule` and confirm the browser scrolls near Today and highlights it.
+30. Open a future day from the browser and confirm it is view-only.
+31. Open a past day and confirm only retroactive completion is available.
+32. Open an absorbed or merged shift-hidden day and confirm it is view-only while still showing why the mapping changed.
 
 ## Time-Based Manual Pass
 

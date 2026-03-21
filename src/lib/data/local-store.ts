@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import { DEFAULT_LOCAL_USER } from "@/lib/domain/constants";
+import { normalizeStoredMcqBulkLog, normalizeStoredMcqItemLog } from "@/lib/domain/mcq";
 import type {
   AppSettings,
   BacklogItem,
@@ -13,8 +14,6 @@ import type {
   LocalSession,
   LocalStore,
   LocalUser,
-  McqBulkLog,
-  McqItemLog,
   RevisionCompletion,
   RevisionSourceBlockKey,
   ScheduleShiftEvent,
@@ -377,6 +376,12 @@ function normalizeUserState(userState: UserState | undefined): UserState {
         },
       ]),
     ),
+    mcqBulkLogs: Object.fromEntries(
+      Object.entries(base.mcqBulkLogs ?? {}).map(([id, log]) => [id, normalizeStoredMcqBulkLog(log)]),
+    ),
+    mcqItemLogs: Object.fromEntries(
+      Object.entries(base.mcqItemLogs ?? {}).map(([id, log]) => [id, normalizeStoredMcqItemLog(log)]),
+    ),
     revisionCompletions: normalizeRevisionCompletions(base.revisionCompletions),
     processedDates: normalizeProcessedDates(base.processedDates),
   };
@@ -518,7 +523,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
   }
 
   for (const row of mcqBulkLogsResult.data ?? []) {
-    const log: McqBulkLog = {
+    const log = normalizeStoredMcqBulkLog({
       id: row.id,
       entryDate: row.entry_date,
       totalAttempted: row.total_attempted,
@@ -527,12 +532,12 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       subject: row.subject,
       source: row.source,
       createdAt: row.created_at,
-    };
+    });
     userState.mcqBulkLogs[log.id] = log;
   }
 
   for (const row of mcqItemLogsResult.data ?? []) {
-    const log: McqItemLog = {
+    const log = normalizeStoredMcqItemLog({
       id: row.id,
       entryDate: row.entry_date,
       mcqId: row.mcq_id,
@@ -547,7 +552,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       fixCodes: row.fix_codes ?? [],
       tags: row.tags ?? [],
       createdAt: row.created_at,
-    };
+    });
     userState.mcqItemLogs[log.id] = log;
   }
 

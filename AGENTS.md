@@ -120,6 +120,7 @@ Defaults:
 - `src/lib/domain/constants.ts`: exam date, hard boundary, traffic-light block sets, compression rules
 - `src/lib/domain/backlog.ts`: traffic-light restore rules, backlog-creation guards, and overrun preview logic
 - `src/lib/domain/backlog-queue.ts`: backlog suggestion engine, queue sorting, priority movement, target validation, and assigned-recovery read models
+- `src/lib/domain/mcq.ts`: canonical MCQ vocabularies, validation, normalization, recent-suggestion helpers, analytics aggregations, and weekly-summary feed support
 - `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, schedule-browser editability, and anchored schedule-shift preview logic
 - `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
 - `src/lib/domain/quotes.ts`: quote selection
@@ -256,6 +257,19 @@ The generated schedule bundle includes:
 - `7+` day misses become restudy flags.
 - Retroactive completion can move the anchor later; if that makes an earlier revision checkoff impossible, the old checkoff is removed during reconciliation.
 
+## MCQ Rules
+
+- Bulk entry keeps the fast path to date, attempted, correct, and derived wrong count, with optional subject and source.
+- Bulk and one-by-one subject tagging must use the canonical 19-subject schedule list.
+- One-by-one required path is only `MCQ ID` plus a result tap.
+- `Add details` is collapsed by default and remembers its session state.
+- After one-by-one submit, keep `subject`, `source`, and expander state; clear the rest.
+- Cause codes: `R`, `C`, `A`, `D`, `I`, `M`, `V`, `B`, `T`, `K`
+- Priority levels: `P1`, `P2`, `P3`
+- Fix codes: `N`, `Q20`, `Q40M`, `A1`, `A3`, `T2`, `I10`, `F5`, `E`, `AI`, `G`
+- Tags: `protocol`, `volatile`, `management`, `image`, `emergency`, `screening`, `staging`
+- Analytics must expose daily trend, right/guessed-right/wrong breakdown, subject accuracy, weak subjects, and cause codes without introducing targets or streaks.
+
 ## Testing Checklist
 
 Every feature should be runnable locally. Minimum manual pass:
@@ -282,15 +296,18 @@ Every feature should be runnable locally. Minimum manual pass:
 15. Open a future day and confirm the page is view-only.
 16. Open a shift-hidden day and confirm it stays view-only while still explaining the active mapping.
 17. Log MCQ bulk and item data.
-18. Log GT data.
-19. Generate a weekly summary.
-20. Export JSON.
-21. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
-22. Complete that destination block and confirm the assigned backlog item closes with it.
-23. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
-24. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
-25. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
-26. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
+18. Confirm bulk `wrong` auto-derives from attempted and correct.
+19. Confirm one-by-one `MCQ ID + result tap` works with details closed.
+20. Expand `Add details`, submit once, and confirm subject/source plus expander state persist while optional note fields clear.
+21. Log GT data.
+22. Generate a weekly summary.
+23. Export JSON.
+24. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
+25. Complete that destination block and confirm the assigned backlog item closes with it.
+26. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
+27. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+28. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
+29. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
 
 Supabase runtime pass:
 

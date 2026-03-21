@@ -35,11 +35,12 @@ The generator validates workbook structure before output:
 - `src/lib/domain/constants.ts`
 - `src/lib/domain/backlog.ts`
 - `src/lib/domain/backlog-queue.ts`
+- `src/lib/domain/mcq.ts`
 - `src/lib/domain/schedule.ts`
 - `src/lib/domain/today.ts`
 - `src/lib/domain/quotes.ts`
 
-This layer defines schedule mapping, traffic-light scope, revision derivation, backlog suggestion/queue behavior, shift absorption, backlog-creation rules, overrun preview logic, and quote category selection.
+This layer defines schedule mapping, traffic-light scope, revision derivation, backlog suggestion/queue behavior, shift absorption, backlog-creation rules, overrun preview logic, MCQ validation/analytics vocabularies, and quote category selection.
 
 `src/lib/domain/today.ts` owns the Today-screen-specific pure helpers that should stay easy to test:
 
@@ -147,6 +148,7 @@ This layer:
 
 - applies late-night and midnight automation
 - derives Today view data
+- builds MCQ tracker and analytics read models
 - builds schedule browser data
 - generates weekly summaries
 - owns traffic-light downgrade/upgrade behavior and backlog creation branches
@@ -162,6 +164,15 @@ Implemented backlog creation behavior:
 - overrun cascade can either move the next affected block to backlog or force the affected tail to backlog when sleep would be breached
 - assigned backlog recovery now renders inside the destination block on Today and Schedule Day views rather than as a detached side list
 - assigned backlog recovery is synchronized to the destination block lifecycle: completing the destination slot completes the assigned backlog item, while missing that slot releases it back to `pending`
+
+Implemented MCQ behavior:
+
+- bulk entry uses canonical subject values and derives `wrong` from attempted minus correct
+- one-by-one entry keeps the minimal `MCQ ID + result tap` path separate from the optional details bundle
+- the details expander persists within a session without polluting server markup
+- recent topic and source suggestions are derived from prior entries
+- analytics read models expose trend, breakdown, subject accuracy, weak subjects, and cause-code rankings
+- weekly summaries consume the same canonical wrong-subject and cause-code signals
 
 ### Server Automation Layer
 
