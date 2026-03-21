@@ -65,6 +65,11 @@ npm run build:webpack
   - score trend, section pattern, section time-loss, comparison, wrapper-trend, and weakness aggregations
   - AIR vs percentile comparison direction handling
   - weekly-summary GT insight feed
+- Weekly-summary branch coverage for:
+  - midweek partial snapshot generation
+  - Sunday `23:30` IST automation cutoff
+  - safe regeneration/upsert for the same week
+  - stored payload integrity for schedule, revision, backlog, MCQ, and GT signals
 
 ## Local Mode Manual Pass
 
@@ -100,14 +105,15 @@ Then verify:
 22. Confirm recurring GT topics stop at 3 and weakest-subject chips persist after save.
 23. Confirm GT analytics show score trend, section patterns, comparison, wrapper trend, section time-loss reasons, and weak-subject/topic repetition.
 24. Generate a weekly summary.
-25. Export JSON.
-26. Reschedule a backlog item and confirm it renders inside the destination block card rather than a detached recovery strip.
-27. Complete the destination block and confirm the assigned backlog item closes automatically.
-28. In a separate pass, skip or miss the destination block and confirm the assigned backlog item returns to `pending`.
-29. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
-30. Open shift preview and confirm it starts from the earliest missed day, uses Day 84 first, and lists the exact compression pair when needed.
-31. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with it, and backlog from the shifted span is cleared.
-32. Open `/schedule` and confirm the browser scrolls near Today and highlights it.
+25. Open the weekly detail page and confirm it shows schedule adherence, revision health, overrun labels, MCQ trends, GT summary, backlog breakdown, and subjects studied.
+26. Export JSON.
+27. Reschedule a backlog item and confirm it renders inside the destination block card rather than a detached recovery strip.
+28. Complete the destination block and confirm the assigned backlog item closes automatically.
+29. In a separate pass, skip or miss the destination block and confirm the assigned backlog item returns to `pending`.
+30. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+31. Open shift preview and confirm it starts from the earliest missed day, uses Day 84 first, and lists the exact compression pair when needed.
+32. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with it, and backlog from the shifted span is cleared.
+33. Open `/schedule` and confirm the browser scrolls near Today and highlights it.
 33. Open a future day from the browser and confirm it is view-only.
 34. Open a past day and confirm only retroactive completion is available.
 35. Open an absorbed or merged shift-hidden day and confirm it is view-only while still showing why the mapping changed.

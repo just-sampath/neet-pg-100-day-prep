@@ -37,11 +37,12 @@ The generator validates workbook structure before output:
 - `src/lib/domain/backlog-queue.ts`
 - `src/lib/domain/gt.ts`
 - `src/lib/domain/mcq.ts`
+- `src/lib/domain/weekly.ts`
 - `src/lib/domain/schedule.ts`
 - `src/lib/domain/today.ts`
 - `src/lib/domain/quotes.ts`
 
-This layer defines schedule mapping, traffic-light scope, revision derivation, backlog suggestion/queue behavior, shift absorption, backlog-creation rules, overrun preview logic, GT validation/analytics vocabularies, MCQ validation/analytics vocabularies, and quote category selection.
+This layer defines schedule mapping, traffic-light scope, revision derivation, backlog suggestion/queue behavior, shift absorption, backlog-creation rules, overrun preview logic, GT validation/analytics vocabularies, MCQ validation/analytics vocabularies, weekly-summary normalization/cadence helpers, and quote category selection.
 
 `src/lib/domain/today.ts` owns the Today-screen-specific pure helpers that should stay easy to test:
 
@@ -74,6 +75,7 @@ This layer decides whether the app is operating in `local` or `supabase` mode an
 - `supabase/migrations/0006_backlog_queue_priority.sql`
 - `supabase/migrations/0007_schedule_shift_events.sql`
 - `supabase/migrations/0008_gt_weakest_subjects.sql`
+- `supabase/migrations/0009_weekly_summary_uniqueness.sql`
 
 `src/lib/data/local-store.ts` is now the runtime-aware persistence boundary.
 
@@ -182,6 +184,13 @@ Implemented MCQ behavior:
 - analytics read models expose trend, breakdown, subject accuracy, weak subjects, and cause-code rankings
 - weekly summaries consume the same canonical wrong-subject and cause-code signals
 
+Implemented weekly-summary behavior:
+
+- manual generation creates a partial snapshot only through the current IST date
+- Sunday automation seals the full Monday-Sunday week at `23:30` IST
+- regeneration refreshes the same `week_key` instead of creating duplicate summaries
+- weekly detail pages expose schedule adherence, revision pressure, overrun lists, MCQ signal, GT signal, backlog snapshot, and subjects studied
+
 Implemented GT behavior:
 
 - GT schedule context is derived from the workbook GT plan after schedule shifts are applied
@@ -204,6 +213,7 @@ This layer owns hosted scheduled work in `supabase` mode.
 
 - Midnight rollover runs at `00:00` IST and is keyed idempotently by the processed IST date.
 - Weekly summary generation runs at `23:30` IST each Sunday and is keyed idempotently by the processed IST date.
+- Weekly summary storage is also constrained by `user_id + week_key`, so concurrent writes converge on one stored summary per week.
 - Keep-alive exists as a lightweight hosting reliability path.
 - Cron routes are protected by `Authorization: Bearer ${CRON_SECRET}`.
 - Job runs are recorded in `automation_job_runs` for safe re-run detection and failure investigation.

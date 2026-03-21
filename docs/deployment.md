@@ -131,12 +131,13 @@ Run this immediately after the first deployment:
 7. Test export from `Settings` or `GET /api/export`.
 8. Trigger `/api/cron/midnight` with the bearer token once and confirm a successful response.
 9. Trigger `/api/cron/weekly` with the bearer token once and confirm a successful response.
-10. Inspect `automation_job_runs` and confirm the run was recorded.
-11. Reschedule a backlog item into a future block, open that target day, and confirm the item renders inside the destination block.
-12. Complete the destination block and confirm the assigned backlog item closes automatically.
-13. Create two heavily missed days in the last 7-day window and confirm the shift preview appears.
-14. Apply the shift and confirm Today, Schedule Browser, and GT markers all move together without breaching August 20.
-15. Open `/schedule` and confirm Today is easy to find, future days are view-only, and shifted days still explain their original planned date.
+10. Confirm the weekly run creates or refreshes exactly one summary for that user/week rather than duplicating the same week.
+11. Inspect `automation_job_runs` and confirm the run was recorded.
+12. Reschedule a backlog item into a future block, open that target day, and confirm the item renders inside the destination block.
+13. Complete the destination block and confirm the assigned backlog item closes automatically.
+14. Create two heavily missed days in the last 7-day window and confirm the shift preview appears.
+15. Apply the shift and confirm Today, Schedule Browser, and GT markers all move together without breaching August 20.
+16. Open `/schedule` and confirm Today is easy to find, future days are view-only, and shifted days still explain their original planned date.
 
 ## Rollback Notes
 

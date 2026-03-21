@@ -3,7 +3,6 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { runWeeklySummaryAutomation } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
-import { IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
 export async function POST() {
   const user = await getCurrentUser();
@@ -14,7 +13,7 @@ export async function POST() {
   await mutateStore((store) => {
     const userState = store.userState[user.id];
     const now = store.dev.simulatedNowIso ?? new Date().toISOString();
-    runWeeklySummaryAutomation(userState, userState.settings, toDateOnlyInTimeZone(now, IST_TIME_ZONE));
+    runWeeklySummaryAutomation(userState, userState.settings, now);
   });
 
   return NextResponse.json({ ok: true });

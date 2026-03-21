@@ -122,6 +122,7 @@ Defaults:
 - `src/lib/domain/backlog-queue.ts`: backlog suggestion engine, queue sorting, priority movement, target validation, and assigned-recovery read models
 - `src/lib/domain/gt.ts`: GT validation, mapped GT schedule helpers, comparison analytics, and weakness tracking
 - `src/lib/domain/mcq.ts`: canonical MCQ vocabularies, validation, normalization, recent-suggestion helpers, analytics aggregations, and weekly-summary feed support
+- `src/lib/domain/weekly.ts`: weekly-summary normalization, week-key lookup, status labeling, and cadence helpers
 - `src/lib/domain/schedule.ts`: schedule mapping, revision derivation, schedule-browser editability, and anchored schedule-shift preview logic
 - `src/lib/domain/today.ts`: Today timeline ordering, wind-down prompt branching, and Today-view display helpers
 - `src/lib/domain/quotes.ts`: quote selection
@@ -145,6 +146,7 @@ Defaults:
 - `supabase/migrations/0006_backlog_queue_priority.sql`: queue priority ordering for backlog items
 - `supabase/migrations/0007_schedule_shift_events.sql`: persistent shift-event history for anchored schedule shifts
 - `supabase/migrations/0008_gt_weakest_subjects.sql`: explicit weakest-subject persistence for GT wrapper analytics
+- `supabase/migrations/0009_weekly_summary_uniqueness.sql`: one summary per user per week plus duplicate cleanup
 - `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
 
 ### Server Automation
@@ -303,6 +305,22 @@ The generated schedule bundle includes:
   - repeated recurring topics
 - Weekly summaries use the latest GT in the week: GT number, score, AIR/percentile text, and wrapper summary.
 
+## Weekly Summary Rules
+
+- Weekly automation runs at Sunday `23:30` IST and covers Monday-Sunday of that week.
+- Manual generation stays available at any time from the Weekly page.
+- Manual generation snapshots the current week only through the current IST date; it must not count future days or logs.
+- Weekly summaries are upserted by `weekKey`, not appended blindly, so regenerating the same week refreshes the stored record instead of creating duplicates.
+- The stored weekly payload must include:
+  - schedule adherence counts and rate
+  - traffic-light counts
+  - morning revision counts and rate
+  - revision overflow / catch-up / restudy pressure
+  - overrun count and per-block labels
+  - MCQ totals, accuracy, trend, wrong subjects, and cause codes
+  - latest GT in the week with score / AIR / wrapper summary
+  - schedule health, backlog snapshot, and subjects studied
+
 ## Testing Checklist
 
 Every feature should be runnable locally. Minimum manual pass:
@@ -336,13 +354,14 @@ Every feature should be runnable locally. Minimum manual pass:
 22. Confirm GT recurring topics stop at 3 and weakest-subject chips persist.
 23. Confirm GT analytics show score trend, section patterns, comparison, wrapper trend, and weakness repetition.
 24. Generate a weekly summary.
-25. Export JSON.
-26. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
-27. Complete that destination block and confirm the assigned backlog item closes with it.
-28. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
-29. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
-30. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
-31. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
+25. Open the weekly detail page and confirm it shows schedule adherence, revision pressure, overrun labels, MCQ signal, GT signal, backlog breakdown, and subjects studied.
+26. Export JSON.
+27. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
+28. Complete that destination block and confirm the assigned backlog item closes with it.
+29. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
+30. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+31. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
+32. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
 
 Supabase runtime pass:
 

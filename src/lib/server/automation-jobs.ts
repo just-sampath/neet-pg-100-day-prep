@@ -205,7 +205,7 @@ export async function runWeeklySummaryCronJob(runAt = new Date()): Promise<JobRe
       const store = await readSupabaseStoreForUser(user, supabase);
       const previous = structuredClone(store);
       const userState = store.userState[userId];
-      const weekly = runWeeklySummaryAutomation(userState, userState.settings, scheduledDate);
+      const weekly = runWeeklySummaryAutomation(userState, userState.settings, runAt);
 
       if (JSON.stringify(store) !== JSON.stringify(previous)) {
         await persistSupabaseStoreForUser(store, previous, supabase);

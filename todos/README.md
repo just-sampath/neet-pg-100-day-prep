@@ -38,7 +38,7 @@ The codebase is production-ready only when:
 10. [x] [010-schedule-browser-and-retroactive-editing.md](./010-schedule-browser-and-retroactive-editing.md)
 11. [x] [011-mcq-tracker-and-analytics.md](./011-mcq-tracker-and-analytics.md)
 12. [x] [012-gt-tracker-and-analytics.md](./012-gt-tracker-and-analytics.md)
-13. [013-weekly-summary-and-review.md](./013-weekly-summary-and-review.md)
+13. [x] [013-weekly-summary-and-review.md](./013-weekly-summary-and-review.md)
 14. [014-quotes-system.md](./014-quotes-system.md)
 15. [015-settings-pwa-and-installability.md](./015-settings-pwa-and-installability.md)
 16. [016-design-performance-and-release-hardening.md](./016-design-performance-and-release-hardening.md)

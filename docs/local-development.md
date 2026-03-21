@@ -160,7 +160,7 @@ curl http://localhost:3000/api/keep-alive \
 Expected results:
 
 - midnight returns a processed-user count and idempotent run metadata
-- weekly returns whether a summary was generated for the eligible IST week
+- weekly returns whether a summary was generated for the eligible IST week, and generation should only occur after Sunday `23:30` IST
 - keep-alive returns a lightweight health payload
 
 ## Regenerate Static Data

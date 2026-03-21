@@ -57,6 +57,7 @@ import {
   getMcqTopWrongSubjects,
 } from "@/lib/domain/mcq";
 import { getQuote } from "@/lib/domain/quotes";
+import { findWeeklySummaryByWeekKey, getWeeklyScheduleStatus, WEEKLY_AUTOMATION_MINUTES } from "@/lib/domain/weekly";
 import type {
   AppSettings,
   BacklogItem,
@@ -74,7 +75,14 @@ import type {
 import { scheduleData } from "@/lib/generated/schedule-data";
 import { getEffectiveNow } from "@/lib/data/local-store";
 import { getRuntimeMode } from "@/lib/runtime/mode";
-import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE, toDateOnlyInTimeZone, weekBounds } from "@/lib/utils/date";
+import {
+  addDaysToDateOnly,
+  getMinutesInTimeZone,
+  getWeekdayInTimeZone,
+  IST_TIME_ZONE,
+  toDateOnlyInTimeZone,
+  weekBounds,
+} from "@/lib/utils/date";
 
 function progressKey(dayNumber: number, blockKey: BlockKey) {
   return `${dayNumber}:${blockKey}`;
@@ -453,11 +461,42 @@ export function applyScheduleShiftToUserState(
   return true;
 }
 
-export function generateWeeklySummary(userState: UserState, settings: AppSettings, weekStartDate: string): WeeklySummary {
+function getSummaryRate(completed: number, planned: number) {
+  return planned > 0 ? Number(((completed / planned) * 100).toFixed(1)) : null;
+}
+
+function clampWeeklyCoverage(weekStartDate: string, throughDate?: string) {
   const { start, end } = weekBounds(weekStartDate);
+  if (!throughDate) {
+    return end;
+  }
+  if (throughDate < start) {
+    return start;
+  }
+  if (throughDate > end) {
+    return end;
+  }
+  return throughDate;
+}
+
+export function generateWeeklySummary(
+  userState: UserState,
+  settings: AppSettings,
+  weekStartDate: string,
+  options?: {
+    id?: string;
+    generatedAt?: string;
+    throughDate?: string;
+  },
+): WeeklySummary {
+  const { start, end } = weekBounds(weekStartDate);
+  const coveredThroughDate = clampWeeklyCoverage(start, options?.throughDate);
   const summaryDays = scheduleData.days.filter((day) => {
+    if (isCompressedHiddenDay(day.dayNumber, settings)) {
+      return false;
+    }
     const mappedDate = getMappedDate(day.dayNumber, settings);
-    return mappedDate && mappedDate >= start && mappedDate <= end;
+    return mappedDate && mappedDate >= start && mappedDate <= coveredThroughDate;
   });
 
   let blocksPlanned = 0;
@@ -467,6 +506,9 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
   let redDays = 0;
   let morningRevisionPlanned = 0;
   let morningRevisionCompleted = 0;
+  let revisionOverflowDays = 0;
+  const catchUpRevisionIds = new Set<string>();
+  const restudyRevisionIds = new Set<string>();
   const overrunMap = new Map<string, number>();
   const subjectsStudied = new Set<string>();
 
@@ -477,6 +519,7 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
     if (state.trafficLight === "yellow") yellowDays += 1;
     if (state.trafficLight === "red") redDays += 1;
     blocksPlanned += visibleBlocks.length;
+
     const mappedDate = getMappedDate(day.dayNumber, settings)!;
     const revisionPlan = buildDailyRevisionPlan(mappedDate, userState, settings);
     morningRevisionPlanned += revisionPlan.queue.length;
@@ -484,27 +527,45 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
       Boolean(userState.revisionCompletions[createRevisionId(item.sourceDay, item.sourceBlockKey, item.revisionType)]),
     ).length;
 
+    if (revisionPlan.overflow.length > 0) {
+      revisionOverflowDays += 1;
+    }
+    for (const item of revisionPlan.catchUp) {
+      catchUpRevisionIds.add(item.id);
+    }
+    for (const item of revisionPlan.restudyFlags) {
+      restudyRevisionIds.add(item.id);
+    }
+
     for (const block of visibleBlocks) {
       const progress = getBlockProgress(userState, day.dayNumber, block);
       if (progress.status === "completed" || progress.status === "partial") {
         blocksCompleted += 1;
-        subjectsStudied.add(getSubjectFromPrimaryFocus(day.primaryFocus));
       }
 
       const slot = day.slots.find((entry) => entry.key === block);
       if (progress.actualEnd && slot && progress.actualEnd > slot.end) {
-        const label = `${getSubjectFromPrimaryFocus(day.primaryFocus)} ${block}`;
+        const label = `${getSubjectFromPrimaryFocus(day.primaryFocus)} · ${slot.label}`;
         overrunMap.set(label, (overrunMap.get(label) ?? 0) + 1);
       }
     }
+
+    if (getDayCompletionState(day, userState, state.trafficLight)) {
+      subjectsStudied.add(getSubjectFromPrimaryFocus(day.primaryFocus));
+    }
   }
 
-  const bulkLogs = Object.values(userState.mcqBulkLogs).filter((item) => item.entryDate >= start && item.entryDate <= end);
-  const itemLogs = Object.values(userState.mcqItemLogs).filter((item) => item.entryDate >= start && item.entryDate <= end);
+  const bulkLogs = Object.values(userState.mcqBulkLogs).filter(
+    (item) => item.entryDate >= start && item.entryDate <= coveredThroughDate,
+  );
+  const itemLogs = Object.values(userState.mcqItemLogs).filter(
+    (item) => item.entryDate >= start && item.entryDate <= coveredThroughDate,
+  );
   const totalMcqsSolved = bulkLogs.reduce((sum, log) => sum + log.totalAttempted, 0) + itemLogs.length;
   const correctFromBulk = bulkLogs.reduce((sum, log) => sum + log.correct, 0);
   const correctFromItems = itemLogs.filter((item) => item.result !== "wrong").length;
-  const overallAccuracy = totalMcqsSolved > 0 ? Number((((correctFromBulk + correctFromItems) / totalMcqsSolved) * 100).toFixed(1)) : null;
+  const overallAccuracy =
+    totalMcqsSolved > 0 ? Number((((correctFromBulk + correctFromItems) / totalMcqsSolved) * 100).toFixed(1)) : null;
 
   const wrongSubjects = new Map<string, number>();
   const causeCodes = new Map<string, number>();
@@ -518,18 +579,13 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
   }
 
   const gt = Object.values(userState.gtLogs)
-    .filter((item) => item.gtDate >= start && item.gtDate <= end)
+    .filter((item) => item.gtDate >= start && item.gtDate <= coveredThroughDate)
     .sort((left, right) => left.gtDate.localeCompare(right.gtDate))
     .at(-1) as GtLog | undefined;
 
-  const current = {
-    start,
-    end,
-    overallAccuracy,
-  };
   const previousSummary = Object.values(userState.weeklySummaries)
     .filter((item) => item.weekEndDate < start)
-    .sort((left, right) => right.weekEndDate.localeCompare(left.weekEndDate))
+    .sort((left, right) => right.weekEndDate.localeCompare(left.weekEndDate) || right.generatedAt.localeCompare(left.generatedAt))
     .at(0);
   const previousAccuracy = previousSummary?.overallAccuracy ?? null;
 
@@ -539,23 +595,38 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
     if (overallAccuracy < previousAccuracy) accuracyVsPrevious = "down";
   }
 
-  const { missedDays, suggestShift } = getScheduleHealth(userState, settings, getCurrentDayNumber(settings, end));
+  const currentDayNumber = getCurrentDayNumber(settings, coveredThroughDate);
+  const { missedDays } = getScheduleHealth(userState, settings, currentDayNumber);
+  const backlogSummary = getBacklogSummary(userState);
+  const bufferDaysUsed = settings.shiftEvents.filter((event) => event.bufferDayUsed !== null).length;
+  const scheduleStatus = getWeeklyScheduleStatus(missedDays.length, bufferDaysUsed);
+  const overrunBlocks = [...overrunMap.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .map(([label, count]) => ({ label, count }));
 
   return {
-    id: randomUUID(),
+    id: options?.id ?? randomUUID(),
     weekKey: start,
     weekStartDate: start,
     weekEndDate: end,
+    coveredThroughDate,
+    isPartialWeek: coveredThroughDate < end,
     blocksCompleted,
     blocksPlanned,
+    blocksCompletedRate: getSummaryRate(blocksCompleted, blocksPlanned),
     greenDays,
     yellowDays,
     redDays,
     morningRevisionCompleted,
     morningRevisionPlanned,
-    overrunBlocks: [...overrunMap.entries()].map(([label, count]) => ({ label, count })),
+    morningRevisionCompletionRate: getSummaryRate(morningRevisionCompleted, morningRevisionPlanned),
+    revisionOverflowDays,
+    revisionCatchUpCount: catchUpRevisionIds.size,
+    revisionRestudyCount: restudyRevisionIds.size,
+    overrunBlockCount: overrunBlocks.reduce((sum, item) => sum + item.count, 0),
+    overrunBlocks,
     totalMcqsSolved,
-    overallAccuracy: current.overallAccuracy,
+    overallAccuracy,
     accuracyVsPrevious,
     topWrongSubjects: [...wrongSubjects.entries()]
       .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
@@ -569,17 +640,46 @@ export function generateWeeklySummary(userState: UserState, settings: AppSetting
     gtScore: gt?.score ?? null,
     gtAir: gt?.airPercentile ?? null,
     gtWrapperSummary: gt?.changeBeforeNextGt ?? null,
-    scheduleStatus: suggestShift ? `${missedDays.length} missed days detected` : "On track",
-    backlogCount: getBacklogCount(userState),
-    bufferDaysUsed: userState.settings.shiftEvents.some((event) => event.bufferDayUsed === 84) ? 1 : 0,
-    subjectsStudied: [...subjectsStudied],
-    generatedAt: new Date().toISOString(),
+    scheduleStatusKind: scheduleStatus.kind,
+    scheduleStatus: scheduleStatus.label,
+    daysBehind: missedDays.length,
+    backlogCount: backlogSummary.totalPending,
+    backlogSummary,
+    bufferDaysUsed,
+    subjectsStudied: [...subjectsStudied].sort((left, right) => left.localeCompare(right)),
+    generatedAt: options?.generatedAt ?? new Date().toISOString(),
   };
 }
 
-export function runWeeklySummaryAutomation(userState: UserState, settings: AppSettings, todayDate: string) {
+export function upsertWeeklySummary(userState: UserState, settings: AppSettings, weekStartDate: string, throughDate?: string) {
+  const week = weekBounds(weekStartDate);
+  const existing = findWeeklySummaryByWeekKey(userState.weeklySummaries, week.start);
+  const summary = generateWeeklySummary(userState, settings, week.start, {
+    id: existing?.id,
+    throughDate,
+  });
+
+  for (const entry of Object.values(userState.weeklySummaries)) {
+    if (entry.weekKey === week.start && entry.id !== summary.id) {
+      delete userState.weeklySummaries[entry.id];
+    }
+  }
+
+  userState.weeklySummaries[summary.id] = summary;
+  return summary;
+}
+
+export function runWeeklySummaryAutomation(userState: UserState, settings: AppSettings, runAt: Date | string) {
+  const todayDate = toDateOnlyInTimeZone(runAt, IST_TIME_ZONE);
   const week = weekBounds(todayDate);
-  if (todayDate !== week.end) {
+  if (todayDate !== week.end || getWeekdayInTimeZone(runAt, IST_TIME_ZONE) !== 0) {
+    return {
+      generated: false,
+      weekStart: week.start,
+      summaryId: null,
+    };
+  }
+  if (getMinutesInTimeZone(runAt, IST_TIME_ZONE) < WEEKLY_AUTOMATION_MINUTES) {
     return {
       generated: false,
       weekStart: week.start,
@@ -594,18 +694,7 @@ export function runWeeklySummaryAutomation(userState: UserState, settings: AppSe
     };
   }
 
-  const existingSummary = Object.values(userState.weeklySummaries).find((entry) => entry.weekKey === week.start);
-  if (existingSummary) {
-    userState.processedDates.weeklySummaryDates.push(week.start);
-    return {
-      generated: false,
-      weekStart: week.start,
-      summaryId: existingSummary.id,
-    };
-  }
-
-  const summary = generateWeeklySummary(userState, settings, week.start);
-  userState.weeklySummaries[summary.id] = summary;
+  const summary = upsertWeeklySummary(userState, settings, week.start, week.end);
   userState.processedDates.weeklySummaryDates.push(week.start);
   return {
     generated: true,
@@ -626,7 +715,7 @@ export function applyAutomations(store: LocalStore, userId: string) {
 
   if (getRuntimeMode() === "local") {
     runMidnightRollover(userState, settings, todayDate, todayDayNumber);
-    runWeeklySummaryAutomation(userState, settings, todayDate);
+    runWeeklySummaryAutomation(userState, settings, now);
   }
 
   refreshBacklogSuggestions(userState, settings, todayDayNumber);
@@ -778,6 +867,29 @@ export function getGtAnalyticsData(store: LocalStore, userId: string) {
     weaknesses: buildGtWeaknessPatterns(logs),
     logs: structuredClone(logs),
   };
+}
+
+export function getWeeklyPageData(store: LocalStore, userId: string) {
+  applyAutomations(store, userId);
+
+  const now = getEffectiveNow(store);
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+  const summaries = Object.values(store.userState[userId].weeklySummaries).toSorted(
+    (left, right) => right.weekStartDate.localeCompare(left.weekStartDate) || right.generatedAt.localeCompare(left.generatedAt),
+  );
+
+  return {
+    todayDate,
+    currentWeekStart: weekBounds(todayDate).start,
+    summaries: structuredClone(summaries),
+  };
+}
+
+export function getWeeklyDetailData(store: LocalStore, userId: string, weekKey: string) {
+  applyAutomations(store, userId);
+
+  const summary = findWeeklySummaryByWeekKey(store.userState[userId].weeklySummaries, weekKey);
+  return summary ? structuredClone(summary) : null;
 }
 
 export function getScheduleListData(store: LocalStore, userId: string) {

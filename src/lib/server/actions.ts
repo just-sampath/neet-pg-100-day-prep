@@ -18,11 +18,11 @@ import {
   applyScheduleShiftToUserState,
   applyOverrunCascadeBacklog,
   applyTrafficLightToDay,
-  generateWeeklySummary,
   getOrCreateProgress,
   moveBlockToBacklog,
   moveVisibleBlocksToBacklog,
   runLateNightSweep,
+  upsertWeeklySummary,
 } from "@/lib/data/app-state";
 import { createEmptyUserState, getEffectiveNow, mutateStore } from "@/lib/data/local-store";
 import {
@@ -547,10 +547,9 @@ export async function generateWeeklySummaryAction() {
   const user = await requireCurrentUser();
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    const today = toDateOnly(store.dev.simulatedNowIso ?? new Date().toISOString());
+    const today = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
     const week = weekBounds(today);
-    const summary = generateWeeklySummary(userState, userState.settings, week.start);
-    userState.weeklySummaries[summary.id] = summary;
+    upsertWeeklySummary(userState, userState.settings, week.start, today);
   });
   refresh();
 }

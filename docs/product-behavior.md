@@ -129,3 +129,18 @@
 - Wrapper trend tracks knowledge vs behaviour drift and unsure-right counts.
 - Weakness analytics surface repeated weakest subjects and recurring wrapper topics.
 - Weekly summaries pull the latest GT in the week with its score, AIR/percentile text, and wrapper summary.
+
+## Weekly Summaries
+
+- Weekly automation runs only at Sunday `23:30` IST and covers the full Monday-Sunday week.
+- Manual `Generate summary now` remains available and snapshots the current week only through the current IST date.
+- Regenerating the same week refreshes the stored summary rather than creating a duplicate card.
+- The weekly detail view exposes:
+  - blocks completed vs planned plus adherence rate
+  - traffic-light counts
+  - morning revision counts and rate
+  - revision overflow, catch-up, and restudy pressure
+  - overrun counts and the exact subject/block labels
+  - MCQ totals, accuracy trend, top wrong subjects, and top cause codes
+  - latest GT in the week with score, AIR/percentile text, and wrapper summary
+  - schedule health, backlog snapshot, and subjects studied

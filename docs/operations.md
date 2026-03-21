@@ -93,6 +93,7 @@ npm run generate:data
 
 - UI: Weekly page or dev toolbar
 - API: `POST /api/dev/weekly`
+- Manual generation refreshes the same `week_key`; it should not create duplicate weekly cards for the same Monday-Sunday window.
 
 ## Force Midnight Processing
 

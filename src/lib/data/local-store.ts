@@ -7,6 +7,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { DEFAULT_LOCAL_USER } from "@/lib/domain/constants";
 import { normalizeStoredGtLog } from "@/lib/domain/gt";
 import { normalizeStoredMcqBulkLog, normalizeStoredMcqItemLog } from "@/lib/domain/mcq";
+import { findWeeklySummaryByWeekKey, normalizeStoredWeeklySummary } from "@/lib/domain/weekly";
 import type {
   AppSettings,
   BacklogItem,
@@ -362,6 +363,21 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
 
 function normalizeUserState(userState: UserState | undefined): UserState {
   const base = userState ?? createEmptyUserState();
+  const weeklySummaries = Object.entries(base.weeklySummaries ?? {}).reduce<Record<string, WeeklySummary>>((entries, [id, summary]) => {
+    const normalized = normalizeStoredWeeklySummary({
+      ...summary,
+      id: summary.id ?? id,
+    });
+    const existing = findWeeklySummaryByWeekKey(entries, normalized.weekKey);
+    if (!existing || existing.generatedAt <= normalized.generatedAt) {
+      if (existing) {
+        delete entries[existing.id];
+      }
+      entries[normalized.id] = normalized;
+    }
+    return entries;
+  }, {});
+
   return {
     ...base,
     settings: normalizeSettings(base.settings),
@@ -383,6 +399,7 @@ function normalizeUserState(userState: UserState | undefined): UserState {
       Object.entries(base.mcqItemLogs ?? {}).map(([id, log]) => [id, normalizeStoredMcqItemLog(log)]),
     ),
     gtLogs: Object.fromEntries(Object.entries(base.gtLogs ?? {}).map(([id, log]) => [id, normalizeStoredGtLog(log)])),
+    weeklySummaries,
     revisionCompletions: normalizeRevisionCompletions(base.revisionCompletions),
     processedDates: normalizeProcessedDates(base.processedDates),
   };
@@ -588,12 +605,18 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
   }
 
   for (const row of weeklySummariesResult.data ?? []) {
-    const summary = row.payload as WeeklySummary;
-    userState.weeklySummaries[row.id] = {
-      ...summary,
+    const summary = normalizeStoredWeeklySummary({
+      ...(row.payload as WeeklySummary),
       id: row.id,
-      generatedAt: row.generated_at ?? summary.generatedAt,
-    };
+      generatedAt: row.generated_at ?? (row.payload as WeeklySummary).generatedAt,
+    });
+    const existing = findWeeklySummaryByWeekKey(userState.weeklySummaries, summary.weekKey);
+    if (!existing || existing.generatedAt <= summary.generatedAt) {
+      if (existing) {
+        delete userState.weeklySummaries[existing.id];
+      }
+      userState.weeklySummaries[summary.id] = summary;
+    }
   }
 
   store.userState[scopedUser.id] = normalizeUserState(userState);
@@ -826,7 +849,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
     syncUserRows({
       table: "weekly_summaries",
       userId,
-      onConflict: "id",
+      onConflict: "user_id,week_key",
       previousCount: Object.keys(previousState.weeklySummaries).length,
       rows: Object.values(nextState.weeklySummaries).map((entry) => ({
         id: entry.id,
@@ -1018,7 +1041,7 @@ export async function persistSupabaseStoreForUser(nextStore: LocalStore, previou
     syncUserRows({
       table: "weekly_summaries",
       userId,
-      onConflict: "id",
+      onConflict: "user_id,week_key",
       previousCount: Object.keys(previousState.weeklySummaries).length,
       rows: Object.values(nextState.weeklySummaries).map((entry) => ({
         id: entry.id,

@@ -1,6 +1,6 @@
 # 013 Weekly Summary And Review
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -13,25 +13,25 @@ Weekly summaries are the app's reflective layer. They need to be generated autom
 
 ## Current Gap
 
-- Summary generation exists in a simplified form and is partly tied to local automation.
-- The UI does not yet expose the full summary payload described by the spec.
+- Weekly generation now uses the correct Sunday-end cadence and safe upsert semantics.
+- The weekly list/detail UI now exposes the full stored review payload.
 
 ## Checklist
 
-- [ ] Generate summaries automatically on the correct weekly cadence.
-- [ ] Keep manual generation available when needed.
-- [ ] Compute every summary field required by the PRD.
-- [ ] Surface schedule adherence and backlog movement clearly.
-- [ ] Surface revision health clearly.
-- [ ] Surface MCQ insights clearly.
-- [ ] Surface GT insights clearly.
-- [ ] Persist summaries for later browsing.
-- [ ] Build a readable weekly summary detail page that exposes the full content.
-- [ ] Ensure summary regeneration is safe and does not create duplicates.
+- [x] Generate summaries automatically on the correct weekly cadence.
+- [x] Keep manual generation available when needed.
+- [x] Compute every summary field required by the PRD.
+- [x] Surface schedule adherence and backlog movement clearly.
+- [x] Surface revision health clearly.
+- [x] Surface MCQ insights clearly.
+- [x] Surface GT insights clearly.
+- [x] Persist summaries for later browsing.
+- [x] Build a readable weekly summary detail page that exposes the full content.
+- [x] Ensure summary regeneration is safe and does not create duplicates.
 
 ## Acceptance Criteria
 
-- [ ] Weekly summaries appear without manual intervention in production.
-- [ ] Stored summaries can be revisited later.
-- [ ] The detail view contains the full reflective signal described in the spec.
-- [ ] Summary data stays internally consistent with the underlying logs and schedule state.
+- [x] Weekly summaries appear without manual intervention in production.
+- [x] Stored summaries can be revisited later.
+- [x] The detail view contains the full reflective signal described in the spec.
+- [x] Summary data stays internally consistent with the underlying logs and schedule state.
