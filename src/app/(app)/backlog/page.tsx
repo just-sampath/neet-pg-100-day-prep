@@ -78,7 +78,7 @@ export default async function BacklogPage({
         <div className="grid gap-6 xl:grid-cols-[0.94fr_1.06fr] xl:items-end">
           <div>
             <div className="eyebrow">Backlog Queue</div>
-            <h1 className="display mt-3 text-4xl md:text-5xl">Recovery should feel believable, not endless.</h1>
+            <h1 className="display mt-3 text-4xl md:text-5xl">Incomplete items, rescheduled at a realistic pace.</h1>
             <p className="lead mt-5 max-w-2xl">
               {summaryLine} Completing 80% consistently beats attempting 100% and crashing.
             </p>
@@ -87,22 +87,22 @@ export default async function BacklogPage({
             <article className="metric-slab">
               <div className="metric-label">Pending</div>
               <div className="metric-value">{data.counts.pending}</div>
-              <p className="metric-note">Still waiting for a real completion or a believable new home.</p>
+              <p className="metric-note">Not yet completed or rescheduled to a future slot.</p>
             </article>
             <article className="metric-slab">
               <div className="metric-label">Rescheduled</div>
               <div className="metric-value">{data.counts.rescheduled}</div>
-              <p className="metric-note">Already assigned to a future day and slot in the plan.</p>
+              <p className="metric-note">Assigned to a specific future day and time slot.</p>
             </article>
             <article className="metric-slab">
               <div className="metric-label">Recovered</div>
               <div className="metric-value">{data.counts.completed}</div>
-              <p className="metric-note">Closed with a real completion date.</p>
+              <p className="metric-note">Marked as completed with a recorded date.</p>
             </article>
             <article className="metric-slab">
               <div className="metric-label">Pace Dial</div>
               <div className="metric-value">{data.summary.fromYellowRed}</div>
-              <p className="metric-note">Created by honest yellow and red day selections.</p>
+              <p className="metric-note">Items created when you selected a yellow or red pace for a study day.</p>
             </article>
           </div>
         </div>
@@ -151,7 +151,7 @@ export default async function BacklogPage({
             <div className="note-card p-4">
               <div className="eyebrow">Bulk Reset</div>
               <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                Remove a whole calm category at once if it no longer deserves space in the queue.
+                Dismiss all pending items in a category at once. Dismissed items leave the queue permanently.
               </p>
               <form action={bulkBacklogAction} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
                 <input type="hidden" name="intent" value="dismiss_scope" />
@@ -171,7 +171,7 @@ export default async function BacklogPage({
             <div className="note-card p-4">
               <div className="eyebrow">Bulk Reschedule</div>
               <p className="mt-3 text-sm leading-7 text-[var(--text-secondary)]">
-                Apply the current suggested slots for a whole slice of the queue when the placements already look believable.
+                Accept the suggested time slots for all items in a category. Each item moves from pending to rescheduled.
               </p>
               <form action={bulkBacklogAction} className="mt-4 grid gap-3 md:grid-cols-[1fr_auto]">
                 <input type="hidden" name="intent" value="reschedule_scope_to_suggestions" />
@@ -232,13 +232,13 @@ export default async function BacklogPage({
                     <div className="note-card p-4">
                       <div className="metric-label">Suggested Landing</div>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        {item.suggestionLabel ?? "No safe suggestion yet."}
+                        {item.suggestionLabel ?? "No available slot found."}
                       </p>
                     </div>
                     <div className="note-card p-4">
                       <div className="metric-label">Suggested Note</div>
                       <p className="mt-2 text-sm leading-7 text-[var(--text-secondary)]">
-                        {item.suggestedNote ?? "Keeping this in backlog until a believable slot opens."}
+                        {item.suggestedNote ?? "Staying in backlog until a compatible slot becomes available."}
                       </p>
                     </div>
                     <div className="note-card p-4">
@@ -282,7 +282,7 @@ export default async function BacklogPage({
                             Accept suggested slot
                           </button>
                           <p className="text-xs leading-6 text-[var(--muted)]">
-                            {item.suggestionLabel ?? "No safe suggestion is available yet."}
+                            {item.suggestionLabel ?? "No available slot found."}
                           </p>
                         </form>
                       ) : null}
@@ -359,7 +359,7 @@ export default async function BacklogPage({
           <section className="panel reveal-rise p-6">
             <div className="eyebrow">Queue Clear</div>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--text-secondary)]">
-              Nothing matches this view right now. The recovery queue is either genuinely clear or already filed into another state.
+              No items match the current filter. Try switching to a different status tab above.
             </p>
           </section>
         )}

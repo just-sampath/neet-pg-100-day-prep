@@ -173,7 +173,7 @@ function generateBacklogSuggestion(
   occupiedSlots: Set<string>,
 ) {
   if (!settings.dayOneDate) {
-    return createSuggestion(null, null, "Set Day 1 to unlock recovery suggestions.");
+    return createSuggestion(null, null, "Set your Day 1 start date in Settings to enable recovery suggestions.");
   }
 
   const searchStartDay = Math.max(todayDayNumber + 1, item.originalDay + 1, 1);
@@ -233,7 +233,7 @@ function generateBacklogSuggestion(
         (day) => isTargetSlotAvailable(userState, settings, day.dayNumber, "mcq", occupiedSlots),
       );
       if (!nextMcq) {
-        return createSuggestion(null, null, "No open MCQ slot before the hard boundary. Keeping this in backlog.");
+        return createSuggestion(null, null, "No open MCQ slot before the August 20 study cutoff. Staying in backlog.");
       }
 
       return createSuggestion(
@@ -267,7 +267,7 @@ function generateBacklogSuggestion(
             "pyq_image",
             `Suggested for the next weekend PYQ / image slot on Day ${weekendPyq.dayNumber}.`,
           )
-        : createSuggestion(null, null, "No open PYQ / image slot before the hard boundary. Keeping this in backlog.");
+        : createSuggestion(null, null, "No open PYQ / image slot before the August 20 study cutoff. Staying in backlog.");
     }
 
     case "consolidation": {
@@ -290,7 +290,7 @@ function generateBacklogSuggestion(
             "consolidation",
             `Suggested during the next ${item.subject} afternoon consolidation on Day ${sameSubjectAfternoon.dayNumber}.`,
           )
-        : createSuggestion(null, null, "No open consolidation slot before the hard boundary. Keeping this in backlog.");
+        : createSuggestion(null, null, "No open consolidation slot before the August 20 study cutoff. Staying in backlog.");
     }
 
     case "night_recall": {
@@ -306,7 +306,7 @@ function generateBacklogSuggestion(
               ? "Stack this with tomorrow's night recall."
               : `Stack this with the next open night recall on Day ${nextNightRecall.dayNumber}.`,
           )
-        : createSuggestion(null, null, "No open night recall slot before the hard boundary. Keeping this in backlog.");
+        : createSuggestion(null, null, "No open night recall slot before the August 20 study cutoff. Staying in backlog.");
     }
 
     default:

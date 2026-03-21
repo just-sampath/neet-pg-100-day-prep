@@ -1,6 +1,6 @@
 # 010 Rewrite Backlog Copy
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -17,15 +17,15 @@ The current backlog language is internally consistent but not self-explanatory e
 
 ## Checklist
 
-- [ ] Rewrite vague suggestion and empty-state copy in plain product language.
-- [ ] Rewrite bulk-action helper text so it says exactly what the action does.
-- [ ] Keep the underlying backlog behavior unchanged while updating the wording.
+- [x] Rewrite vague suggestion and empty-state copy in plain product language.
+- [x] Rewrite bulk-action helper text so it says exactly what the action does.
+- [x] Keep the underlying backlog behavior unchanged while updating the wording.
 
 ## Acceptance Criteria
 
-- [ ] A user can understand why a backlog item has or does not have a suggestion.
-- [ ] Bulk backlog actions are understandable without product-context guessing.
-- [ ] The new wording stays neutral and non-punitive.
+- [x] A user can understand why a backlog item has or does not have a suggestion.
+- [x] Bulk backlog actions are understandable without product-context guessing.
+- [x] The new wording stays neutral and non-punitive.
 
 ## Implementation Notes
 
