@@ -322,6 +322,51 @@ export function applyOverrunCascadeBacklog(
   return { preview, movedBlockKeys: [] as BlockKey[] };
 }
 
+export function applyOverrunCascadeShift(
+  userState: UserState,
+  dayNumber: number,
+  blockKey: BlockKey,
+  newEndTime: string,
+) {
+  const day = getScheduleDay(dayNumber);
+  if (!day) {
+    return { preview: { kind: "none" } as const, shiftedBlockKey: null as BlockKey | null };
+  }
+
+  const trafficLight = getDayState(userState, dayNumber).trafficLight;
+  const preview = previewOverrunCascade({
+    editedBlockKey: blockKey,
+    newEndTime,
+    trafficLight,
+    slots: getTrackableBlocks(day).map((slot) => {
+      const key = slot.key as BlockKey;
+      const progress = getBlockProgress(userState, dayNumber, key);
+      return {
+        key,
+        label: slot.label,
+        start: slot.start,
+        end: slot.end,
+        status: progress.status,
+        actualStart: progress.actualStart,
+        actualEnd: progress.actualEnd,
+      };
+    }),
+  });
+
+  if (preview.kind !== "decision") {
+    return { preview, shiftedBlockKey: null as BlockKey | null };
+  }
+
+  const affectedProgress = getOrCreateProgress(userState, dayNumber, preview.affectedBlockKey);
+  if (affectedProgress.status !== "pending") {
+    return { preview: { kind: "none" } as const, shiftedBlockKey: null as BlockKey | null };
+  }
+
+  affectedProgress.actualStart = preview.shiftedStart;
+  affectedProgress.actualEnd = preview.shiftedEnd;
+  return { preview, shiftedBlockKey: preview.affectedBlockKey };
+}
+
 export function getRevisionRolloverSnapshot(userState: UserState, settings: AppSettings, todayDate: string) {
   const revisionPlan = buildDailyRevisionPlan(todayDate, userState, settings);
   return {

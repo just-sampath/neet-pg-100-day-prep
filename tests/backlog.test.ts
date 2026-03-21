@@ -12,6 +12,7 @@ import {
 } from "@/lib/domain/backlog-queue";
 import {
   applyOverrunCascadeBacklog,
+  applyOverrunCascadeShift,
   applyTrafficLightToDay,
   getOrCreateProgress,
   moveBlockToBacklog,
@@ -211,6 +212,25 @@ describe("backlog creation and traffic-light handling", () => {
     expect(getOrCreateProgress(userState, 2, "block_b")).toMatchObject({
       status: "rescheduled",
       sourceTag: "overrun_cascade",
+    });
+  });
+
+  it("keeps the next affected block visible by persisting the shifted timing", () => {
+    const userState = createEmptyUserState();
+
+    const result = applyOverrunCascadeShift(userState, 2, "block_a", "12:00");
+
+    expect(result.preview).toMatchObject({
+      kind: "decision",
+      affectedBlockKey: "block_b",
+      shiftedStart: "12:00",
+      shiftedEnd: "14:30",
+    });
+    expect(getOrCreateProgress(userState, 2, "block_b")).toMatchObject({
+      status: "pending",
+      actualStart: "12:00",
+      actualEnd: "14:30",
+      sourceTag: null,
     });
   });
 

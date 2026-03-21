@@ -38,7 +38,7 @@ export function TimeEditor({ dayNumber, blockKey, start, end, trafficLight, slot
     [actualEnd, blockKey, sleepViolation, slots, trafficLight],
   );
 
-  function submitTimeUpdate(cascadeDecision?: "move_next_to_backlog" | "force_sleep_backlog") {
+  function submitTimeUpdate(cascadeDecision?: "keep_next_visible" | "move_next_to_backlog" | "force_sleep_backlog") {
     startTransition(async () => {
       const formData = new FormData();
       formData.set("dayNumber", String(dayNumber));
@@ -57,7 +57,7 @@ export function TimeEditor({ dayNumber, blockKey, start, end, trafficLight, slot
     if (sleepViolation) {
       return;
     }
-    submitTimeUpdate();
+    submitTimeUpdate(overrunPreview.kind === "decision" ? "keep_next_visible" : undefined);
   }
 
   function moveToBacklog() {

@@ -15,8 +15,9 @@ import {
   rescheduleBacklogScopeToSuggestions,
 } from "@/lib/domain/backlog-queue";
 import {
-  applyScheduleShiftToUserState,
   applyOverrunCascadeBacklog,
+  applyOverrunCascadeShift,
+  applyScheduleShiftToUserState,
   applyTrafficLightToDay,
   getOrCreateProgress,
   moveBlockToBacklog,
@@ -196,6 +197,10 @@ export async function updateBlockAction(formData: FormData) {
       progress.actualStart = actualStart;
       progress.actualEnd = actualEnd;
       progress.note = note;
+
+      if (actualEnd && cascadeDecision === "keep_next_visible") {
+        applyOverrunCascadeShift(userState, dayNumber, blockKey, actualEnd);
+      }
 
       if (actualEnd && cascadeDecision === "move_next_to_backlog") {
         applyOverrunCascadeBacklog(
