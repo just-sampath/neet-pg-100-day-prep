@@ -86,7 +86,7 @@ The codebase is production-ready only when:
 3. [x] `003-production-day-one-validation.md`
 4. [x] `004-remove-duplicate-today-branding.md`
 5. [x] `005-move-pace-dial-higher.md`
-6. [ ] `006-hide-empty-recovery-radar.md`
+6. [x] `006-hide-empty-recovery-radar.md`
 7. [ ] `007-collapse-actual-timing-by-default.md`
 8. [ ] `008-simplify-time-presentation.md`
 9. [ ] `009-fix-today-block-label-layout.md`

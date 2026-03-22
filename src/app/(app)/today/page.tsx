@@ -197,6 +197,11 @@ export default async function TodayPage() {
   const backlogIndicatorLabel = getBacklogIndicatorLabel(data.backlogCount);
   const revisionMinutesLabel = getRevisionMinutesLabel(data.todayRevisionPlan?.morningMinutesPerItem ?? 0);
   const mcqQuickLogNote = getDisplayBlockDescription(todayScheduleDay, "mcq", todayState.trafficLight);
+  const hasRecoverySignal =
+    todayState.trafficLight !== "green" ||
+    data.shiftHealth.missedDays.length > 0 ||
+    data.backlogCount > 0 ||
+    plannedRecovery.length > 0;
   const quickStats = [
     {
       label: "Visible Blocks",
@@ -244,6 +249,14 @@ export default async function TodayPage() {
               </button>
             </form>
           ))}
+        </div>
+        <div className="mt-4 flex justify-end">
+          <form action={setThemeAction}>
+            <input type="hidden" name="theme" value={data.settings.theme === "dark" ? "light" : "dark"} />
+            <button className="button-secondary" type="submit">
+              Switch to {data.settings.theme === "dark" ? "light" : "dark"}
+            </button>
+          </form>
         </div>
       </section>
 
@@ -303,48 +316,50 @@ export default async function TodayPage() {
           </section>
         </div>
 
-        <div className="grid gap-6">
-          <section className="panel reveal-rise stagger-2 p-6">
-            <div className="eyebrow">Recovery Radar</div>
-            <div className="mt-4 grid gap-3">
-              <div className="note-card p-4">
-                <div className="metric-label">Current Mode</div>
-                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                  {todayState.trafficLight === "green"
-                    ? "Everything stays visible. This is the original workload."
-                    : todayState.trafficLight === "yellow"
-                      ? "Consolidation and PYQ/Image blocks can move without turning the day into a failure story."
-                      : "Only the essential spine of the day remains. Protect continuity and sleep."}
-                </p>
+        {hasRecoverySignal ? (
+          <div className="grid gap-6">
+            <section className="panel reveal-rise stagger-2 p-6">
+              <div className="eyebrow">Recovery Radar</div>
+              <div className="mt-4 grid gap-3">
+                {todayState.trafficLight !== "green" ? (
+                  <div className="note-card p-4">
+                    <div className="metric-label">Current Mode</div>
+                    <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
+                      {todayState.trafficLight === "yellow"
+                        ? "Consolidation and PYQ/Image blocks can move without turning the day into a failure story."
+                        : "Only the essential spine of the day remains. Protect continuity and sleep."}
+                    </p>
+                  </div>
+                ) : null}
+                {data.shiftHealth.missedDays.length > 0 ? (
+                  <div className="note-card p-4">
+                    <div className="metric-label">Schedule Health</div>
+                    <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
+                      {data.shiftHealth.missedDays.length} missed day(s) detected. A shift can be applied if recovery
+                      no longer fits in place.
+                    </p>
+                  </div>
+                ) : null}
+                {plannedRecovery.length > 0 ? (
+                  <div className="note-card p-4">
+                    <div className="metric-label">Recovery Today</div>
+                    <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
+                      {plannedRecovery.length} recovery item(s) are woven into today&apos;s blocks. Completing 80%
+                      consistently beats attempting 100% and crashing.
+                    </p>
+                  </div>
+                ) : null}
+                {data.backlogCount > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Link className="button-secondary" href="/backlog">
+                      {backlogIndicatorLabel}
+                    </Link>
+                  </div>
+                ) : null}
               </div>
-              <div className="note-card p-4">
-                <div className="metric-label">Schedule Health</div>
-                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                  {data.shiftHealth.missedDays.length
-                    ? `${data.shiftHealth.missedDays.length} missed day(s) detected. A shift can be applied if recovery no longer fits in place.`
-                    : "No shift pressure right now. The mapped calendar is still stable."}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {data.backlogCount ? (
-                  <Link className="button-secondary" href="/backlog">
-                    {backlogIndicatorLabel}
-                  </Link>
-                ) : (
-                  <span className="status-badge" data-tone="neutral">
-                    backlog clear
-                  </span>
-                )}
-                <form action={setThemeAction}>
-                  <input type="hidden" name="theme" value={data.settings.theme === "dark" ? "light" : "dark"} />
-                  <button className="button-secondary" type="submit">
-                    Switch to {data.settings.theme === "dark" ? "light" : "dark"}
-                  </button>
-                </form>
-              </div>
-            </div>
-          </section>
-        </div>
+            </section>
+          </div>
+        ) : null}
       </section>
 
       {data.shiftPreview ? <ScheduleShiftPanel health={data.shiftHealth} preview={data.shiftPreview} /> : null}

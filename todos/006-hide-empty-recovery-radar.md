@@ -1,6 +1,6 @@
 # 006 Hide Empty Recovery Radar
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -17,16 +17,16 @@ Recovery UI should appear when it has actual recovery signal, not as a permanent
 
 ## Checklist
 
-- [ ] Define what counts as meaningful recovery signal for the Today surface.
-- [ ] Render `Recovery Radar` only when that signal exists.
-- [ ] Move unrelated controls out of the panel if they are currently the only reason it stays visible.
-- [ ] Preserve useful backlog and shift navigation when recovery pressure is real.
+- [x] Define what counts as meaningful recovery signal for the Today surface.
+- [x] Render `Recovery Radar` only when that signal exists.
+- [x] Move unrelated controls out of the panel if they are currently the only reason it stays visible.
+- [x] Preserve useful backlog and shift navigation when recovery pressure is real.
 
 ## Acceptance Criteria
 
-- [ ] On a clean green day with no meaningful recovery pressure, `Recovery Radar` does not render.
-- [ ] When recovery signal exists, the panel explains something actionable rather than restating generic status.
-- [ ] Hiding the panel does not hide unrelated controls that still need another home.
+- [x] On a clean green day with no meaningful recovery pressure, `Recovery Radar` does not render.
+- [x] When recovery signal exists, the panel explains something actionable rather than restating generic status.
+- [x] Hiding the panel does not hide unrelated controls that still need another home.
 
 ## Implementation Notes
 
