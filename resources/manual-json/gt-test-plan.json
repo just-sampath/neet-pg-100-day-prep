@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "sourceWorkbook": "neet_pg_2026_100_day_schedule.xlsx",
+  "sourceSheet": "GT_Test_Plan",
+  "tests": [
+    {
+      "gtPlanRef": "gt_d001_diagnostic_100q",
+      "dayNumber": 1,
+      "testType": "Diagnostic 100Q",
+      "purposeRaw": "Set up system + 100Q diagnostic mixed module",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d041_full_gt",
+      "dayNumber": 41,
+      "testType": "Full GT",
+      "purposeRaw": "GT-1 (end of first pass)",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d048_full_gt",
+      "dayNumber": 48,
+      "testType": "Full GT",
+      "purposeRaw": "GT-2",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d058_full_gt",
+      "dayNumber": 58,
+      "testType": "Full GT",
+      "purposeRaw": "GT-3",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d063_full_gt",
+      "dayNumber": 63,
+      "testType": "Full GT",
+      "purposeRaw": "GT-4",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d066_full_gt",
+      "dayNumber": 66,
+      "testType": "Full GT",
+      "purposeRaw": "GT-5",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d073_full_gt",
+      "dayNumber": 73,
+      "testType": "Full GT",
+      "purposeRaw": "GT-6",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d078_full_gt",
+      "dayNumber": 78,
+      "testType": "Full GT",
+      "purposeRaw": "GT-7",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d082_full_gt",
+      "dayNumber": 82,
+      "testType": "Full GT",
+      "purposeRaw": "GT-8",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d087_full_gt",
+      "dayNumber": 87,
+      "testType": "Full GT",
+      "purposeRaw": "GT-9",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    },
+    {
+      "gtPlanRef": "gt_d093_120q_half_sim",
+      "dayNumber": 93,
+      "testType": "120Q half-sim",
+      "purposeRaw": "120Q half-simulation + analysis",
+      "whatToMeasureRaw": "Accuracy %, wrong-answer pattern, guessed-right count, time pressure by section, weakest 2 domains",
+      "whatToMeasureItems": [
+        "Accuracy %",
+        "wrong-answer pattern",
+        "guessed-right count",
+        "time pressure by section",
+        "weakest 2 domains"
+      ],
+      "mustOutputRaw": "Error log updated; weak-topic list for next 3-7 days; repeat-risk notebook entry",
+      "mustOutputItems": [
+        "Error log updated",
+        "weak-topic list for next 3-7 days",
+        "repeat-risk notebook entry"
+      ]
+    }
+  ]
+}

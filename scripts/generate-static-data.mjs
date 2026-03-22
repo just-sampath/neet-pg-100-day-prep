@@ -1,9 +1,10 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import XLSX from "xlsx";
 
 const root = resolve(process.cwd());
 const resourcesDir = resolve(root, "resources");
+const manualJsonDir = resolve(resourcesDir, "manual-json");
 const generatedDir = resolve(root, "src/lib/generated");
 
 const workbookPath = resolve(resourcesDir, "neet_pg_2026_100_day_schedule.xlsx");
@@ -156,6 +157,11 @@ function timeToMinutes(value, label) {
 function durationHoursFromRange(range) {
   const { start, end } = parseTimeRange(range, `Range ${range}`);
   return (timeToMinutes(end, `Range ${range} end`) - timeToMinutes(start, `Range ${range} start`)) / 60;
+}
+
+function durationMinutesFromRange(range) {
+  const { start, end } = parseTimeRange(range, `Range ${range}`);
+  return timeToMinutes(end, `Range ${range} end`) - timeToMinutes(start, `Range ${range} start`);
 }
 
 function nearlyEqual(left, right) {
@@ -450,6 +456,117 @@ function parseQuotes() {
   });
 }
 
+async function readManualJson(filename, label) {
+  const source = await readFile(resolve(manualJsonDir, filename), "utf8");
+  try {
+    return JSON.parse(source);
+  } catch (error) {
+    fail(`${label} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function validateManualJson(daywisePlan, subjectStrategy, gtTestPlan, dayRows, subjectRows, gtRows) {
+  assert(daywisePlan.version === 1, "manual Daywise_Plan JSON must use version 1");
+  assert(daywisePlan.sourceSheet === "Daywise_Plan", "manual Daywise_Plan JSON must declare sourceSheet Daywise_Plan");
+  assert(subjectStrategy.version === 1, "manual Subject_Strategy JSON must use version 1");
+  assert(
+    subjectStrategy.sourceSheet === "Subject_Strategy",
+    "manual Subject_Strategy JSON must declare sourceSheet Subject_Strategy",
+  );
+  assert(gtTestPlan.version === 1, "manual GT_Test_Plan JSON must use version 1");
+  assert(gtTestPlan.sourceSheet === "GT_Test_Plan", "manual GT_Test_Plan JSON must declare sourceSheet GT_Test_Plan");
+
+  assert(daywisePlan.days.length === dayRows.length, `manual Daywise_Plan JSON must contain ${dayRows.length} days`);
+  assert(subjectStrategy.subjects.length === subjectRows.length, `manual Subject_Strategy JSON must contain ${subjectRows.length} subjects`);
+  assert(gtTestPlan.tests.length === gtRows.length, `manual GT_Test_Plan JSON must contain ${gtRows.length} rows`);
+  assert(daywisePlan.slotCatalog.length === TIMELINE_COLUMNS.length, "manual slotCatalog must contain all 13 workbook slots");
+
+  daywisePlan.slotCatalog.forEach((slot, index) => {
+    const expectedColumn = TIMELINE_COLUMNS[index];
+    assert(slot.timeSlotKey === expectedColumn, `manual slotCatalog row ${index + 1} must use ${expectedColumn}`);
+  });
+
+  const gtRefByDay = new Map(gtTestPlan.tests.map((entry) => [entry.dayNumber, entry.gtPlanRef]));
+
+  daywisePlan.days.forEach((day, index) => {
+    const workbookDay = dayRows[index];
+    assert(day.dayNumber === Number(workbookDay.Day), `manual Daywise_Plan day ${index + 1} dayNumber mismatch`);
+    assert(day.phaseName === String(workbookDay.Phase), `manual Daywise_Plan day ${day.dayNumber} phase mismatch`);
+    assert(
+      day.primaryFocusRaw === String(workbookDay["Primary Focus"]).trim(),
+      `manual Daywise_Plan day ${day.dayNumber} primary focus mismatch`,
+    );
+    assert(day.resourceRaw === String(workbookDay.Resource).trim(), `manual Daywise_Plan day ${day.dayNumber} resource mismatch`);
+    assert(
+      day.deliverableRaw === String(workbookDay.Deliverable).trim(),
+      `manual Daywise_Plan day ${day.dayNumber} deliverable mismatch`,
+    );
+    assert(day.gtTestType === String(workbookDay["GT/Test"]).trim(), `manual Daywise_Plan day ${day.dayNumber} GT/Test mismatch`);
+    assert(day.blocks.length === TIMELINE_COLUMNS.length, `manual Daywise_Plan day ${day.dayNumber} must contain 13 blocks`);
+
+    day.blocks.forEach((block, blockIndex) => {
+      const expectedColumn = TIMELINE_COLUMNS[blockIndex];
+      assert(
+        block.timeSlotKey === expectedColumn,
+        `manual Daywise_Plan day ${day.dayNumber} block ${blockIndex + 1} must use ${expectedColumn}`,
+      );
+      assert(
+        block.rawText === String(workbookDay[expectedColumn]).trim(),
+        `manual Daywise_Plan day ${day.dayNumber} block ${expectedColumn} rawText mismatch`,
+      );
+      const slotDuration = durationMinutesFromRange(expectedColumn) * 60;
+      const plannedSeconds = block.items.reduce((total, item) => total + Number(item.plannedMinutes ?? 0) * 60, 0);
+      if (block.trackable) {
+        assert(block.items.length > 0, `manual Daywise_Plan day ${day.dayNumber} block ${expectedColumn} must contain items`);
+        assert(
+          plannedSeconds === slotDuration,
+          `manual Daywise_Plan day ${day.dayNumber} block ${expectedColumn} items must sum to ${durationMinutesFromRange(expectedColumn)} minutes`,
+        );
+      } else {
+        assert(block.items.length === 0, `manual Daywise_Plan day ${day.dayNumber} block ${expectedColumn} must not contain items`);
+      }
+    });
+
+    const expectedGtRef = gtRefByDay.get(day.dayNumber) ?? null;
+    assert(day.gtPlanRef === expectedGtRef, `manual Daywise_Plan day ${day.dayNumber} gtPlanRef mismatch`);
+  });
+
+  subjectStrategy.subjects.forEach((subject, index) => {
+    const workbookSubject = subjectRows[index];
+    assert(
+      subject.subjectName === String(workbookSubject.Subject).trim(),
+      `manual Subject_Strategy row ${index + 1} subject mismatch`,
+    );
+    assert(
+      subject.worHours === Number(workbookSubject.WoR_hours),
+      `manual Subject_Strategy ${subject.subjectName} WoR_hours mismatch`,
+    );
+    assert(
+      subject.firstPassDays === Number(workbookSubject.First_pass_days),
+      `manual Subject_Strategy ${subject.subjectName} First_pass_days mismatch`,
+    );
+    assert(
+      subject.resourceDecisionRaw === String(workbookSubject.Resource_decision).trim(),
+      `manual Subject_Strategy ${subject.subjectName} resource decision mismatch`,
+    );
+  });
+
+  gtTestPlan.tests.forEach((test, index) => {
+    const workbookGt = gtRows[index];
+    assert(test.dayNumber === Number(workbookGt.Day), `manual GT_Test_Plan row ${index + 1} day mismatch`);
+    assert(test.testType === String(workbookGt.Test_type).trim(), `manual GT_Test_Plan day ${test.dayNumber} test type mismatch`);
+    assert(test.purposeRaw === String(workbookGt.Purpose).trim(), `manual GT_Test_Plan day ${test.dayNumber} purpose mismatch`);
+    assert(
+      test.whatToMeasureRaw === String(workbookGt.What_to_measure).trim(),
+      `manual GT_Test_Plan day ${test.dayNumber} measure mismatch`,
+    );
+    assert(
+      test.mustOutputRaw === String(workbookGt.Must_output_after_test).trim(),
+      `manual GT_Test_Plan day ${test.dayNumber} output mismatch`,
+    );
+  });
+}
+
 async function main() {
   const workbook = readWorkbook();
   const readmeRows = readWorkbookSheet(workbook, "Readme");
@@ -466,6 +583,10 @@ async function main() {
   const gtPlan = parseGtPlan(gtRows, days);
   const phases = buildPhases(days);
   const quotes = parseQuotes();
+  const daywisePlan = await readManualJson("daywise-plan.json", "manual Daywise_Plan JSON");
+  const subjectStrategy = await readManualJson("subject-strategy.json", "manual Subject_Strategy JSON");
+  const gtTestPlan = await readManualJson("gt-test-plan.json", "manual GT_Test_Plan JSON");
+  validateManualJson(daywisePlan, subjectStrategy, gtTestPlan, dayRows, subjectRows, gtRows);
 
   await mkdir(generatedDir, { recursive: true });
 
@@ -489,8 +610,18 @@ export const scheduleData: GeneratedScheduleBundle = ${toArrayLiteral({
 export const quotesData: GeneratedQuote[] = ${toArrayLiteral(quotes)};
 `;
 
+  const workbookSemanticSource = `import type { WorkbookSemanticBundle } from "@/lib/domain/workbook-types";
+
+export const workbookSemanticData: WorkbookSemanticBundle = ${toArrayLiteral({
+    daywisePlan,
+    subjectStrategy,
+    gtTestPlan,
+  })};
+`;
+
   await writeFile(resolve(generatedDir, "schedule-data.ts"), scheduleSource);
   await writeFile(resolve(generatedDir, "quotes-data.ts"), quotesSource);
+  await writeFile(resolve(generatedDir, "workbook-semantic-data.ts"), workbookSemanticSource);
 }
 
 main().catch((error) => {
