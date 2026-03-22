@@ -91,7 +91,7 @@ The codebase is production-ready only when:
 8. [ ] `008-simplify-time-presentation.md`
 9. [ ] `009-fix-today-block-label-layout.md`
 10. [x] `010-rewrite-backlog-copy.md`
-11. [ ] `011-fix-dropdown-readability.md`
+11. [x] `011-fix-dropdown-readability.md`
 12. [ ] `012-clarify-retroactive-completion-wording.md`
 13. [x] `013-move-mcq-add-details-above-results.md`
 14. [ ] `014-theme-analytics-surfaces.md`

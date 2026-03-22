@@ -17,15 +17,15 @@ If a select control becomes white-on-white or otherwise unreadable in the actual
 
 ## Checklist
 
-- [ ] Audit select readability on Backlog and MCQ where the issue was reported.
-- [ ] Adjust styling or component choice so both the closed field and the open menu remain readable.
-- [ ] Verify the fix in both light and dark themes.
+- [x] Audit select readability on Backlog and MCQ where the issue was reported.
+- [x] Adjust styling or component choice so both the closed field and the open menu remain readable.
+- [x] Verify the fix in both light and dark themes.
 
 ## Acceptance Criteria
 
-- [ ] Select controls are readable before interaction.
-- [ ] Open dropdown menus are readable on the supported environments being tested.
-- [ ] The solution works across the affected forms instead of fixing only one page.
+- [x] Select controls are readable before interaction.
+- [x] Open dropdown menus are readable on the supported environments being tested.
+- [x] The solution works across the affected forms instead of fixing only one page.
 
 ## Implementation Notes
 
