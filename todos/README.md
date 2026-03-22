@@ -81,20 +81,7 @@ The codebase is production-ready only when:
 
 ## Task Order
 
-1. [x] `001-day-one-default-tomorrow.md`
-2. [x] `002-setup-gate-before-day-one.md`
-3. [x] `003-production-day-one-validation.md`
-4. [x] `004-remove-duplicate-today-branding.md`
-5. [x] `005-move-pace-dial-higher.md`
-6. [x] `006-hide-empty-recovery-radar.md`
-7. [x] `007-collapse-actual-timing-by-default.md`
-8. [x] `008-simplify-time-presentation.md`
-9. [x] `009-fix-today-block-label-layout.md`
-10. [x] `010-rewrite-backlog-copy.md`
-11. [x] `011-fix-dropdown-readability.md`
-12. [x] `012-clarify-retroactive-completion-wording.md`
-13. [x] `013-move-mcq-add-details-above-results.md`
-14. [x] `014-theme-analytics-surfaces.md`
+1. [ ] [001-xxx.md](./001-xxx.md)
 
 ## Notes
 
