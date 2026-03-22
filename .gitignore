@@ -40,5 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
+# Not required
+inspiration/
+
 # AI
 .claude
