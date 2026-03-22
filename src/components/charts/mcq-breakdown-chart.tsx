@@ -1,6 +1,7 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { gridStroke, tooltipContentStyle, tooltipCursorStyle, tooltipItemStyle, tooltipLabelStyle } from "./chart-theme";
 
 const BAR_COLORS: Record<string, string> = {
   Right: "rgba(142, 217, 165, 0.72)",
@@ -17,10 +18,10 @@ export function McqBreakdownChart({
     <div className="h-72 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data}>
-          <CartesianGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" />
+          <CartesianGrid stroke={gridStroke} strokeDasharray="3 3" />
           <XAxis dataKey="label" stroke="var(--muted)" />
           <YAxis stroke="var(--muted)" />
-          <Tooltip />
+          <Tooltip contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} labelStyle={tooltipLabelStyle} cursor={tooltipCursorStyle} />
           <Bar dataKey="value" radius={[10, 10, 0, 0]}>
             {data.map((entry) => (
               <Cell key={entry.label} fill={BAR_COLORS[entry.label]} />
