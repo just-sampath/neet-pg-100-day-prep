@@ -200,7 +200,7 @@ export default async function ScheduleDayPage({
                   <div className="eyebrow">{block.label}</div>
                   <h2 className="mt-2 text-xl font-semibold">{block.displayDescription}</h2>
                   <p className="mt-1 text-sm text-[var(--muted)]">
-                    Status: {block.progress.status} · {block.progress.actualStart ?? block.start} - {block.progress.actualEnd ?? block.end}
+                    {block.start} – {block.end} · {block.progress.status}
                   </p>
                 </div>
                 {detail.editState.canAdjustToday ? (
@@ -279,6 +279,8 @@ export default async function ScheduleDayPage({
                   blockKey={block.key as BlockKey}
                   start={block.start}
                   end={block.end}
+                  actualStart={block.progress.actualStart}
+                  actualEnd={block.progress.actualEnd}
                   trafficLight={detail.state.trafficLight}
                   slots={timeEditorSlots}
                 />

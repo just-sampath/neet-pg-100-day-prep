@@ -1,6 +1,6 @@
 # 008 Simplify Time Presentation
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -17,16 +17,16 @@ The user feedback is clear that blocks currently feel like they show too many ti
 
 ## Checklist
 
-- [ ] Define one primary scheduled-time treatment for each block card.
-- [ ] Move actual-time details behind the collapsed time-edit control.
-- [ ] Reduce or rewrite helper copy that duplicates time information without adding clarity.
-- [ ] Preserve overflow visibility once a block is actually being edited.
+- [x] Define one primary scheduled-time treatment for each block card.
+- [x] Move actual-time details behind the collapsed time-edit control.
+- [x] Reduce or rewrite helper copy that duplicates time information without adding clarity.
+- [x] Preserve overflow visibility once a block is actually being edited.
 
 ## Acceptance Criteria
 
-- [ ] A user can tell the planned time for a block at a glance.
-- [ ] A user no longer feels like each block shows three separate timings by default.
-- [ ] Actual-time edits remain understandable once opened.
+- [x] A user can tell the planned time for a block at a glance.
+- [x] A user no longer feels like each block shows three separate timings by default.
+- [x] Actual-time edits remain understandable once opened.
 
 ## Implementation Notes
 

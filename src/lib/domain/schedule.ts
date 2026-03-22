@@ -859,14 +859,6 @@ export function getDayCompletionState(day: GeneratedScheduleDay, userState: User
   });
 }
 
-export function getBlockDurationLabel(day: GeneratedScheduleDay, blockKey: BlockKey, userState: UserState) {
-  const slot = day.slots.find((item) => item.key === blockKey);
-  const progress = getBlockProgress(userState, day.dayNumber, blockKey);
-  const start = progress.actualStart ?? slot?.start ?? "";
-  const end = progress.actualEnd ?? slot?.end ?? "";
-  return `${start} - ${end}`;
-}
-
 export function getBacklogByDay(userState: UserState, dayNumber: number): BacklogItem[] {
   return Object.values(userState.backlogItems)
     .filter((item) => item.status === "pending" && item.originalDay === dayNumber)

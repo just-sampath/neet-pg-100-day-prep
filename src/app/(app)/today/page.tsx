@@ -14,7 +14,6 @@ import {
   getRevisionMinutesLabel,
 } from "@/lib/domain/today";
 import {
-  getBlockDurationLabel,
   getBlockProgress,
   getDisplayBlockDescription,
   getHiddenBlockKeys,
@@ -635,9 +634,6 @@ export default async function TodayPage() {
 
                   <div>
                     <h3 className="text-2xl font-semibold leading-tight">{entry.displayDescription}</h3>
-                    <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                      {getBlockDurationLabel(todayScheduleDay, entry.blockKey, userState)}
-                    </p>
                     {assignedRecovery.length ? (
                       <div className="note-card mt-5 p-4">
                         <div className="eyebrow">Recovery inside this block</div>
@@ -688,6 +684,8 @@ export default async function TodayPage() {
                       blockKey={entry.blockKey}
                       start={entry.start}
                       end={entry.end}
+                      actualStart={entry.progress.actualStart}
+                      actualEnd={entry.progress.actualEnd}
                       trafficLight={todayState.trafficLight}
                       slots={timeEditorSlots}
                     />

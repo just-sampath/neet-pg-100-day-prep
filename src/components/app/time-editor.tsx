@@ -11,14 +11,19 @@ type Props = {
   blockKey: BlockKey;
   start: string;
   end: string;
+  actualStart?: string | null;
+  actualEnd?: string | null;
   trafficLight: TrafficLight;
   slots: OverrunPreviewSlot[];
 };
 
-export function TimeEditor({ dayNumber, blockKey, start, end, trafficLight, slots }: Props) {
+export function TimeEditor({ dayNumber, blockKey, start, end, actualStart: savedStart, actualEnd: savedEnd, trafficLight, slots }: Props) {
   const [pending, startTransition] = useTransition();
-  const [actualStart, setActualStart] = useState(start);
-  const [actualEnd, setActualEnd] = useState(end);
+  const [actualStart, setActualStart] = useState(savedStart || start);
+  const [actualEnd, setActualEnd] = useState(savedEnd || end);
+
+  const hasRecordedTimes = Boolean(savedStart && savedEnd) && (savedStart !== start || savedEnd !== end);
+  const summaryLabel = hasRecordedTimes ? `Actual: ${savedStart} \u2013 ${savedEnd}` : "Edit actual timing";
 
   function isInvalid(nextStart: string, nextEnd: string) {
     return nextStart < "06:30" || nextEnd > "23:00";
@@ -91,7 +96,7 @@ export function TimeEditor({ dayNumber, blockKey, start, end, trafficLight, slot
   return (
     <details className="note-card mt-4">
       <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-[var(--muted)]">
-        Edit actual timing
+        {summaryLabel}
       </summary>
       <div className="px-4 pb-4">
         <div className="grid gap-3 md:grid-cols-2">
