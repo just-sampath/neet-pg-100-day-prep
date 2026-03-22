@@ -89,60 +89,64 @@ export function TimeEditor({ dayNumber, blockKey, start, end, trafficLight, slot
         : null;
 
   return (
-    <div className="note-card mt-4 p-4">
-      <div className="eyebrow">Actual Timing</div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <label className="text-sm">
-          <span className="mb-1 mt-3 block text-[var(--muted)]">Start</span>
-          <input className="field" type="time" value={actualStart} onChange={(event) => setActualStart(event.target.value)} />
-        </label>
-        <label className="text-sm">
-          <span className="mb-1 mt-3 block text-[var(--muted)]">End</span>
-          <input className="field" type="time" value={actualEnd} onChange={(event) => setActualEnd(event.target.value)} />
-        </label>
-      </div>
-      {guidance ? (
-        <p className={`mt-3 text-sm ${guidance.tone === "warning" ? "text-[var(--warning)]" : "text-(--text-secondary)"}`}>
-          {guidance.message}
-        </p>
-      ) : null}
-      <div className="mt-3 flex flex-wrap gap-2">
-        {!sleepViolation && overrunPreview.kind === "none" ? (
-          <button className="button-secondary" type="button" disabled={pending} onClick={save}>
-            Save times
-          </button>
+    <details className="note-card mt-4">
+      <summary className="cursor-pointer list-none px-4 py-3 text-sm font-medium text-[var(--muted)]">
+        Edit actual timing
+      </summary>
+      <div className="px-4 pb-4">
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="text-sm">
+            <span className="mb-1 mt-1 block text-[var(--muted)]">Start</span>
+            <input className="field" type="time" value={actualStart} onChange={(event) => setActualStart(event.target.value)} />
+          </label>
+          <label className="text-sm">
+            <span className="mb-1 mt-1 block text-[var(--muted)]">End</span>
+            <input className="field" type="time" value={actualEnd} onChange={(event) => setActualEnd(event.target.value)} />
+          </label>
+        </div>
+        {guidance ? (
+          <p className={`mt-3 text-sm ${guidance.tone === "warning" ? "text-[var(--warning)]" : "text-(--text-secondary)"}`}>
+            {guidance.message}
+          </p>
         ) : null}
-        {sleepViolation ? (
-          <button className="button-primary" type="button" disabled={pending} onClick={moveToBacklog}>
-            Move to backlog
-          </button>
-        ) : null}
-        {overrunPreview.kind === "decision" ? (
-          <>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {!sleepViolation && overrunPreview.kind === "none" ? (
             <button className="button-secondary" type="button" disabled={pending} onClick={save}>
-              Keep it visible
+              Save times
             </button>
+          ) : null}
+          {sleepViolation ? (
+            <button className="button-primary" type="button" disabled={pending} onClick={moveToBacklog}>
+              Move to backlog
+            </button>
+          ) : null}
+          {overrunPreview.kind === "decision" ? (
+            <>
+              <button className="button-secondary" type="button" disabled={pending} onClick={save}>
+                Keep it visible
+              </button>
+              <button
+                className="button-primary"
+                type="button"
+                disabled={pending}
+                onClick={() => submitTimeUpdate("move_next_to_backlog")}
+              >
+                Move overflow to backlog
+              </button>
+            </>
+          ) : null}
+          {overrunPreview.kind === "force_to_backlog" ? (
             <button
               className="button-primary"
               type="button"
               disabled={pending}
-              onClick={() => submitTimeUpdate("move_next_to_backlog")}
+              onClick={() => submitTimeUpdate("force_sleep_backlog")}
             >
-              Move overflow to backlog
+              Protect sleep
             </button>
-          </>
-        ) : null}
-        {overrunPreview.kind === "force_to_backlog" ? (
-          <button
-            className="button-primary"
-            type="button"
-            disabled={pending}
-            onClick={() => submitTimeUpdate("force_sleep_backlog")}
-          >
-            Protect sleep
-          </button>
-        ) : null}
+          ) : null}
+        </div>
       </div>
-    </div>
+    </details>
   );
 }
