@@ -17,15 +17,15 @@ The product decision is to surface the optional detail expander before the resul
 
 ## Checklist
 
-- [ ] Reorder the one-by-one MCQ form so `Add details` appears before the result buttons.
-- [ ] Preserve the existing session-state memory for the expander.
-- [ ] Keep the submit behavior centered on the result buttons rather than turning the form into a heavier workflow.
+- [x] Reorder the one-by-one MCQ form so `Add details` appears before the result buttons.
+- [x] Preserve the existing session-state memory for the expander.
+- [x] Keep the submit behavior centered on the result buttons rather than turning the form into a heavier workflow.
 
 ## Acceptance Criteria
 
-- [ ] The optional details expander appears before `Right`, `Wrong`, and `Guessed Right`.
-- [ ] A user can still enter `MCQ ID` and tap a result without extra mandatory fields.
-- [ ] Subject/source persistence and expander-state memory still behave as designed.
+- [x] The optional details expander appears before `Right`, `Wrong`, and `Guessed Right`.
+- [x] A user can still enter `MCQ ID` and tap a result without extra mandatory fields.
+- [x] Subject/source persistence and expander-state memory still behave as designed.
 
 ## Implementation Notes
 

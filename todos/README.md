@@ -87,13 +87,13 @@ The codebase is production-ready only when:
 4. [x] `004-remove-duplicate-today-branding.md`
 5. [x] `005-move-pace-dial-higher.md`
 6. [x] `006-hide-empty-recovery-radar.md`
-7. [ ] `007-collapse-actual-timing-by-default.md`
+7. [x] `007-collapse-actual-timing-by-default.md`
 8. [ ] `008-simplify-time-presentation.md`
 9. [ ] `009-fix-today-block-label-layout.md`
 10. [x] `010-rewrite-backlog-copy.md`
 11. [ ] `011-fix-dropdown-readability.md`
 12. [ ] `012-clarify-retroactive-completion-wording.md`
-13. [ ] `013-move-mcq-add-details-above-results.md`
+13. [x] `013-move-mcq-add-details-above-results.md`
 14. [ ] `014-theme-analytics-surfaces.md`
 
 ## Notes

@@ -1,6 +1,6 @@
 # 011 Fix Dropdown Readability
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
