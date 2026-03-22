@@ -134,26 +134,6 @@ export function McqDetailedEntryForm({ todayDate, subjects, recentTopics, recent
         />
       </label>
 
-      <div className="grid grid-cols-3 gap-3">
-        {MCQ_RESULT_OPTIONS.map((option) => (
-          <button
-            key={option.value}
-            className={`rounded-[1.4rem] border px-4 py-4 text-left transition ${option.value === "wrong"
-                ? "border-[rgba(227,140,140,0.25)] bg-[rgba(227,140,140,0.08)]"
-                : option.value === "guessed_right"
-                  ? "border-[rgba(243,209,123,0.24)] bg-[rgba(243,209,123,0.08)]"
-                  : "border-[rgba(142,217,165,0.24)] bg-[rgba(142,217,165,0.08)]"
-              }`}
-            disabled={pending || !mcqId.trim()}
-            type="button"
-            onClick={() => submit(option.value)}
-          >
-            <div className="font-mono text-[0.64rem] uppercase tracking-[0.16em] text-[var(--muted)] md:text-[0.72rem]">Tap to save</div>
-            <div className="mt-2 text-base font-semibold md:text-lg">{option.label}</div>
-          </button>
-        ))}
-      </div>
-
       <div className="note-card p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -330,6 +310,26 @@ export function McqDetailedEntryForm({ todayDate, subjects, recentTopics, recent
             </div>
           </div>
         ) : null}
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {MCQ_RESULT_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            className={`rounded-[1.4rem] border px-4 py-4 text-left transition ${option.value === "wrong"
+                ? "border-[rgba(227,140,140,0.25)] bg-[rgba(227,140,140,0.08)]"
+                : option.value === "guessed_right"
+                  ? "border-[rgba(243,209,123,0.24)] bg-[rgba(243,209,123,0.08)]"
+                  : "border-[rgba(142,217,165,0.24)] bg-[rgba(142,217,165,0.08)]"
+              }`}
+            disabled={pending || !mcqId.trim()}
+            type="button"
+            onClick={() => submit(option.value)}
+          >
+            <div className="font-mono text-[0.64rem] uppercase tracking-[0.16em] text-[var(--muted)] md:text-[0.72rem]">Tap to save</div>
+            <div className="mt-2 text-base font-semibold md:text-lg">{option.label}</div>
+          </button>
+        ))}
       </div>
 
       {feedback ? (
