@@ -1,6 +1,6 @@
 # 009 Fix Today Block Label Layout
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -17,15 +17,15 @@ Longer block labels such as `Consolidation` should read cleanly on the actual ta
 
 ## Checklist
 
-- [ ] Rework the block-card layout so long labels fit cleanly.
-- [ ] Verify the fix on both phone-sized and tablet-sized layouts.
-- [ ] Ensure the label, time slot, and status badge still scan as one coherent header.
+- [x] Rework the block-card layout so long labels fit cleanly.
+- [x] Verify the fix on both phone-sized and tablet-sized layouts.
+- [x] Ensure the label, time slot, and status badge still scan as one coherent header.
 
 ## Acceptance Criteria
 
-- [ ] Long block labels do not clip, overlap, or feel cramped.
-- [ ] The Today timeline remains readable on both compact and wide viewports.
-- [ ] The layout fix does not make short labels look oddly spaced or oversized.
+- [x] Long block labels do not clip, overlap, or feel cramped.
+- [x] The Today timeline remains readable on both compact and wide viewports.
+- [x] The layout fix does not make short labels look oddly spaced or oversized.
 
 ## Implementation Notes
 

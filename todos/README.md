@@ -89,7 +89,7 @@ The codebase is production-ready only when:
 6. [x] `006-hide-empty-recovery-radar.md`
 7. [x] `007-collapse-actual-timing-by-default.md`
 8. [x] `008-simplify-time-presentation.md`
-9. [ ] `009-fix-today-block-label-layout.md`
+9. [x] `009-fix-today-block-label-layout.md`
 10. [x] `010-rewrite-backlog-copy.md`
 11. [x] `011-fix-dropdown-readability.md`
 12. [ ] `012-clarify-retroactive-completion-wording.md`

@@ -616,80 +616,75 @@ export default async function TodayPage() {
                 className="panel timeline-card reveal-rise p-5 md:p-6"
                 data-complete={completed}
               >
-                <div className="grid gap-5 lg:grid-cols-[8.5rem_1fr]">
-                  <div className="pl-6">
-                    <div className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
+                <div className="pl-6">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
                       Block {String(blockNumber).padStart(2, "0")}
-                    </div>
-                    <div className="mt-3 display text-3xl">{entry.label}</div>
-                    <p className="mt-3 text-sm text-(--text-secondary)">
+                    </span>
+                    <span className="text-sm text-(--text-secondary)">
                       {entry.start} - {entry.end}
-                    </p>
-                    <div className="mt-4">
-                      <span className="status-badge" data-tone={getProgressTone(entry.progress.status)}>
-                        {getProgressLabel(entry.progress.status)}
-                      </span>
-                    </div>
+                    </span>
+                    <span className="status-badge" data-tone={getProgressTone(entry.progress.status)}>
+                      {getProgressLabel(entry.progress.status)}
+                    </span>
                   </div>
-
-                  <div>
-                    <h3 className="text-2xl font-semibold leading-tight">{entry.displayDescription}</h3>
-                    {assignedRecovery.length ? (
-                      <div className="note-card mt-5 p-4">
-                        <div className="eyebrow">Recovery inside this block</div>
-                        <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                          These items are no longer floating in backlog. They now belong to this block&apos;s plan.
-                        </p>
-                        <div className="mt-4 grid gap-3">
-                          {assignedRecovery.map((item) => (
-                            <article key={item.id} className="rounded-2xl border border-[var(--border)] p-3">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="status-badge" data-tone="neutral">
-                                  {item.subject}
-                                </span>
-                                <span className="status-badge" data-tone="neutral">
-                                  from Day {item.sourceDay}
-                                </span>
-                              </div>
-                              <div className="mt-3 font-medium">{item.topicDescription}</div>
-                              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
-                                {item.sourceMappedDate ? `${formatDateLabel(item.sourceMappedDate)} origin. ` : ""}
-                                {getRecoveryWaitLabel(item.daysInBacklog)}
-                              </p>
-                            </article>
-                          ))}
-                        </div>
+                  <div className="mt-2 display text-2xl md:text-3xl">{entry.label}</div>
+                  <h3 className="mt-3 text-lg font-semibold leading-snug md:text-xl lg:text-2xl">{entry.displayDescription}</h3>
+                  {assignedRecovery.length ? (
+                    <div className="note-card mt-5 p-4">
+                      <div className="eyebrow">Recovery inside this block</div>
+                      <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
+                        These items are no longer floating in backlog. They now belong to this block&apos;s plan.
+                      </p>
+                      <div className="mt-4 grid gap-3">
+                        {assignedRecovery.map((item) => (
+                          <article key={item.id} className="rounded-2xl border border-[var(--border)] p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="status-badge" data-tone="neutral">
+                                {item.subject}
+                              </span>
+                              <span className="status-badge" data-tone="neutral">
+                                from Day {item.sourceDay}
+                              </span>
+                            </div>
+                            <div className="mt-3 font-medium">{item.topicDescription}</div>
+                            <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
+                              {item.sourceMappedDate ? `${formatDateLabel(item.sourceMappedDate)} origin. ` : ""}
+                              {getRecoveryWaitLabel(item.daysInBacklog)}
+                            </p>
+                          </article>
+                        ))}
                       </div>
-                    ) : null}
-                    <div className="mt-5 flex flex-wrap gap-2">
-                      <form action={updateBlockAction}>
-                        <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
-                        <input type="hidden" name="blockKey" value={entry.blockKey} />
-                        <input type="hidden" name="intent" value="complete" />
-                        <button className="button-primary" disabled={completed} type="submit">
-                          Complete block
-                        </button>
-                      </form>
-                      <form action={updateBlockAction}>
-                        <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
-                        <input type="hidden" name="blockKey" value={entry.blockKey} />
-                        <input type="hidden" name="intent" value="skip" />
-                        <button className="button-secondary" disabled={completed} type="submit">
-                          Move to backlog
-                        </button>
-                      </form>
                     </div>
-                    <TimeEditor
-                      dayNumber={todayScheduleDay.dayNumber}
-                      blockKey={entry.blockKey}
-                      start={entry.start}
-                      end={entry.end}
-                      actualStart={entry.progress.actualStart}
-                      actualEnd={entry.progress.actualEnd}
-                      trafficLight={todayState.trafficLight}
-                      slots={timeEditorSlots}
-                    />
+                  ) : null}
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    <form action={updateBlockAction}>
+                      <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
+                      <input type="hidden" name="blockKey" value={entry.blockKey} />
+                      <input type="hidden" name="intent" value="complete" />
+                      <button className="button-primary" disabled={completed} type="submit">
+                        Complete block
+                      </button>
+                    </form>
+                    <form action={updateBlockAction}>
+                      <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
+                      <input type="hidden" name="blockKey" value={entry.blockKey} />
+                      <input type="hidden" name="intent" value="skip" />
+                      <button className="button-secondary" disabled={completed} type="submit">
+                        Move to backlog
+                      </button>
+                    </form>
                   </div>
+                  <TimeEditor
+                    dayNumber={todayScheduleDay.dayNumber}
+                    blockKey={entry.blockKey}
+                    start={entry.start}
+                    end={entry.end}
+                    actualStart={entry.progress.actualStart}
+                    actualEnd={entry.progress.actualEnd}
+                    trafficLight={todayState.trafficLight}
+                    slots={timeEditorSlots}
+                  />
                 </div>
               </article>
             );
