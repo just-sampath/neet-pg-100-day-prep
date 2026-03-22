@@ -252,24 +252,33 @@ export default async function ScheduleDayPage({
                 </div>
               ) : null}
               {detail.editState.canRetroactivelyComplete ? (
-                <form action={updateBlockAction} className="mt-4 grid gap-3 rounded-2xl border border-[var(--border)] p-4 md:grid-cols-[1fr_auto] md:items-end">
-                  <div>
-                    <label className="mb-2 block text-sm text-[var(--muted)]">Actual completion date</label>
-                    <input
-                      className="field"
-                      type="date"
-                      name="completionDate"
-                      defaultValue={defaultCompletionDate}
-                      max={detail.todayDate}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-                    <input type="hidden" name="blockKey" value={block.key} />
-                    <input type="hidden" name="intent" value="complete" />
-                    <button className="button-secondary" type="submit">
-                      Complete with date
-                    </button>
+                <form action={updateBlockAction} className="note-card mt-4 grid gap-3 p-4">
+                  <div className="eyebrow">Retroactive completion</div>
+                  <p className="text-sm leading-7 text-(--text-secondary)">
+                    This day has already passed. If you completed this block but
+                    forgot to mark it, pick the date you actually finished and
+                    record it below. Your revision schedule will adjust
+                    automatically.
+                  </p>
+                  <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
+                    <div>
+                      <label className="mb-2 block text-sm text-[var(--muted)]">Date you finished this block</label>
+                      <input
+                        className="field"
+                        type="date"
+                        name="completionDate"
+                        defaultValue={defaultCompletionDate}
+                        max={detail.todayDate}
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                      <input type="hidden" name="blockKey" value={block.key} />
+                      <input type="hidden" name="intent" value="complete" />
+                      <button className="button-secondary" type="submit">
+                        Mark as completed
+                      </button>
+                    </div>
                   </div>
                 </form>
               ) : null}
