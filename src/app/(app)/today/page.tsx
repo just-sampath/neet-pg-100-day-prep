@@ -228,7 +228,26 @@ export default async function TodayPage() {
 
   return (
     <div className="grid gap-6">
-      <section className="grid gap-6 xl:grid-cols-[1.28fr_0.72fr]">
+      <section className="panel reveal-rise p-6">
+        <div className="max-w-xl">
+          <div className="eyebrow">Pace Dial</div>
+          <h3 className="display mt-3 text-3xl">Choose the real day, not the fantasy day.</h3>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {(["green", "yellow", "red"] as const).map((trafficLight) => (
+            <form key={trafficLight} action={setTrafficLightAction}>
+              <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
+              <input type="hidden" name="trafficLight" value={trafficLight} />
+              <button className="pace-button" data-active={todayState.trafficLight === trafficLight} type="submit">
+                <div className="font-mono text-[0.72rem] uppercase tracking-[0.22em]">{paceCopy[trafficLight].title}</div>
+                <p className="mt-2 text-sm leading-6">{paceCopy[trafficLight].description}</p>
+              </button>
+            </form>
+          ))}
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.38fr_0.62fr]">
         <div className="grid gap-6">
           <section className="panel panel-hero grain reveal-rise overflow-hidden p-6 md:p-8">
             <div className="flex flex-wrap items-start justify-between gap-5">
@@ -286,29 +305,6 @@ export default async function TodayPage() {
 
         <div className="grid gap-6">
           <section className="panel reveal-rise stagger-2 p-6">
-            <div className="eyebrow">Pace Dial</div>
-            <h3 className="display mt-3 text-3xl">Choose the real day, not the fantasy day.</h3>
-            <p className="lead mt-4 text-sm">
-              The app should track reality cleanly. Pick the pace that matches your actual capacity and let the recovery
-              logic do its work.
-            </p>
-            <div className="mt-5 grid gap-3">
-              {(["green", "yellow", "red"] as const).map((trafficLight) => (
-                <form key={trafficLight} action={setTrafficLightAction}>
-                  <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
-                  <input type="hidden" name="trafficLight" value={trafficLight} />
-                  <button className="pace-button" data-active={todayState.trafficLight === trafficLight} type="submit">
-                    <div className="font-mono text-[0.72rem] uppercase tracking-[0.22em]">{paceCopy[trafficLight].title}</div>
-                    <p className="mt-2 text-sm leading-6">
-                      {paceCopy[trafficLight].description}
-                    </p>
-                  </button>
-                </form>
-              ))}
-            </div>
-          </section>
-
-          <section className="panel reveal-rise stagger-3 p-6">
             <div className="eyebrow">Recovery Radar</div>
             <div className="mt-4 grid gap-3">
               <div className="note-card p-4">

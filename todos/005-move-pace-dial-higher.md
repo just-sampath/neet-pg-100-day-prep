@@ -1,6 +1,6 @@
 # 005 Move Pace Dial Higher
 
-- [ ] Task complete
+- [x] Task complete
 
 ## Why This Exists
 
@@ -17,15 +17,15 @@ The pace decision is one of the most important inputs on Today. It should be dis
 
 ## Checklist
 
-- [ ] Reposition the `Pace Dial` higher in the Today layout.
-- [ ] Keep the control easy to reach on phone-sized screens.
-- [ ] Preserve clear context for what green, yellow, and red mean after the move.
+- [x] Reposition the `Pace Dial` higher in the Today layout.
+- [x] Keep the control easy to reach on phone-sized screens.
+- [x] Preserve clear context for what green, yellow, and red mean after the move.
 
 ## Acceptance Criteria
 
-- [ ] `Pace Dial` appears near the top of Today, immediately after the app shell/navigation area.
-- [ ] A user can choose the day mode without first scrolling through the main content stack.
-- [ ] The relocated control still feels integrated with the Today flow rather than detached from it.
+- [x] `Pace Dial` appears near the top of Today, immediately after the app shell/navigation area.
+- [x] A user can choose the day mode without first scrolling through the main content stack.
+- [x] The relocated control still feels integrated with the Today flow rather than detached from it.
 
 ## Implementation Notes
 
