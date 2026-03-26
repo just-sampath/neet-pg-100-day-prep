@@ -60,8 +60,8 @@ export const MCQ_TAG_OPTIONS: McqTag[] = [
   "staging",
 ];
 
-const SUBJECT_OPTIONS = [...scheduleData.subjects]
-  .map((entry) => entry.subject.trim())
+const SUBJECT_OPTIONS = [...scheduleData.subjectStrategy.subjects]
+  .map((entry) => entry.subjectName.trim())
   .filter(Boolean)
   .toSorted((left, right) => left.localeCompare(right));
 

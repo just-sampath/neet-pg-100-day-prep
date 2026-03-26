@@ -69,9 +69,9 @@ export default async function SchedulePage() {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="eyebrow">
-                Day {day.dayNumber} · {day.phase}
+                Day {day.dayNumber} · {day.phaseName}
               </div>
-              <h2 className="mt-2 text-xl font-semibold">{day.primaryFocus}</h2>
+              <h2 className="mt-2 text-xl font-semibold">{day.primaryFocusRaw}</h2>
               <p className="mt-1 text-sm text-[var(--muted)]">
                 {day.mappedDate ? `Now ${formatDateLabel(day.mappedDate)}` : "Day 1 not set"}
                 {day.originalPlannedDate && day.originalPlannedDate !== day.mappedDate
@@ -92,9 +92,9 @@ export default async function SchedulePage() {
               <span className="status-badge" data-tone={getStatusTone(day.status)}>
                 {getStatusLabel(day.status)}
               </span>
-              {day.gtTest !== "No" ? (
+              {day.gtTestType !== "No" ? (
                 <span className="status-badge" data-tone="neutral">
-                  {day.gtTest}
+                  {day.gtTestType}
                 </span>
               ) : null}
               {day.hiddenShiftLabel ? (

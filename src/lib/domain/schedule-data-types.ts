@@ -1,6 +1,6 @@
 import type { GtTestType, TimelineSlotKind } from "@/lib/domain/types";
 
-export type WorkbookPhaseGroup =
+export type SchedulePhaseGroup =
   | "orientation_baseline"
   | "first_pass"
   | "grand_test_analysis"
@@ -15,7 +15,7 @@ export type WorkbookPhaseGroup =
   | "final_assault"
   | "pre_exam_day";
 
-export type WorkbookBlockIntent =
+export type ScheduleBlockIntent =
   | "setup"
   | "revision"
   | "core_study"
@@ -31,36 +31,37 @@ export type WorkbookBlockIntent =
   | "break"
   | "meal";
 
-export type WorkbookRecoveryLane = "none" | "core_recovery" | "soft_carry" | "assessment_recovery";
+export type RecoveryLane = "none" | "core_recovery" | "soft_carry" | "assessment_recovery";
 
-export type WorkbookPhaseFence =
+export type PhaseFence =
   | "same_phase_only"
   | "current_phase_preferred"
   | "no_auto_cross_phase"
   | "not_reschedulable";
 
-export type WorkbookBlockItemKind = "topic" | "task" | "revision_ref" | "gt_step";
+export type ScheduleItemKind = "topic" | "task" | "revision_ref" | "gt_step";
 
-export type WorkbookItemRevisionType = "D+1" | "D+3" | "D+7" | "D+14" | "D+28";
+export type ScheduleItemRevisionType = "D+1" | "D+3" | "D+7" | "D+14" | "D+28";
 
-export type WorkbookVisibilityState = "visible" | "hidden";
+export type VisibilityState = "visible" | "hidden";
 
-export interface WorkbookTrafficLightPolicy {
-  green: WorkbookVisibilityState;
-  yellow: WorkbookVisibilityState;
-  red: WorkbookVisibilityState;
+export interface ScheduleTrafficLightPolicy {
+  green: VisibilityState;
+  yellow: VisibilityState;
+  red: VisibilityState;
   backlogWhenHidden: boolean;
 }
 
-export interface WorkbookPhaseCatalogItem {
+export interface SchedulePhaseCatalogItem {
   phaseId: string;
   phaseName: string;
-  phaseGroup: WorkbookPhaseGroup;
+  phaseGroup: SchedulePhaseGroup;
   startDay: number;
   endDay: number;
+  description: string;
 }
 
-export interface WorkbookSlotCatalogItem {
+export interface ScheduleSlotCatalogItem {
   timeSlotKey: string;
   start: string;
   end: string;
@@ -70,39 +71,39 @@ export interface WorkbookSlotCatalogItem {
   order: number;
 }
 
-export interface WorkbookDayBlockItem {
+export interface ScheduleDayBlockItem {
   itemId: string;
   order: number;
-  kind: WorkbookBlockItemKind;
+  kind: ScheduleItemKind;
   label: string;
   rawText: string;
   plannedMinutes: number;
   subjectIds: string[];
   revisionEligible: boolean;
-  recoveryLane: WorkbookRecoveryLane;
-  phaseFence: WorkbookPhaseFence;
+  recoveryLane: RecoveryLane;
+  phaseFence: PhaseFence;
   notes: string | null;
-  revisionType?: WorkbookItemRevisionType | null;
+  revisionType?: ScheduleItemRevisionType | null;
   referenceLabel?: string | null;
   referenceDayNumber?: number | null;
 }
 
-export interface WorkbookDayBlock {
+export interface ScheduleDayBlock {
   timeSlotKey: string;
   displayLabel: string;
   semanticBlockKey: string;
-  blockIntent: WorkbookBlockIntent;
+  blockIntent: ScheduleBlockIntent;
   trackable: boolean;
   rawText: string;
-  items: WorkbookDayBlockItem[];
-  recoveryLane: WorkbookRecoveryLane;
-  phaseFence: WorkbookPhaseFence;
+  items: ScheduleDayBlockItem[];
+  recoveryLane: RecoveryLane;
+  phaseFence: PhaseFence;
   defaultRevisionEligible: boolean;
   reschedulable: boolean;
-  trafficLightPolicy: WorkbookTrafficLightPolicy;
+  trafficLightPolicy: ScheduleTrafficLightPolicy;
 }
 
-export interface WorkbookDayPlan {
+export interface ScheduleDayPlan {
   dayNumber: number;
   phaseId: string;
   phaseName: string;
@@ -114,19 +115,19 @@ export interface WorkbookDayPlan {
   deliverableRaw: string;
   gtTestType: GtTestType;
   gtPlanRef: string | null;
-  blocks: WorkbookDayBlock[];
+  blocks: ScheduleDayBlock[];
 }
 
-export interface WorkbookDaywisePlanData {
+export interface ScheduleDaywisePlanData {
   version: number;
-  sourceWorkbook: string;
+  source: "manual-json";
   sourceSheet: "Daywise_Plan";
-  phaseCatalog: WorkbookPhaseCatalogItem[];
-  slotCatalog: WorkbookSlotCatalogItem[];
-  days: WorkbookDayPlan[];
+  phaseCatalog: SchedulePhaseCatalogItem[];
+  slotCatalog: ScheduleSlotCatalogItem[];
+  days: ScheduleDayPlan[];
 }
 
-export interface WorkbookSubjectStrategyEntry {
+export interface SubjectStrategyEntry {
   subjectId: string;
   subjectName: string;
   aliases: string[];
@@ -138,14 +139,14 @@ export interface WorkbookSubjectStrategyEntry {
   mustFocusTopics: string[];
 }
 
-export interface WorkbookSubjectStrategyData {
+export interface SubjectStrategyData {
   version: number;
-  sourceWorkbook: string;
+  source: "manual-json";
   sourceSheet: "Subject_Strategy";
-  subjects: WorkbookSubjectStrategyEntry[];
+  subjects: SubjectStrategyEntry[];
 }
 
-export interface WorkbookGtPlanEntry {
+export interface GtPlanEntry {
   gtPlanRef: string;
   dayNumber: number;
   testType: GtTestType;
@@ -156,15 +157,17 @@ export interface WorkbookGtPlanEntry {
   mustOutputItems: string[];
 }
 
-export interface WorkbookGtPlanData {
+export interface GtPlanData {
   version: number;
-  sourceWorkbook: string;
+  source: "manual-json";
   sourceSheet: "GT_Test_Plan";
-  tests: WorkbookGtPlanEntry[];
+  tests: GtPlanEntry[];
 }
 
-export interface WorkbookSemanticBundle {
-  daywisePlan: WorkbookDaywisePlanData;
-  subjectStrategy: WorkbookSubjectStrategyData;
-  gtTestPlan: WorkbookGtPlanData;
+export interface ScheduleDataBundle {
+  examDate: string;
+  hardBoundaryDate: string;
+  daywisePlan: ScheduleDaywisePlanData;
+  subjectStrategy: SubjectStrategyData;
+  gtTestPlan: GtPlanData;
 }

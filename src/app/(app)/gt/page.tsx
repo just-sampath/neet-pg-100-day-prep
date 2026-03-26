@@ -70,12 +70,12 @@ export default async function GtPage() {
                 )}
               </div>
               <div className="mt-3 text-lg font-semibold">{item.label}</div>
-              {item.purpose !== item.label ? (
-                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.purpose}</p>
+              {item.purposeRaw !== item.label ? (
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.purposeRaw}</p>
               ) : null}
               <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.mappedDate ?? "No mapped date yet"}</p>
-              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.whatToMeasure}</p>
-              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.mustOutputAfterTest}</p>
+              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.whatToMeasureRaw}</p>
+              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.mustOutputRaw}</p>
             </article>
           ))}
         </div>
@@ -85,7 +85,7 @@ export default async function GtPage() {
         <div className="eyebrow">GT Log</div>
         <h2 className="mt-3 text-2xl font-semibold">Capture the full paper, not just the score.</h2>
         <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-          If today is not a GT day, you can still log retroactively. The suggested GT number and day come from the workbook plan after schedule
+          If today is not a GT day, you can still log retroactively. The suggested GT number and day come from the schedule plan after schedule
           shifts are applied.
         </p>
         <GtEntryForm todayDate={data.todayDate} subjectOptions={data.subjectOptions} suggestedPlanItem={data.suggestedPlanItem} />

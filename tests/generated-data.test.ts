@@ -1,124 +1,135 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
-import XLSX from "xlsx";
 
 import { scheduleData } from "@/lib/generated/schedule-data";
-import { workbookSemanticData } from "@/lib/generated/workbook-semantic-data";
 
-const workbook = XLSX.readFile("resources/neet_pg_2026_100_day_schedule.xlsx");
-const dayRows = XLSX.utils.sheet_to_json(workbook.Sheets.Daywise_Plan, { defval: "" });
-const blockHourRows = XLSX.utils.sheet_to_json(workbook.Sheets.Block_Hours, { defval: "" });
-const subjectRows = XLSX.utils.sheet_to_json(workbook.Sheets.Subject_Strategy, { defval: "" });
-const gtRows = XLSX.utils.sheet_to_json(workbook.Sheets.GT_Test_Plan, { defval: "" });
-const readmeRows = XLSX.utils.sheet_to_json(workbook.Sheets.Readme, { defval: "" });
+const daywisePlan = JSON.parse(
+  readFileSync(join(process.cwd(), "resources/manual-json/daywise-plan.json"), "utf8"),
+) as typeof scheduleData.daywisePlan;
+const subjectStrategy = JSON.parse(
+  readFileSync(join(process.cwd(), "resources/manual-json/subject-strategy.json"), "utf8"),
+) as typeof scheduleData.subjectStrategy;
+const gtTestPlan = JSON.parse(
+  readFileSync(join(process.cwd(), "resources/manual-json/gt-test-plan.json"), "utf8"),
+) as typeof scheduleData.gtTestPlan;
+
+function getDay(dayNumber: number) {
+  return scheduleData.daywisePlan.days.find((day) => day.dayNumber === dayNumber)!;
+}
+
+function getBlock(dayNumber: number, semanticBlockKey: string) {
+  return getDay(dayNumber).blocks.find((block) => block.semanticBlockKey === semanticBlockKey)!;
+}
 
 describe("generated schedule data", () => {
-  it("derives trackable templates directly from Block_Hours", () => {
-    expect(scheduleData.blockTemplates).toBeDefined();
-    const generatedTrackables = scheduleData.blockTemplates?.filter((template) => template.trackable) ?? [];
+  it("uses the manual JSON files as the only generated schedule source", () => {
+    expect(scheduleData.daywisePlan.source).toBe("manual-json");
+    expect(scheduleData.daywisePlan.sourceSheet).toBe(daywisePlan.sourceSheet);
+    expect(scheduleData.subjectStrategy.source).toBe("manual-json");
+    expect(scheduleData.gtTestPlan.source).toBe("manual-json");
 
-    expect(generatedTrackables).toHaveLength(blockHourRows.length);
-    expect(scheduleData.trackableBlockOrder).toEqual(generatedTrackables.map((template) => template.key));
-
-    generatedTrackables.forEach((template, index) => {
-      const workbookRow = blockHourRows[index] as { Block: string; Hours: number };
-      expect(template.column).toBe(workbookRow.Block);
-      expect(template.durationHours).toBe(Number(workbookRow.Hours));
-      expect(`${template.start}-${template.end}`).toBe(workbookRow.Block);
-    });
+    expect(scheduleData.daywisePlan.days).toHaveLength(100);
+    expect(scheduleData.daywisePlan.slotCatalog).toHaveLength(13);
+    expect(scheduleData.subjectStrategy.subjects).toHaveLength(19);
+    expect(scheduleData.gtTestPlan.tests).toHaveLength(gtTestPlan.tests.length);
   });
 
-  it("keeps the 100-day plan complete and slot-aligned with the workbook", () => {
-    expect(scheduleData.days).toHaveLength(100);
-    expect(scheduleData.days).toHaveLength(dayRows.length);
+  it("keeps every day and block aligned with the curated JSON source", () => {
+    expect(scheduleData.daywisePlan.phaseCatalog).toEqual(
+      daywisePlan.phaseCatalog.map((phase) => ({
+        ...phase,
+        description: expect.any(String),
+      })),
+    );
 
-    scheduleData.days.forEach((day, index) => {
-      const workbookDay = dayRows[index] as Record<string, string | number>;
-      expect(day.dayNumber).toBe(Number(workbookDay.Day));
-      expect(day.phase).toBe(String(workbookDay.Phase));
-      expect(day.primaryFocus).toBe(String(workbookDay["Primary Focus"]));
-      expect(day.gtTest).toBe(String(workbookDay["GT/Test"]));
-      expect(day.plannedHours).toBe(Number(workbookDay.Planned_Hours));
-      expect(day.slots).toHaveLength(scheduleData.blockTemplates?.length ?? 13);
-      day.slots.forEach((slot) => {
-        expect(slot.column).toBeDefined();
-        expect(slot.description).toBe(String(workbookDay[slot.column as string]));
-      });
-    });
-  });
-
-  it("keeps workbook metadata, subject metadata, and GT plan aligned", () => {
-    expect(scheduleData.workbookReadme).toHaveLength(readmeRows.length);
-    expect(scheduleData.subjects).toHaveLength(subjectRows.length);
-    expect(scheduleData.gtPlan).toHaveLength(gtRows.length);
-
-    scheduleData.subjects.forEach((subject, index) => {
-      const workbookSubject = subjectRows[index] as Record<string, string | number>;
-      expect(subject.subject).toBe(String(workbookSubject.Subject));
-      expect(subject.worHours).toBe(Number(workbookSubject.WoR_hours));
-    });
-
-    scheduleData.gtPlan.forEach((gtEntry, index) => {
-      const workbookGt = gtRows[index] as Record<string, string | number>;
-      const matchingDay = scheduleData.days.find((day) => day.dayNumber === gtEntry.dayNumber);
-
-      expect(gtEntry.dayNumber).toBe(Number(workbookGt.Day));
-      expect(gtEntry.testType).toBe(String(workbookGt.Test_type));
-      expect(matchingDay?.gtTest).toBe(gtEntry.testType);
-    });
-  });
-
-  it("keeps the manual workbook semantic bundle aligned with the workbook", () => {
-    expect(workbookSemanticData.daywisePlan.days).toHaveLength(dayRows.length);
-    expect(workbookSemanticData.daywisePlan.slotCatalog).toHaveLength(13);
-    expect(workbookSemanticData.subjectStrategy.subjects).toHaveLength(subjectRows.length);
-    expect(workbookSemanticData.gtTestPlan.tests).toHaveLength(gtRows.length);
-
-    workbookSemanticData.daywisePlan.days.forEach((day, index) => {
-      const workbookDay = dayRows[index] as Record<string, string | number>;
-      expect(day.dayNumber).toBe(Number(workbookDay.Day));
-      expect(day.phaseName).toBe(String(workbookDay.Phase));
-      expect(day.primaryFocusRaw).toBe(String(workbookDay["Primary Focus"]));
+    scheduleData.daywisePlan.days.forEach((day, dayIndex) => {
+      const sourceDay = daywisePlan.days[dayIndex]!;
+      expect(day.dayNumber).toBe(sourceDay.dayNumber);
+      expect(day.phaseId).toBe(sourceDay.phaseId);
+      expect(day.phaseName).toBe(sourceDay.phaseName);
+      expect(day.primaryFocusRaw).toBe(sourceDay.primaryFocusRaw);
+      expect(day.resourceRaw).toBe(sourceDay.resourceRaw);
+      expect(day.deliverableRaw).toBe(sourceDay.deliverableRaw);
       expect(day.blocks).toHaveLength(13);
 
       day.blocks.forEach((block, blockIndex) => {
-        const timeSlotKey = workbookSemanticData.daywisePlan.slotCatalog[blockIndex]!.timeSlotKey;
-        expect(block.timeSlotKey).toBe(timeSlotKey);
-        expect(block.rawText).toBe(String(workbookDay[timeSlotKey]));
+        const sourceBlock = sourceDay.blocks[blockIndex]!;
+        const slot = scheduleData.daywisePlan.slotCatalog[blockIndex]!;
+
+        expect(block.timeSlotKey).toBe(sourceBlock.timeSlotKey);
+        expect(block.timeSlotKey).toBe(slot.timeSlotKey);
+        expect(block.rawText).toBe(sourceBlock.rawText);
+        expect(block.displayLabel).toBe(sourceBlock.displayLabel);
+        expect(block.semanticBlockKey).toBe(sourceBlock.semanticBlockKey);
+
+        const itemMinutes = block.items.reduce((total, item) => total + item.plannedMinutes, 0);
+        expect(itemMinutes).toBe(block.trackable ? slot.durationMinutes : 0);
       });
     });
   });
 
-  it("captures the phase-aware semantics needed for later queue and revision logic", () => {
-    const day1 = workbookSemanticData.daywisePlan.days.find((day) => day.dayNumber === 1)!;
-    const day2 = workbookSemanticData.daywisePlan.days.find((day) => day.dayNumber === 2)!;
-    const day41 = workbookSemanticData.daywisePlan.days.find((day) => day.dayNumber === 41)!;
-    const day95 = workbookSemanticData.daywisePlan.days.find((day) => day.dayNumber === 95)!;
-    const day100 = workbookSemanticData.daywisePlan.days.find((day) => day.dayNumber === 100)!;
+  it("locks revision eligibility to first-pass core-study topics only", () => {
+    const revisionEligibleItems = scheduleData.daywisePlan.days.flatMap((day) =>
+      day.blocks.flatMap((block) =>
+        block.items
+          .filter((item) => item.revisionEligible)
+          .map((item) => ({ day, block, item })),
+      ),
+    );
 
-    const day1Diagnostic = day1.blocks.find((block) => block.timeSlotKey === "08:15-10:45")!;
+    expect(revisionEligibleItems.length).toBeGreaterThan(0);
+    expect(
+      revisionEligibleItems.every(
+        ({ day, block }) => day.phaseId === "first_pass" && block.blockIntent === "core_study",
+      ),
+    ).toBe(true);
+  });
+
+  it("captures the representative phase semantics needed by the new runtime", () => {
+    const day1Diagnostic = getBlock(1, "diagnostic_block");
     expect(day1Diagnostic.blockIntent).toBe("assessment");
-    expect(day1Diagnostic.defaultRevisionEligible).toBe(false);
     expect(day1Diagnostic.reschedulable).toBe(false);
+    expect(day1Diagnostic.defaultRevisionEligible).toBe(false);
 
-    const day2StudyBlock = day2.blocks.find((block) => block.timeSlotKey === "08:15-10:45")!;
-    expect(day2StudyBlock.blockIntent).toBe("core_study");
-    expect(day2StudyBlock.defaultRevisionEligible).toBe(true);
-    expect(day2StudyBlock.phaseFence).toBe("same_phase_only");
-    expect(day2StudyBlock.items.length).toBeGreaterThan(1);
-    expect(day2StudyBlock.items.every((item) => item.revisionEligible)).toBe(true);
+    const day2StudyBlock1 = getBlock(2, "study_block_1");
+    expect(day2StudyBlock1.blockIntent).toBe("core_study");
+    expect(day2StudyBlock1.defaultRevisionEligible).toBe(true);
+    expect(day2StudyBlock1.phaseFence).toBe("same_phase_only");
+    expect(day2StudyBlock1.items.every((item) => item.revisionEligible)).toBe(true);
 
-    const day41Gt = day41.blocks.find((block) => block.timeSlotKey === "08:15-10:45")!;
-    expect(day41Gt.blockIntent).toBe("assessment");
-    expect(day41Gt.recoveryLane).toBe("assessment_recovery");
-    expect(day41Gt.reschedulable).toBe(false);
+    const day41GtBlock1 = getBlock(41, "gt_block_1");
+    expect(day41GtBlock1.blockIntent).toBe("assessment");
+    expect(day41GtBlock1.recoveryLane).toBe("assessment_recovery");
+    expect(day41GtBlock1.reschedulable).toBe(false);
 
-    const day95CalmRecall = day95.blocks.find((block) => block.timeSlotKey === "20:15-21:45")!;
+    const day42RevisionBlock1 = getBlock(42, "revision_block_1");
+    expect(day42RevisionBlock1.blockIntent).toBe("revision");
+    expect(day42RevisionBlock1.defaultRevisionEligible).toBe(false);
+
+    const day84Rescue = getBlock(84, "revision_block_1");
+    expect(day84Rescue.phaseFence).toBe("same_phase_only");
+    expect(day84Rescue.reschedulable).toBe(true);
+
+    const day95CalmRecall = getBlock(95, "calm_recall_block");
     expect(day95CalmRecall.blockIntent).toBe("recall");
     expect(day95CalmRecall.reschedulable).toBe(false);
     expect(day95CalmRecall.phaseFence).toBe("not_reschedulable");
 
-    const day100Midday = day100.blocks.find((block) => block.timeSlotKey === "11:00-13:30")!;
+    const day100Midday = getBlock(100, "pre_exam_midday");
     expect(day100Midday.blockIntent).toBe("logistics");
     expect(day100Midday.reschedulable).toBe(false);
+    expect(day100Midday.trafficLightPolicy.red).toBe("visible");
+  });
+
+  it("keeps subject strategy and GT plan aligned with generated references", () => {
+    expect(scheduleData.subjectStrategy.subjects).toEqual(subjectStrategy.subjects);
+    expect(scheduleData.gtTestPlan.tests).toEqual(gtTestPlan.tests);
+
+    const gtRefs = new Map(scheduleData.gtTestPlan.tests.map((test) => [test.dayNumber, test.gtPlanRef]));
+    for (const day of scheduleData.daywisePlan.days) {
+      expect(day.gtPlanRef).toBe(gtRefs.get(day.dayNumber) ?? null);
+    }
   });
 });

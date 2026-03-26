@@ -1,26 +1,31 @@
 import { describe, expect, it } from "vitest";
 
+import {
+  completeBlockItems,
+  generateWeeklySummary,
+  getOrCreateProgress,
+  moveBlockToBacklog,
+  runWeeklySummaryAutomation,
+  upsertWeeklySummary,
+} from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
-import { generateWeeklySummary, getOrCreateProgress, runWeeklySummaryAutomation, upsertWeeklySummary } from "@/lib/data/app-state";
+import { emptyGtSectionBreakdown } from "@/lib/domain/gt";
 import { createRevisionId, getScheduleDay, getVisibleBlockKeys } from "@/lib/domain/schedule";
-import type { BlockKey, TrafficLight, UserState } from "@/lib/domain/types";
+import type { TrafficLight, UserState } from "@/lib/domain/types";
 
 function setTrafficLight(userState: UserState, dayNumber: number, trafficLight: TrafficLight) {
   userState.dayStates[String(dayNumber)] = {
     dayNumber,
     trafficLight,
-    updatedAt: `${String(2026)}-05-${String(dayNumber + 3).padStart(2, "0")}T08:00:00.000Z`,
+    updatedAt: `2026-05-${String(dayNumber + 3).padStart(2, "0")}T08:00:00.000Z`,
   };
 }
 
-function completeBlock(userState: UserState, dayNumber: number, blockKey: BlockKey, completedAt: string, actualEnd?: string) {
-  const day = getScheduleDay(dayNumber);
-  const slot = day?.slots.find((entry) => entry.key === blockKey);
-  const progress = getOrCreateProgress(userState, dayNumber, blockKey);
-  progress.status = "completed";
-  progress.completedAt = completedAt;
-  progress.actualStart = slot?.start ?? null;
-  progress.actualEnd = actualEnd ?? slot?.end ?? null;
+function completeVisibleBlocks(userState: UserState, dayNumber: number, trafficLight: TrafficLight, completedAt: string) {
+  const day = getScheduleDay(dayNumber)!;
+  for (const blockKey of getVisibleBlockKeys(trafficLight, day)) {
+    completeBlockItems(userState, dayNumber, blockKey, completedAt);
+  }
 }
 
 describe("weekly summary and review", () => {
@@ -31,62 +36,42 @@ describe("weekly summary and review", () => {
     setTrafficLight(userState, 2, "yellow");
     setTrafficLight(userState, 3, "red");
 
-    for (const blockKey of getVisibleBlockKeys("green")) {
-      completeBlock(userState, 1, blockKey, "2026-05-04T12:00:00.000Z");
-    }
-    for (const blockKey of getVisibleBlockKeys("yellow")) {
-      completeBlock(userState, 2, blockKey, "2026-05-05T12:00:00.000Z", blockKey === "block_a" ? "11:05" : undefined);
-    }
-    completeBlock(userState, 3, "block_a", "2026-05-06T10:00:00.000Z");
+    completeVisibleBlocks(userState, 1, "green", "2026-05-04T12:00:00.000Z");
+    completeVisibleBlocks(userState, 2, "yellow", "2026-05-05T12:00:00.000Z");
+    completeBlockItems(userState, 3, getScheduleDay(3)!.blocks.find((block) => block.semanticBlockKey === "study_block_1")!.timeSlotKey, "2026-05-06T10:00:00.000Z");
 
-    userState.revisionCompletions[createRevisionId(1, "block_a", "D+1")] = {
-      revisionId: createRevisionId(1, "block_a", "D+1"),
-      sourceDay: 1,
-      sourceBlockKey: "block_a",
+    const day2StudyBlock1 = getScheduleDay(2)!.blocks.find((block) => block.semanticBlockKey === "study_block_1")!;
+    const day2StudyBlock1Timing = getOrCreateProgress(userState, 2, day2StudyBlock1.timeSlotKey);
+    day2StudyBlock1Timing.actualStart = "08:15";
+    day2StudyBlock1Timing.actualEnd = "11:05";
+
+    const day2FirstTopic = day2StudyBlock1.items[0]!;
+    const day2RevisionId = createRevisionId(day2FirstTopic.itemId, "D+1");
+    userState.revisionCompletions[day2RevisionId] = {
+      revisionId: day2RevisionId,
+      sourceItemId: day2FirstTopic.itemId,
+      sourceDay: 2,
+      sourceBlockKey: day2StudyBlock1.timeSlotKey,
       revisionType: "D+1",
-      completedAt: "2026-05-05T06:45:00.000Z",
+      completedAt: "2026-05-06T06:45:00.000Z",
     };
 
-    userState.backlogItems["pending-missed"] = {
-      id: "pending-missed",
-      originalDay: 2,
-      originalBlockKey: "consolidation",
-      originalStart: "14:15",
-      originalEnd: "16:45",
-      priorityOrder: 1,
-      topicDescription: "Pathology consolidation",
-      subject: "Pathology",
-      sourceTag: "missed",
-      status: "pending",
-      suggestedDay: null,
-      suggestedBlockKey: null,
-      suggestedNote: null,
-      rescheduledToDay: null,
-      rescheduledToBlockKey: null,
-      createdAt: "2026-05-05T18:00:00.000Z",
-      completedAt: null,
-      dismissedAt: null,
-    };
-    userState.backlogItems["pending-overrun"] = {
-      id: "pending-overrun",
-      originalDay: 3,
-      originalBlockKey: "mcq",
-      originalStart: "17:00",
-      originalEnd: "19:30",
-      priorityOrder: 2,
-      topicDescription: "Reduced MCQ block",
-      subject: "Pathology",
-      sourceTag: "overrun_cascade",
-      status: "pending",
-      suggestedDay: null,
-      suggestedBlockKey: null,
-      suggestedNote: null,
-      rescheduledToDay: null,
-      rescheduledToBlockKey: null,
-      createdAt: "2026-05-06T19:00:00.000Z",
-      completedAt: null,
-      dismissedAt: null,
-    };
+    moveBlockToBacklog(
+      userState,
+      2,
+      getScheduleDay(2)!.blocks.find((block) => block.semanticBlockKey === "consolidation_block")!.timeSlotKey,
+      "missed",
+      "missed",
+      "Needs recovery.",
+    );
+    moveBlockToBacklog(
+      userState,
+      3,
+      getScheduleDay(3)!.blocks.find((block) => block.semanticBlockKey === "mcq_block")!.timeSlotKey,
+      "overrun_cascade",
+      "rescheduled",
+      "Reduced after an overrun.",
+    );
 
     userState.mcqBulkLogs["bulk-1"] = {
       id: "bulk-1",
@@ -124,11 +109,11 @@ describe("weekly summary and review", () => {
       source: "GT-1",
       createdAt: "2026-05-08T08:00:00.000Z",
     };
-    userState.gtLogs["gt-outside-cutoff"] = {
-      id: "gt-outside-cutoff",
-      gtNumber: "GT-1",
-      gtDate: "2026-05-10",
-      dayNumber: 7,
+    userState.gtLogs["gt-in-week"] = {
+      id: "gt-in-week",
+      gtNumber: "GT-0",
+      gtDate: "2026-05-06",
+      dayNumber: 3,
       score: 410,
       correct: 128,
       wrong: 52,
@@ -137,18 +122,18 @@ describe("weekly summary and review", () => {
       device: "tablet",
       attemptedLive: true,
       overallFeeling: "rushed",
-      sectionA: { timeEnough: null, panicStarted: null, guessedTooMuch: null, timeLostOn: [] },
-      sectionB: { timeEnough: null, panicStarted: null, guessedTooMuch: null, timeLostOn: [] },
-      sectionC: { timeEnough: null, panicStarted: null, guessedTooMuch: null, timeLostOn: [] },
-      sectionD: { timeEnough: null, panicStarted: null, guessedTooMuch: null, timeLostOn: [] },
-      sectionE: { timeEnough: null, panicStarted: null, guessedTooMuch: null, timeLostOn: [] },
+      sectionA: emptyGtSectionBreakdown(),
+      sectionB: emptyGtSectionBreakdown(),
+      sectionC: emptyGtSectionBreakdown(),
+      sectionD: emptyGtSectionBreakdown(),
+      sectionE: emptyGtSectionBreakdown(),
       errorTypes: null,
       recurringTopics: null,
       weakestSubjects: [],
       knowledgeVsBehaviour: null,
       unsureRightCount: null,
       changeBeforeNextGt: "Review trauma images.",
-      createdAt: "2026-05-10T08:00:00.000Z",
+      createdAt: "2026-05-06T08:00:00.000Z",
     };
 
     const summary = generateWeeklySummary(userState, userState.settings, "2026-05-04", {
@@ -166,15 +151,17 @@ describe("weekly summary and review", () => {
       greenDays: 1,
       yellowDays: 1,
       redDays: 1,
+      morningRevisionPlanned: 5,
+      morningRevisionCompleted: 1,
       totalMcqsSolved: 21,
       overallAccuracy: 66.7,
-      gtNumber: null,
-      backlogCount: 2,
+      gtNumber: "GT-0",
+      backlogCount: 4,
       backlogSummary: {
-        totalPending: 2,
-        fromMissed: 1,
+        totalPending: 4,
+        fromMissed: 2,
         fromYellowRed: 0,
-        fromOverrun: 1,
+        fromOverrun: 2,
       },
       overrunBlockCount: 1,
       topWrongSubjects: [{ label: "Pathology", count: 1 }],
@@ -182,6 +169,7 @@ describe("weekly summary and review", () => {
     });
 
     expect(summary.subjectsStudied).toContain("Pathology");
+    expect(summary.overrunBlocks[0]?.label).toContain("Pathology");
   });
 
   it("waits until Sunday 23:30 IST before auto-generating the weekly summary", () => {

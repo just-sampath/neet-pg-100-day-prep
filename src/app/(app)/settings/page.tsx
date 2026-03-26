@@ -1,11 +1,9 @@
-import Link from "next/link";
-
 import { DevToolbar } from "@/components/app/dev-toolbar";
 import { InstallStatusCard } from "@/components/app/install-status-card";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { applyAutomations } from "@/lib/data/app-state";
 import { getEffectiveNow, mutateStore } from "@/lib/data/local-store";
-import { APP_DESCRIPTION, APP_VERSION, STUDY_DOCUMENT_LINKS } from "@/lib/domain/app-meta";
+import { APP_DESCRIPTION, APP_VERSION } from "@/lib/domain/app-meta";
 import { EXAM_DATE, HARD_BOUNDARY_DATE } from "@/lib/domain/constants";
 import { getRuntimeLabel, getRuntimeMode } from "@/lib/runtime/mode";
 import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
@@ -103,21 +101,13 @@ export default async function SettingsPage() {
       <InstallStatusCard />
 
       <section className="panel p-6">
-        <h2 className="text-xl font-semibold">Backup & documents</h2>
+        <h2 className="text-xl font-semibold">Backup</h2>
         <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
-          Export the active runtime state as JSON, or open the source schedule workbook directly from the app.
+          Export the active runtime state as JSON.
         </p>
-        <Link className="button-secondary mt-4 inline-flex min-h-11 items-center" href="/api/export">
+        <a className="button-secondary mt-4 inline-flex min-h-11 items-center" href="/api/export">
           Export JSON
-        </Link>
-        <div className="mt-5 grid max-w-md gap-3">
-          {STUDY_DOCUMENT_LINKS.map((link) => (
-            <a key={link.href} className="note-card block p-4" href={link.href} target="_blank" rel="noreferrer">
-              <div className="eyebrow">{link.label}</div>
-              <p className="mt-3 text-sm leading-7 text-(--text-secondary)">{link.description}</p>
-            </a>
-          ))}
-        </div>
+        </a>
       </section>
 
       {showDevelopmentReset ? (

@@ -6,7 +6,7 @@ import { getDayDetailData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 import type { BlockKey, ScheduledRecoveryItem } from "@/lib/domain/types";
 import { getRevisionAssignedSlotLabel, groupRevisionItemsForDisplay } from "@/lib/domain/schedule";
-import { completeRevisionAction, setTrafficLightAction, updateBlockAction } from "@/lib/server/actions";
+import { completeRevisionAction, setTrafficLightAction, updateBlockAction, updateTopicAction } from "@/lib/server/actions";
 import { toDateOnlyInTimeZone } from "@/lib/utils/date";
 import { formatDateLabel } from "@/lib/utils/format";
 
@@ -45,9 +45,7 @@ export default async function ScheduleDayPage({
   }
 
   const revisionGroups = detail.revisionPlan ? groupRevisionItemsForDisplay(detail.revisionPlan.queue) : [];
-  const overflowGroups = detail.revisionPlan
-    ? groupRevisionItemsForDisplay(detail.revisionPlan.overflow.map((entry) => entry.item))
-    : [];
+  const overflowGroups = detail.revisionPlan ? groupRevisionItemsForDisplay(detail.revisionPlan.overflow.map((entry) => entry.item)) : [];
   const readOnlyReason = getReadOnlyReason(detail);
   const plannedRecoveryByBlock = detail.plannedRecovery.reduce((map, item) => {
     const entries = map.get(item.targetBlockKey) ?? [];
@@ -56,24 +54,26 @@ export default async function ScheduleDayPage({
     return map;
   }, new Map<BlockKey, ScheduledRecoveryItem[]>());
   const timeEditorSlots = detail.blocks.map((block) => ({
-    key: block.key as BlockKey,
-    label: block.label,
+    key: block.timeSlotKey as BlockKey,
+    label: block.displayLabel,
     start: block.start,
     end: block.end,
     status: block.progress.status,
     actualStart: block.progress.actualStart,
     actualEnd: block.progress.actualEnd,
+    visible: true,
+    reschedulable: block.reschedulable,
   }));
 
   return (
     <div className="grid gap-6">
       <section className="panel p-6">
         <div className="eyebrow">
-          Day {detail.day.dayNumber} · {detail.day.phase}
+          Day {detail.day.dayNumber} · {detail.day.phaseName}
         </div>
-        <h1 className="display mt-3 text-3xl">{detail.day.primaryFocus}</h1>
+        <h1 className="display mt-3 text-3xl">{detail.day.primaryFocusRaw}</h1>
         <p className="mt-2 text-[var(--muted)]">
-          {detail.mappedDate ? formatDateLabel(detail.mappedDate) : "Day 1 not set"} · {detail.day.deliverable}
+          {detail.mappedDate ? formatDateLabel(detail.mappedDate) : "Day 1 not set"} · {detail.day.deliverableRaw}
         </p>
         {detail.originalPlannedDate && detail.originalPlannedDate !== detail.mappedDate ? (
           <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
@@ -85,11 +85,7 @@ export default async function ScheduleDayPage({
             This day is currently carrying merged work from Day {detail.mergedPartnerDay}.
           </p>
         ) : null}
-        {readOnlyReason ? (
-          <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-            {readOnlyReason}
-          </p>
-        ) : null}
+        {readOnlyReason ? <p className="mt-3 text-sm leading-7 text-(--text-secondary)">{readOnlyReason}</p> : null}
       </section>
 
       {detail.editState.canAdjustToday ? (
@@ -104,8 +100,7 @@ export default async function ScheduleDayPage({
                 <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
                 <input type="hidden" name="trafficLight" value={trafficLight} />
                 <button
-                  className={`w-full rounded-full px-4 py-3 text-sm font-semibold ${detail.state.trafficLight === trafficLight ? "bg-[var(--accent)] text-[#20160a]" : "bg-[var(--surface-muted)]"
-                    }`}
+                  className={`w-full rounded-full px-4 py-3 text-sm font-semibold ${detail.state.trafficLight === trafficLight ? "bg-[var(--accent)] text-[#20160a]" : "bg-[var(--surface-muted)]"}`}
                   type="submit"
                 >
                   {trafficLight}
@@ -137,13 +132,12 @@ export default async function ScheduleDayPage({
                 </div>
                 <div className="mt-2 text-lg font-semibold">{group.sourceTopicLabel}</div>
                 <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
-                  {group.items.length === 1
-                    ? "1 revision segment is due from this topic."
-                    : `${group.items.length} revision segments are due from this topic.`}
+                  {group.items.length === 1 ? "1 revision segment is due from this topic." : `${group.items.length} revision segments are due from this topic.`}
                 </p>
                 <div className="mt-4 grid gap-2">
                   {group.items.map((item) => (
                     <form key={item.id} action={completeRevisionAction} className="rounded-2xl border border-[var(--border)] p-3">
+                      <input type="hidden" name="sourceItemId" value={item.sourceItemId} />
                       <input type="hidden" name="sourceDay" value={item.sourceDay} />
                       <input type="hidden" name="sourceBlockKey" value={item.sourceBlockKey} />
                       <input type="hidden" name="revisionType" value={item.revisionType} />
@@ -174,7 +168,7 @@ export default async function ScheduleDayPage({
                 <div key={group.id} className="mb-3 last:mb-0">
                   <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
                   {detail.revisionPlan!.overflow
-                    .filter((item) => item.item.sourceDay === group.sourceDay)
+                    .filter((item) => item.item.sourceItemId === group.sourceItemId)
                     .map((item) => (
                       <p key={item.item.id}>
                         {getRevisionAssignedSlotLabel(item.assignedSlot)}: {item.item.revisionType} · {item.item.topic}
@@ -189,15 +183,16 @@ export default async function ScheduleDayPage({
 
       <section className="grid gap-4">
         {detail.blocks.map((block) => {
-          const assignedRecovery = plannedRecoveryByBlock.get(block.key as BlockKey) ?? [];
+          const assignedRecovery = plannedRecoveryByBlock.get(block.timeSlotKey as BlockKey) ?? [];
           const defaultCompletionDate = block.progress.completedAt
             ? toDateOnlyInTimeZone(block.progress.completedAt)
             : detail.mappedDate ?? detail.originalPlannedDate ?? detail.todayDate;
+
           return (
-            <article key={block.key} className="panel p-5">
+            <article key={block.timeSlotKey} className="panel p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <div className="eyebrow">{block.label}</div>
+                  <div className="eyebrow">{block.displayLabel}</div>
                   <h2 className="mt-2 text-xl font-semibold">{block.displayDescription}</h2>
                   <p className="mt-1 text-sm text-[var(--muted)]">
                     {block.start} – {block.end} · {block.progress.status}
@@ -207,7 +202,7 @@ export default async function ScheduleDayPage({
                   <div className="flex gap-2">
                     <form action={updateBlockAction}>
                       <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-                      <input type="hidden" name="blockKey" value={block.key} />
+                      <input type="hidden" name="blockKey" value={block.timeSlotKey} />
                       <input type="hidden" name="intent" value="complete" />
                       <button className="button-primary" type="submit">
                         Complete
@@ -215,7 +210,7 @@ export default async function ScheduleDayPage({
                     </form>
                     <form action={updateBlockAction}>
                       <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-                      <input type="hidden" name="blockKey" value={block.key} />
+                      <input type="hidden" name="blockKey" value={block.timeSlotKey} />
                       <input type="hidden" name="intent" value="skip" />
                       <button className="button-secondary" type="submit">
                         Skip
@@ -224,6 +219,53 @@ export default async function ScheduleDayPage({
                   </div>
                 ) : null}
               </div>
+
+              {block.items.length ? (
+                <div className="mt-4 grid gap-3">
+                  {block.items.map((item) => (
+                    <article key={item.itemId} className="rounded-2xl border border-[var(--border)] p-4">
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <div className="font-medium">{item.label}</div>
+                          <div className="mt-1 text-sm text-[var(--muted)]">
+                            ~{item.plannedMinutes} min · {item.progress.status}
+                          </div>
+                        </div>
+                        {!detail.editState.isReadOnly && item.progress.status !== "completed" ? (
+                          <div className="flex flex-wrap gap-2">
+                            <form action={updateTopicAction}>
+                              <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                              <input type="hidden" name="blockKey" value={block.timeSlotKey} />
+                              <input type="hidden" name="itemId" value={item.itemId} />
+                              <input type="hidden" name="intent" value="complete" />
+                              {detail.editState.canRetroactivelyComplete ? <input type="hidden" name="completionDate" value={defaultCompletionDate} /> : null}
+                              <button className="button-secondary" type="submit">
+                                Mark done
+                              </button>
+                            </form>
+                            {detail.editState.canAdjustToday ? (
+                              <form action={updateTopicAction}>
+                                <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                                <input type="hidden" name="blockKey" value={block.timeSlotKey} />
+                                <input type="hidden" name="itemId" value={item.itemId} />
+                                <input type="hidden" name="intent" value="skip" />
+                                <button className="button-secondary" type="submit">
+                                  Skip topic
+                                </button>
+                              </form>
+                            ) : null}
+                          </div>
+                        ) : (
+                          <span className="status-badge" data-tone={item.progress.status === "completed" ? "green" : "neutral"}>
+                            {item.progress.status === "completed" ? "Done" : "View only"}
+                          </span>
+                        )}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : null}
+
               {assignedRecovery.length ? (
                 <div className="note-card mt-4 p-4">
                   <div className="eyebrow">Recovery inside this block</div>
@@ -251,29 +293,21 @@ export default async function ScheduleDayPage({
                   </div>
                 </div>
               ) : null}
+
               {detail.editState.canRetroactivelyComplete ? (
                 <form action={updateBlockAction} className="note-card mt-4 grid gap-3 p-4">
                   <div className="eyebrow">Retroactive completion</div>
                   <p className="text-sm leading-7 text-(--text-secondary)">
-                    This day has already passed. If you completed this block but
-                    forgot to mark it, pick the date you actually finished and
-                    record it below. Your revision schedule will adjust
-                    automatically.
+                    This day has already passed. If you completed this block but forgot to mark it, pick the date you actually finished and record it below. Your revision schedule will adjust automatically.
                   </p>
                   <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                     <div>
                       <label className="mb-2 block text-sm text-[var(--muted)]">Date you finished this block</label>
-                      <input
-                        className="field"
-                        type="date"
-                        name="completionDate"
-                        defaultValue={defaultCompletionDate}
-                        max={detail.todayDate}
-                      />
+                      <input className="field" type="date" name="completionDate" defaultValue={defaultCompletionDate} max={detail.todayDate} />
                     </div>
                     <div className="flex gap-2">
                       <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
-                      <input type="hidden" name="blockKey" value={block.key} />
+                      <input type="hidden" name="blockKey" value={block.timeSlotKey} />
                       <input type="hidden" name="intent" value="complete" />
                       <button className="button-secondary" type="submit">
                         Mark as completed
@@ -282,10 +316,11 @@ export default async function ScheduleDayPage({
                   </div>
                 </form>
               ) : null}
+
               {detail.editState.canAdjustToday ? (
                 <TimeEditor
                   dayNumber={detail.day.dayNumber}
-                  blockKey={block.key as BlockKey}
+                  blockKey={block.timeSlotKey as BlockKey}
                   start={block.start}
                   end={block.end}
                   actualStart={block.progress.actualStart}

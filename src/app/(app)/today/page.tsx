@@ -17,6 +17,7 @@ import {
   getBlockProgress,
   getDisplayBlockDescription,
   getHiddenBlockKeys,
+  getTopicProgress,
   getRevisionAssignedSlotLabel,
   getVisibleBlockKeys,
   groupRevisionItemsForDisplay,
@@ -28,6 +29,7 @@ import {
   setThemeAction,
   setTrafficLightAction,
   updateBlockAction,
+  updateTopicAction,
 } from "@/lib/server/actions";
 import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE } from "@/lib/utils/date";
 import { formatDateLabel } from "@/lib/utils/format";
@@ -48,8 +50,11 @@ const paceCopy = {
 } as const;
 
 function getProgressTone(status: BlockStatus) {
-  if (status === "completed" || status === "partial") {
+  if (status === "completed") {
     return "green";
+  }
+  if (status === "partially_complete") {
+    return "yellow";
   }
   if (status === "missed") {
     return "red";
@@ -61,8 +66,8 @@ function getProgressTone(status: BlockStatus) {
 }
 
 function getProgressLabel(status: BlockStatus) {
-  if (status === "partial") {
-    return "Quick version";
+  if (status === "partially_complete") {
+    return "Partially complete";
   }
   if (status === "completed") {
     return "Completed";
@@ -110,7 +115,7 @@ export default async function TodayPage() {
           <div className="eyebrow">First Setup</div>
           <h2 className="display mt-3 text-4xl md:text-5xl">Set Day 1 once, and let the whole hundred-day arc lock into place.</h2>
           <p className="lead mt-5 max-w-2xl">
-            The workbook has already been compiled into app data. This date simply anchors the mapping, revision cadence,
+            The schedule has already been compiled into app data. This date simply anchors the mapping, revision cadence,
             GT markers, and recovery logic to the calendar you are actually living in.
           </p>
           <form action={setDayOneDateAction} className="mt-8 grid gap-4 md:max-w-md">
@@ -146,16 +151,21 @@ export default async function TodayPage() {
 
   const todayScheduleDay = data.todayScheduleDay;
   const todayState = data.todayState!;
-  const phase = scheduleData.phases.find((entry) => entry.name === todayScheduleDay.phase);
-  const visibleBlocks = getVisibleBlockKeys(todayState.trafficLight);
-  const hiddenBlocks = getHiddenBlockKeys(todayState.trafficLight);
+  const phase = scheduleData.daywisePlan.phaseCatalog.find(
+    (entry) =>
+      entry.phaseId === todayScheduleDay.phaseId &&
+      todayScheduleDay.dayNumber >= entry.startDay &&
+      todayScheduleDay.dayNumber <= entry.endDay,
+  );
+  const visibleBlocks = getVisibleBlockKeys(todayState.trafficLight, todayScheduleDay);
+  const hiddenBlocks = getHiddenBlockKeys(todayState.trafficLight, todayScheduleDay);
   const completedVisibleCount = visibleBlocks.filter((blockKey) => {
     const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, blockKey);
-    return progress.status === "completed" || progress.status === "partial";
+    return progress.status === "completed";
   }).length;
   const incompleteVisibleBlocks = visibleBlocks.filter((blockKey) => {
     const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, blockKey);
-    return progress.status !== "completed" && progress.status !== "partial";
+    return progress.status !== "completed";
   });
   const revisionDue = data.todayRevisionPlan?.queue.length ?? 0;
   const overflowCount = data.todayRevisionPlan?.overflow.length ?? 0;
@@ -175,27 +185,38 @@ export default async function TodayPage() {
   const catchUpGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.catchUp) : [];
   const restudyGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.restudyFlags) : [];
   const timelineEntries = buildTodayTimeline(todayScheduleDay, userState, todayState.trafficLight);
-  const timeEditorSlots = todayScheduleDay.slots
-    .filter((slot) => slot.trackable)
-    .map((slot) => {
-      const key = slot.key as typeof visibleBlocks[number];
+  const timeEditorSlots = todayScheduleDay.blocks
+    .filter((block) => block.trackable)
+    .map((block) => {
+      const key = block.timeSlotKey as typeof visibleBlocks[number];
       const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, key);
+      const [start, end] = block.timeSlotKey.split("-");
       return {
         key,
-        label: slot.label,
-        start: slot.start,
-        end: slot.end,
+        label: block.displayLabel,
+        start,
+        end,
         status: progress.status,
         actualStart: progress.actualStart,
         actualEnd: progress.actualEnd,
+        visible: visibleBlocks.includes(key),
+        reschedulable: block.reschedulable,
       };
     });
   const trackableOrder = new Map(
-    todayScheduleDay.slots.filter((slot) => slot.trackable).map((slot, index) => [slot.key, index + 1]),
+    todayScheduleDay.blocks.filter((block) => block.trackable).map((block, index) => [block.timeSlotKey, index + 1]),
   );
   const backlogIndicatorLabel = getBacklogIndicatorLabel(data.backlogCount);
   const revisionMinutesLabel = getRevisionMinutesLabel(data.todayRevisionPlan?.morningMinutesPerItem ?? 0);
-  const mcqQuickLogNote = getDisplayBlockDescription(todayScheduleDay, "mcq", todayState.trafficLight);
+  const practiceBlockKey =
+    todayScheduleDay.blocks.find((block) => block.blockIntent === "practice")?.timeSlotKey ??
+    todayScheduleDay.blocks.find((block) => block.trackable)?.timeSlotKey ??
+    "";
+  const nightRecallBlockKey =
+    todayScheduleDay.blocks.find((block) => block.semanticBlockKey === "night_recall")?.timeSlotKey ?? null;
+  const mcqQuickLogNote = practiceBlockKey
+    ? getDisplayBlockDescription(todayScheduleDay, practiceBlockKey, todayState.trafficLight)
+    : "Capture today’s MCQ block while the pattern is still clear.";
   const hasRecoverySignal =
     todayState.trafficLight !== "green" ||
     data.shiftHealth.missedDays.length > 0 ||
@@ -225,8 +246,8 @@ export default async function TodayPage() {
     },
     {
       label: "GT Marker",
-      value: todayScheduleDay.gtTest === "No" ? "Rest" : todayScheduleDay.gtTest,
-      note: todayScheduleDay.deliverable,
+      value: todayScheduleDay.gtTestType === "No" ? "Rest" : todayScheduleDay.gtTestType,
+      note: todayScheduleDay.deliverableRaw,
     },
   ];
 
@@ -265,16 +286,16 @@ export default async function TodayPage() {
             <div className="flex flex-wrap items-start justify-between gap-5">
               <div className="max-w-3xl">
                 <div className="eyebrow">
-                  {data.dayCountLabel} / {phase?.name ?? todayScheduleDay.phase}
+                  {data.dayCountLabel} / {phase?.phaseName ?? todayScheduleDay.phaseName}
                 </div>
-                <h2 className="display mt-4 text-4xl md:text-6xl">{todayScheduleDay.primaryFocus}</h2>
-                <p className="lead mt-5 max-w-2xl">{phase?.description ?? todayScheduleDay.deliverable}</p>
+                <h2 className="display mt-4 text-4xl md:text-6xl">{todayScheduleDay.primaryFocusRaw}</h2>
+                <p className="lead mt-5 max-w-2xl">{phase?.description ?? todayScheduleDay.deliverableRaw}</p>
               </div>
               <div className="note-card min-w-[15rem] p-5">
                 <div className="eyebrow">Mapped Date</div>
                 <div className="display mt-3 text-2xl md:text-3xl">{formatDateLabel(data.todayDate)}</div>
                 <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                  Deliverable: {todayScheduleDay.deliverable}
+                  Deliverable: {todayScheduleDay.deliverableRaw}
                 </p>
               </div>
             </div>
@@ -408,6 +429,7 @@ export default async function TodayPage() {
                         action={completeRevisionAction}
                         className="rounded-2xl border border-[var(--border)] p-3"
                       >
+                        <input type="hidden" name="sourceItemId" value={item.sourceItemId} />
                         <input type="hidden" name="sourceDay" value={item.sourceDay} />
                         <input type="hidden" name="sourceBlockKey" value={item.sourceBlockKey} />
                         <input type="hidden" name="revisionType" value={item.revisionType} />
@@ -460,7 +482,7 @@ export default async function TodayPage() {
                         <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
                         <div className="mt-2 space-y-1">
                           {data.todayRevisionPlan!.overflow
-                            .filter((overflow) => overflow.item.sourceDay === group.sourceDay)
+                            .filter((overflow) => overflow.item.sourceItemId === group.sourceItemId)
                             .map((overflow) => (
                               <p key={overflow.item.id}>
                                 {getRevisionAssignedSlotLabel(overflow.assignedSlot)}: {overflow.item.revisionType} · {overflow.item.topic}
@@ -556,10 +578,15 @@ export default async function TodayPage() {
               );
             }
 
-            const completed = entry.progress.status === "completed" || entry.progress.status === "partial";
+            const completed = entry.progress.status === "completed";
             const hiddenStatusTone = completed ? "green" : "neutral";
             const blockNumber = trackableOrder.get(entry.blockKey) ?? 0;
             const assignedRecovery = plannedRecoveryByBlock.get(entry.blockKey) ?? [];
+            const block = todayScheduleDay.blocks.find((candidate) => candidate.timeSlotKey === entry.blockKey);
+            const blockItems = block?.items.map((item) => ({
+              ...item,
+              progress: getTopicProgress(userState, item, todayScheduleDay.dayNumber, entry.blockKey),
+            })) ?? [];
 
             if (entry.mode === "hidden") {
               return (
@@ -630,6 +657,48 @@ export default async function TodayPage() {
                   </div>
                   <div className="mt-2 display text-2xl md:text-3xl">{entry.label}</div>
                   <h3 className="mt-3 text-lg font-semibold leading-snug md:text-xl lg:text-2xl">{entry.displayDescription}</h3>
+                  {blockItems.length ? (
+                    <div className="mt-5 grid gap-3">
+                      {blockItems.map((item) => (
+                        <article key={item.itemId} className="rounded-2xl border border-[var(--border)] px-4 py-3">
+                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div className="min-w-0">
+                              <div className="font-medium leading-7">{item.label}</div>
+                              <div className="mt-1 text-sm text-[var(--muted)]">
+                                ~{item.plannedMinutes} min · {item.progress.status === "completed" ? "Done" : item.progress.status === "skipped" ? "Skipped" : item.progress.status === "missed" ? "Missed" : item.progress.status === "rescheduled" ? "Recovery" : "Pending"}
+                              </div>
+                            </div>
+                            {item.progress.status !== "completed" ? (
+                              <div className="flex flex-wrap gap-2">
+                                <form action={updateTopicAction}>
+                                  <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
+                                  <input type="hidden" name="blockKey" value={entry.blockKey} />
+                                  <input type="hidden" name="itemId" value={item.itemId} />
+                                  <input type="hidden" name="intent" value="complete" />
+                                  <button className="button-secondary" type="submit">
+                                    Mark done
+                                  </button>
+                                </form>
+                                <form action={updateTopicAction}>
+                                  <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
+                                  <input type="hidden" name="blockKey" value={entry.blockKey} />
+                                  <input type="hidden" name="itemId" value={item.itemId} />
+                                  <input type="hidden" name="intent" value="skip" />
+                                  <button className="button-secondary" type="submit">
+                                    Skip topic
+                                  </button>
+                                </form>
+                              </div>
+                            ) : (
+                              <span className="status-badge" data-tone="green">
+                                Done
+                              </span>
+                            )}
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
                   {assignedRecovery.length ? (
                     <div className="note-card mt-5 p-4">
                       <div className="eyebrow">Recovery inside this block</div>
@@ -662,7 +731,7 @@ export default async function TodayPage() {
                       <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
                       <input type="hidden" name="blockKey" value={entry.blockKey} />
                       <input type="hidden" name="intent" value="complete" />
-                      <button className="button-primary" disabled={completed} type="submit">
+                      <button className="button-primary" disabled={completed && assignedRecovery.length === 0} type="submit">
                         Complete block
                       </button>
                     </form>
@@ -704,13 +773,14 @@ export default async function TodayPage() {
       ) : null}
 
       <WindDownPrompts
-        key={`${todayScheduleDay.dayNumber}:${data.nowIso}`}
-        nowIso={data.nowIso}
-        dayNumber={todayScheduleDay.dayNumber}
-        trafficLight={todayState.trafficLight}
-        incompleteVisibleBlocks={incompleteVisibleBlocks}
-        lateNightSweepProcessed={data.lateNightSweepProcessed}
-      />
+      key={`${todayScheduleDay.dayNumber}:${data.nowIso}`}
+      nowIso={data.nowIso}
+      dayNumber={todayScheduleDay.dayNumber}
+      trafficLight={todayState.trafficLight}
+      incompleteVisibleBlocks={incompleteVisibleBlocks}
+      nightRecallBlockKey={nightRecallBlockKey}
+      lateNightSweepProcessed={data.lateNightSweepProcessed}
+    />
 
       {process.env.NODE_ENV !== "production" ? <DevToolbar simulatedNow={data.nowIso} /> : null}
     </div>

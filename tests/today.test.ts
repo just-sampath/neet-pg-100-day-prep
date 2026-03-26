@@ -1,24 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import { createEmptyUserState } from "@/lib/data/local-store";
-import { scheduleData } from "@/lib/generated/schedule-data";
-import {
-  buildTodayTimeline,
-  getBacklogIndicatorLabel,
-  getRevisionMinutesLabel,
-  getWindDownState,
-} from "@/lib/domain/today";
+import { getScheduleDay } from "@/lib/domain/schedule";
+import { buildTodayTimeline, getBacklogIndicatorLabel, getRevisionMinutesLabel, getWindDownState } from "@/lib/domain/today";
 
 describe("today flow", () => {
   it("keeps the full day in one chronological timeline with breaks, meals, and hidden blocks inline", () => {
     const userState = createEmptyUserState();
-    const day = scheduleData.days[1]!;
+    const day = getScheduleDay(2)!;
     const timeline = buildTodayTimeline(day, userState, "yellow");
 
     expect(timeline).toHaveLength(13);
     expect(timeline[0]).toMatchObject({
       kind: "block",
-      blockKey: "morning_revision",
+      blockKey: "06:30-08:00",
       mode: "visible",
     });
     expect(timeline[1]).toMatchObject({
@@ -30,15 +25,11 @@ describe("today flow", () => {
       kind: "separator",
       label: "Lunch",
     });
-    expect(
-      timeline.find((entry) => entry.kind === "block" && entry.blockKey === "consolidation"),
-    ).toMatchObject({
+    expect(timeline.find((entry) => entry.kind === "block" && entry.blockKey === "14:15-16:45")).toMatchObject({
       kind: "block",
       mode: "hidden",
     });
-    expect(
-      timeline.find((entry) => entry.kind === "block" && entry.blockKey === "pyq_image"),
-    ).toMatchObject({
+    expect(timeline.find((entry) => entry.kind === "block" && entry.blockKey === "20:15-21:45")).toMatchObject({
       kind: "block",
       mode: "hidden",
     });
@@ -48,7 +39,8 @@ describe("today flow", () => {
     expect(
       getWindDownState({
         minutes: 22 * 60 + 30,
-        incompleteVisibleBlocks: ["block_a", "night_recall"],
+        incompleteVisibleBlocks: ["08:15-10:45", "22:00-23:00"],
+        nightRecallBlockKey: "22:00-23:00",
         wrapUpDismissals: 0,
         lateNightSweepProcessed: false,
       }),
@@ -60,7 +52,8 @@ describe("today flow", () => {
     expect(
       getWindDownState({
         minutes: 22 * 60 + 30,
-        incompleteVisibleBlocks: ["night_recall"],
+        incompleteVisibleBlocks: ["22:00-23:00"],
+        nightRecallBlockKey: "22:00-23:00",
         wrapUpDismissals: 0,
         lateNightSweepProcessed: false,
       }),
@@ -71,7 +64,8 @@ describe("today flow", () => {
     expect(
       getWindDownState({
         minutes: 22 * 60 + 40,
-        incompleteVisibleBlocks: ["block_a"],
+        incompleteVisibleBlocks: ["08:15-10:45"],
+        nightRecallBlockKey: "22:00-23:00",
         wrapUpDismissals: 1,
         lateNightSweepProcessed: false,
       }),
@@ -80,7 +74,8 @@ describe("today flow", () => {
     expect(
       getWindDownState({
         minutes: 22 * 60 + 45,
-        incompleteVisibleBlocks: ["block_a"],
+        incompleteVisibleBlocks: ["08:15-10:45"],
+        nightRecallBlockKey: "22:00-23:00",
         wrapUpDismissals: 1,
         lateNightSweepProcessed: false,
       }),
@@ -92,7 +87,8 @@ describe("today flow", () => {
     expect(
       getWindDownState({
         minutes: 22 * 60 + 50,
-        incompleteVisibleBlocks: ["block_a"],
+        incompleteVisibleBlocks: ["08:15-10:45"],
+        nightRecallBlockKey: "22:00-23:00",
         wrapUpDismissals: 2,
         lateNightSweepProcessed: false,
       }),
@@ -103,7 +99,8 @@ describe("today flow", () => {
     expect(
       getWindDownState({
         minutes: 23 * 60,
-        incompleteVisibleBlocks: ["night_recall"],
+        incompleteVisibleBlocks: ["22:00-23:00"],
+        nightRecallBlockKey: "22:00-23:00",
         wrapUpDismissals: 0,
         lateNightSweepProcessed: false,
       }),
@@ -117,7 +114,8 @@ describe("today flow", () => {
     expect(
       getWindDownState({
         minutes: 23 * 60 + 15,
-        incompleteVisibleBlocks: ["block_a", "night_recall"],
+        incompleteVisibleBlocks: ["08:15-10:45", "22:00-23:00"],
+        nightRecallBlockKey: "22:00-23:00",
         wrapUpDismissals: 0,
         lateNightSweepProcessed: false,
       }),
@@ -130,6 +128,7 @@ describe("today flow", () => {
       getWindDownState({
         minutes: 23 * 60 + 15,
         incompleteVisibleBlocks: [],
+        nightRecallBlockKey: "22:00-23:00",
         wrapUpDismissals: 0,
         lateNightSweepProcessed: true,
       }),

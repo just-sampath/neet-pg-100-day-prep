@@ -1,13 +1,5 @@
 import { HARD_BOUNDARY_DATE } from "@/lib/domain/constants";
-import {
-  getDayState,
-  getMappedDate,
-  getScheduleDay,
-  getSubjectFromPrimaryFocus,
-  getVisibleBlockKeys,
-  isCompressedHiddenDay,
-} from "@/lib/domain/schedule";
-import { scheduleData } from "@/lib/generated/schedule-data";
+import { getScheduleDay, getScheduleDays, getDayState, getMappedDate, getVisibleBlockKeys, isCompressedHiddenDay } from "@/lib/domain/schedule";
 import type {
   AppSettings,
   BacklogBulkScope,
@@ -22,7 +14,7 @@ import type {
   ScheduledRecoveryItem,
   UserState,
 } from "@/lib/domain/types";
-import { diffDays, getWeekdayInTimeZone, parseDateOnly, timeValue, toDateOnlyInTimeZone } from "@/lib/utils/date";
+import { diffDays, parseDateOnly, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
 const SOURCE_LABELS = {
   missed: "Missed day",
@@ -58,11 +50,11 @@ function getSlotKey(dayNumber: number, blockKey: BlockKey) {
 }
 
 function getTrackableSlotLabel(dayNumber: number, blockKey: BlockKey) {
-  return getScheduleDay(dayNumber)?.slots.find((slot) => slot.key === blockKey)?.label ?? blockKey.replaceAll("_", " ");
+  return getScheduleDay(dayNumber)?.blocks.find((slot) => slot.timeSlotKey === blockKey)?.displayLabel ?? blockKey;
 }
 
 function getTrackableSlotStart(dayNumber: number, blockKey: BlockKey) {
-  return getScheduleDay(dayNumber)?.slots.find((slot) => slot.key === blockKey)?.start ?? "23:59";
+  return getScheduleDay(dayNumber)?.blocks.find((slot) => slot.timeSlotKey === blockKey)?.timeSlotKey.split("-")[0] ?? "23:59";
 }
 
 function isStudyBoundarySafe(dayNumber: number, settings: AppSettings) {
@@ -74,33 +66,40 @@ function isStudyBoundarySafe(dayNumber: number, settings: AppSettings) {
   return parseDateOnly(mappedDate) < parseDateOnly(HARD_BOUNDARY_DATE);
 }
 
+function isSameSubject(targetDayNumber: number, item: BacklogItem) {
+  const targetDay = getScheduleDay(targetDayNumber);
+  if (!targetDay) {
+    return false;
+  }
+
+  const targetSubjects = new Set(targetDay.primaryFocusSubjectIds);
+  return item.subjectIds.some((subjectId) => targetSubjects.has(subjectId));
+}
+
 function isTargetSlotAvailable(
   userState: UserState,
   settings: AppSettings,
+  item: BacklogItem,
   dayNumber: number,
   blockKey: BlockKey,
   occupiedSlots: Set<string>,
 ) {
-  if (blockKey === "morning_revision") {
-    return false;
-  }
-
   if (dayNumber < 1 || dayNumber > 100 || isCompressedHiddenDay(dayNumber, settings) || !isStudyBoundarySafe(dayNumber, settings)) {
     return false;
   }
 
   const day = getScheduleDay(dayNumber);
-  const slot = day?.slots.find((entry) => entry.key === blockKey && entry.trackable);
-  if (!day || !slot) {
+  const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey && entry.trackable);
+  if (!day || !block || !block.reschedulable) {
     return false;
   }
 
-  if (timeValue(slot.start) < timeValue("06:30") || timeValue(slot.end) > timeValue("23:00")) {
-    return false;
-  }
-
-  const visible = new Set(getVisibleBlockKeys(getDayState(userState, dayNumber).trafficLight));
+  const visible = new Set(getVisibleBlockKeys(getDayState(userState, dayNumber).trafficLight, day));
   if (!visible.has(blockKey)) {
+    return false;
+  }
+
+  if (block.recoveryLane !== item.recoveryLane) {
     return false;
   }
 
@@ -124,11 +123,7 @@ function buildOccupiedSlotSet(userState: UserState, excludeBacklogId?: string) {
   return occupied;
 }
 
-function createSuggestion(
-  dayNumber: number | null,
-  blockKey: BlockKey | null,
-  note: string | null,
-) {
+function createSuggestion(dayNumber: number | null, blockKey: BlockKey | null, note: string | null) {
   return {
     suggestedDay: dayNumber,
     suggestedBlockKey: blockKey,
@@ -142,27 +137,47 @@ function buildTargetLabel(dayNumber: number, blockKey: BlockKey, settings: AppSe
   return mappedDate ? `Day ${dayNumber} · ${slotLabel} · ${mappedDate}` : `Day ${dayNumber} · ${slotLabel}`;
 }
 
-function getEligibleFutureDays(settings: AppSettings, startDay: number) {
-  return scheduleData.days.filter(
+function getCompatibleFutureDays(item: BacklogItem, settings: AppSettings, startDay: number) {
+  const sourceDay = getScheduleDay(item.originalDay);
+  const sourcePhaseId = sourceDay?.phaseId ?? null;
+  const days = getScheduleDays().filter(
     (day) => day.dayNumber >= startDay && !isCompressedHiddenDay(day.dayNumber, settings) && isStudyBoundarySafe(day.dayNumber, settings),
   );
-}
 
-function findFutureDay(
-  days: typeof scheduleData.days,
-  predicate: (day: (typeof scheduleData.days)[number]) => boolean,
-) {
-  return days.find(predicate) ?? null;
-}
-
-function isWeekendMappedDay(dayNumber: number, settings: AppSettings) {
-  const mappedDate = getMappedDate(dayNumber, settings);
-  if (!mappedDate) {
-    return false;
+  if (item.phaseFence === "same_phase_only" || item.phaseFence === "no_auto_cross_phase") {
+    return days.filter((day) => day.phaseId === sourcePhaseId);
   }
 
-  const weekday = getWeekdayInTimeZone(mappedDate);
-  return weekday === 0 || weekday === 6;
+  if (item.phaseFence === "current_phase_preferred") {
+    const samePhase = days.filter((day) => day.phaseId === sourcePhaseId);
+    return samePhase.length ? samePhase : days;
+  }
+
+  return [];
+}
+
+function findBestTargetBlock(dayNumber: number, userState: UserState, settings: AppSettings, item: BacklogItem, occupiedSlots: Set<string>) {
+  const day = getScheduleDay(dayNumber);
+  if (!day) {
+    return null;
+  }
+
+  const candidates = day.blocks.filter(
+    (block) => block.trackable && block.reschedulable && block.recoveryLane === item.recoveryLane,
+  );
+  const prioritized = candidates.toSorted((left, right) => {
+    const sameSubjectLeft = isSameSubject(dayNumber, item) ? (left.blockIntent === "core_study" || left.blockIntent === "revision" ? 0 : 1) : 1;
+    const sameSubjectRight = isSameSubject(dayNumber, item) ? (right.blockIntent === "core_study" || right.blockIntent === "revision" ? 0 : 1) : 1;
+    if (sameSubjectLeft !== sameSubjectRight) {
+      return sameSubjectLeft - sameSubjectRight;
+    }
+    return left.timeSlotKey.localeCompare(right.timeSlotKey);
+  });
+
+  return (
+    prioritized.find((candidate) => isTargetSlotAvailable(userState, settings, item, dayNumber, candidate.timeSlotKey, occupiedSlots)) ??
+    null
+  );
 }
 
 function generateBacklogSuggestion(
@@ -176,142 +191,33 @@ function generateBacklogSuggestion(
     return createSuggestion(null, null, "Set your Day 1 start date in Settings to enable recovery suggestions.");
   }
 
+  if (item.phaseFence === "not_reschedulable") {
+    return createSuggestion(null, null, "This task should stay in its original phase and won’t be auto-rescheduled.");
+  }
+
   const searchStartDay = Math.max(todayDayNumber + 1, item.originalDay + 1, 1);
-  const futureDays = getEligibleFutureDays(settings, searchStartDay);
+  const futureDays = getCompatibleFutureDays(item, settings, searchStartDay);
   if (futureDays.length === 0) {
-    return createSuggestion(null, null, "No compatible slot before the August 20 boundary. Keeping this in backlog.");
+    return createSuggestion(null, null, "No compatible slot is available within the allowed phase window.");
   }
 
-  const sameSubject = (dayNumber: number) =>
-    getSubjectFromPrimaryFocus(getScheduleDay(dayNumber)?.primaryFocus ?? "") === item.subject;
-
-  switch (item.originalBlockKey) {
-    case "block_a":
-    case "block_b": {
-      const sameSubjectConsolidation = findFutureDay(
-        futureDays,
-        (day) => sameSubject(day.dayNumber) && isTargetSlotAvailable(userState, settings, day.dayNumber, "consolidation", occupiedSlots),
-      );
-      if (sameSubjectConsolidation) {
-        return createSuggestion(
-          sameSubjectConsolidation.dayNumber,
-          "consolidation",
-          `Suggested during ${item.subject} consolidation on Day ${sameSubjectConsolidation.dayNumber}.`,
-        );
-      }
-
-      if (isTargetSlotAvailable(userState, settings, searchStartDay, "consolidation", occupiedSlots)) {
-        return createSuggestion(
-          searchStartDay,
-          "consolidation",
-          `Suggested for the next day's consolidation slot on Day ${searchStartDay}.`,
-        );
-      }
-
-      const sameSubjectPrimarySlot = findFutureDay(
-        futureDays,
-        (day) => sameSubject(day.dayNumber) && isTargetSlotAvailable(userState, settings, day.dayNumber, item.originalBlockKey, occupiedSlots),
-      );
-      if (sameSubjectPrimarySlot) {
-        return createSuggestion(
-          sameSubjectPrimarySlot.dayNumber,
-          item.originalBlockKey,
-          `Suggested on the next ${item.subject} focus day so the topic returns in-context.`,
-        );
-      }
-
-      return createSuggestion(
-        null,
-        null,
-        "No compatible slot without cutting into sleep. Keeping this in backlog.",
-      );
+  for (const day of futureDays) {
+    const target = findBestTargetBlock(day.dayNumber, userState, settings, item, occupiedSlots);
+    if (!target) {
+      continue;
     }
 
-    case "mcq": {
-      const nextMcq = findFutureDay(
-        futureDays,
-        (day) => isTargetSlotAvailable(userState, settings, day.dayNumber, "mcq", occupiedSlots),
-      );
-      if (!nextMcq) {
-        return createSuggestion(null, null, "No open MCQ slot before the August 20 study cutoff. Staying in backlog.");
-      }
-
-      return createSuggestion(
-        nextMcq.dayNumber,
-        "mcq",
-        nextMcq.dayNumber === searchStartDay
-          ? `Add to tomorrow's MCQ block? Increase target from 45-70 to 60-80.`
-          : `Add to the next open MCQ block on Day ${nextMcq.dayNumber}. Increase target from 45-70 to 60-80.`,
-      );
-    }
-
-    case "pyq_image": {
-      if (isTargetSlotAvailable(userState, settings, searchStartDay, "pyq_image", occupiedSlots)) {
-        return createSuggestion(
-          searchStartDay,
-          "pyq_image",
-          `Suggested for the next day's PYQ / image slot on Day ${searchStartDay}.`,
-        );
-      }
-
-      const weekendPyq = findFutureDay(
-        futureDays,
-        (day) =>
-          isWeekendMappedDay(day.dayNumber, settings) &&
-          isTargetSlotAvailable(userState, settings, day.dayNumber, "pyq_image", occupiedSlots),
-      );
-
-      return weekendPyq
-        ? createSuggestion(
-            weekendPyq.dayNumber,
-            "pyq_image",
-            `Suggested for the next weekend PYQ / image slot on Day ${weekendPyq.dayNumber}.`,
-          )
-        : createSuggestion(null, null, "No open PYQ / image slot before the August 20 study cutoff. Staying in backlog.");
-    }
-
-    case "consolidation": {
-      if (isTargetSlotAvailable(userState, settings, searchStartDay, "consolidation", occupiedSlots)) {
-        return createSuggestion(
-          searchStartDay,
-          "consolidation",
-          `Suggested for the next day's consolidation slot on Day ${searchStartDay}.`,
-        );
-      }
-
-      const sameSubjectAfternoon = findFutureDay(
-        futureDays,
-        (day) => sameSubject(day.dayNumber) && isTargetSlotAvailable(userState, settings, day.dayNumber, "consolidation", occupiedSlots),
-      );
-
-      return sameSubjectAfternoon
-        ? createSuggestion(
-            sameSubjectAfternoon.dayNumber,
-            "consolidation",
-            `Suggested during the next ${item.subject} afternoon consolidation on Day ${sameSubjectAfternoon.dayNumber}.`,
-          )
-        : createSuggestion(null, null, "No open consolidation slot before the August 20 study cutoff. Staying in backlog.");
-    }
-
-    case "night_recall": {
-      const nextNightRecall = findFutureDay(
-        futureDays,
-        (day) => isTargetSlotAvailable(userState, settings, day.dayNumber, "night_recall", occupiedSlots),
-      );
-      return nextNightRecall
-        ? createSuggestion(
-            nextNightRecall.dayNumber,
-            "night_recall",
-            nextNightRecall.dayNumber === searchStartDay
-              ? "Stack this with tomorrow's night recall."
-              : `Stack this with the next open night recall on Day ${nextNightRecall.dayNumber}.`,
-          )
-        : createSuggestion(null, null, "No open night recall slot before the August 20 study cutoff. Staying in backlog.");
-    }
-
-    default:
-      return createSuggestion(null, null, "Morning revision returns through the revision queue instead of the backlog.");
+    const sameSubject = isSameSubject(day.dayNumber, item);
+    return createSuggestion(
+      day.dayNumber,
+      target.timeSlotKey,
+      sameSubject
+        ? `Suggested on the next matching ${item.subject} day so the topic returns in context.`
+        : `Suggested in the next open ${target.displayLabel.toLowerCase()} that fits this phase.`,
+    );
   }
+
+  return createSuggestion(null, null, "No compatible slot before the August 20 study boundary. Keeping this in recovery.");
 }
 
 export function normalizeBacklogPriorityOrder(userState: UserState) {
@@ -413,10 +319,8 @@ function sortBacklogItems(items: BacklogItem[], todayDate: string, sort: Backlog
       if (left.createdAt !== right.createdAt) {
         return right.createdAt.localeCompare(left.createdAt);
       }
-    } else {
-      if (left.priorityOrder !== right.priorityOrder) {
-        return left.priorityOrder - right.priorityOrder;
-      }
+    } else if (left.priorityOrder !== right.priorityOrder) {
+      return left.priorityOrder - right.priorityOrder;
     }
 
     if (left.createdAt !== right.createdAt) {
@@ -472,6 +376,7 @@ export function getScheduledRecoveryForDay(
     })
     .map((item) => ({
       id: item.id,
+      sourceItemId: item.sourceItemId,
       sourceDay: item.originalDay,
       sourceMappedDate: getMappedDate(item.originalDay, settings),
       subject: item.subject,
@@ -506,11 +411,7 @@ export function completeAssignedRecoveryForTarget(
   return count;
 }
 
-export function releaseAssignedRecoveryForTarget(
-  userState: UserState,
-  targetDay: number,
-  targetBlockKey: BlockKey,
-) {
+export function releaseAssignedRecoveryForTarget(userState: UserState, targetDay: number, targetBlockKey: BlockKey) {
   let count = 0;
 
   for (const item of Object.values(userState.backlogItems)) {
@@ -543,8 +444,13 @@ export function isValidBacklogRescheduleTarget(
     return false;
   }
 
+  const item = excludeBacklogId ? userState.backlogItems[excludeBacklogId] : null;
+  if (!item) {
+    return false;
+  }
+
   const occupiedSlots = buildOccupiedSlotSet(userState, excludeBacklogId);
-  return isTargetSlotAvailable(userState, settings, targetDay, targetBlockKey, occupiedSlots);
+  return isTargetSlotAvailable(userState, settings, item, targetDay, targetBlockKey, occupiedSlots);
 }
 
 export function moveBacklogItemPriority(userState: UserState, backlogId: string, direction: BacklogMoveDirection) {
@@ -561,63 +467,54 @@ export function moveBacklogItemPriority(userState: UserState, backlogId: string,
   }
 
   const current = pendingItems[index]!;
-  const adjacent = pendingItems[swapIndex]!;
-  const priority = current.priorityOrder;
-  current.priorityOrder = adjacent.priorityOrder;
-  adjacent.priorityOrder = priority;
+  const target = pendingItems[swapIndex]!;
+  const currentPriority = current.priorityOrder;
+  current.priorityOrder = target.priorityOrder;
+  target.priorityOrder = currentPriority;
   normalizeBacklogPriorityOrder(userState);
   return true;
 }
 
-function matchesBulkScope(item: BacklogItem, scope: BacklogBulkScope) {
-  if (scope === "all_pending") {
-    return item.status === "pending";
-  }
-
-  if (item.status !== "pending") {
-    return false;
-  }
-
+function getScopeFilter(scope: BacklogBulkScope) {
   switch (scope) {
     case "missed_skipped":
-      return item.sourceTag === "missed" || item.sourceTag === "skipped";
+      return (item: BacklogItem) => item.status === "pending" && (item.sourceTag === "missed" || item.sourceTag === "skipped");
     case "yellow_red":
-      return item.sourceTag === "yellow_day" || item.sourceTag === "red_day";
+      return (item: BacklogItem) => item.status === "pending" && (item.sourceTag === "yellow_day" || item.sourceTag === "red_day");
     case "overrun":
-      return item.sourceTag === "overrun_cascade";
+      return (item: BacklogItem) => item.status === "pending" && item.sourceTag === "overrun_cascade";
     default:
-      return false;
+      return (item: BacklogItem) => item.status === "pending";
   }
 }
 
 export function dismissBacklogScope(userState: UserState, scope: BacklogBulkScope) {
+  const filter = getScopeFilter(scope);
   const dismissedAt = new Date().toISOString();
-  let count = 0;
 
   for (const item of Object.values(userState.backlogItems)) {
-    if (!matchesBulkScope(item, scope)) {
+    if (!filter(item)) {
       continue;
     }
 
     item.status = "dismissed";
     item.dismissedAt = dismissedAt;
-    count += 1;
+    item.rescheduledToDay = null;
+    item.rescheduledToBlockKey = null;
   }
-
-  return count;
 }
 
-export function acceptBacklogSuggestionsForScope(
+export function rescheduleBacklogScopeToSuggestions(
   userState: UserState,
   settings: AppSettings,
   todayDayNumber: number,
   scope: BacklogBulkScope,
 ) {
   refreshBacklogSuggestions(userState, settings, todayDayNumber);
+  const filter = getScopeFilter(scope);
 
-  let accepted = 0;
-  for (const item of getPendingItems(userState)) {
-    if (!matchesBulkScope(item, scope) || !item.suggestedDay || !item.suggestedBlockKey) {
+  for (const item of Object.values(userState.backlogItems)) {
+    if (!filter(item) || !item.suggestedDay || !item.suggestedBlockKey) {
       continue;
     }
 
@@ -628,10 +525,5 @@ export function acceptBacklogSuggestionsForScope(
     item.status = "rescheduled";
     item.rescheduledToDay = item.suggestedDay;
     item.rescheduledToBlockKey = item.suggestedBlockKey;
-    accepted += 1;
   }
-
-  return accepted;
 }
-
-export const rescheduleBacklogScopeToSuggestions = acceptBacklogSuggestionsForScope;

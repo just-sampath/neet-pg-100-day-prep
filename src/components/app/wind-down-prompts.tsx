@@ -12,6 +12,7 @@ type Props = {
   dayNumber: number;
   trafficLight: "green" | "yellow" | "red";
   incompleteVisibleBlocks: BlockKey[];
+  nightRecallBlockKey: BlockKey | null;
   lateNightSweepProcessed: boolean;
 };
 
@@ -22,6 +23,7 @@ export function WindDownPrompts({
   dayNumber,
   trafficLight,
   incompleteVisibleBlocks,
+  nightRecallBlockKey,
   lateNightSweepProcessed,
 }: Props) {
   const hydrated = useSyncExternalStore(
@@ -40,10 +42,11 @@ export function WindDownPrompts({
       getWindDownState({
         minutes,
         incompleteVisibleBlocks,
+        nightRecallBlockKey,
         wrapUpDismissals,
         lateNightSweepProcessed,
       }),
-    [incompleteVisibleBlocks, lateNightSweepProcessed, minutes, wrapUpDismissals],
+    [incompleteVisibleBlocks, lateNightSweepProcessed, minutes, nightRecallBlockKey, wrapUpDismissals],
   );
   const triggerAutoMove = useEffectEvent(() => {
     startTransition(async () => {
@@ -108,6 +111,10 @@ export function WindDownPrompts({
   }
 
   if (prompt.kind === "night_recall") {
+    if (!nightRecallBlockKey) {
+      return null;
+    }
+
     return (
       <div aria-live="polite" className="panel p-4 md:p-5">
         <div className="eyebrow">{prompt.label}</div>
@@ -123,7 +130,7 @@ export function WindDownPrompts({
               startTransition(async () => {
                 const formData = new FormData();
                 formData.set("dayNumber", String(dayNumber));
-                formData.set("blockKey", "night_recall");
+                formData.set("blockKey", nightRecallBlockKey);
                 formData.set("intent", "partial");
                 formData.set("note", "Quick 5-minute version.");
                 await updateBlockAction(formData);
@@ -140,7 +147,7 @@ export function WindDownPrompts({
               startTransition(async () => {
                 const formData = new FormData();
                 formData.set("dayNumber", String(dayNumber));
-                formData.set("blockKey", "night_recall");
+                formData.set("blockKey", nightRecallBlockKey);
                 formData.set("intent", "skip");
                 formData.set("note", "Skipped to protect sleep.");
                 await updateBlockAction(formData);

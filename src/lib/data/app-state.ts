@@ -1,38 +1,15 @@
 import { randomUUID } from "node:crypto";
 
 import {
-  releaseAssignedRecoveryForTarget,
+  completeAssignedRecoveryForTarget,
   getBacklogQueueItems,
   getBacklogStatusCounts,
   getBacklogSummary,
   getNextBacklogPriorityOrder,
   getScheduledRecoveryForDay,
   refreshBacklogSuggestions,
+  releaseAssignedRecoveryForTarget,
 } from "@/lib/domain/backlog-queue";
-import {
-  getBacklogCount,
-  getBlockProgress,
-  getCurrentDayNumber,
-  createRevisionId,
-  getDayCompletionState,
-  getDayState,
-  getDisplayBlockDescription,
-  getMappedDate,
-  getMergedPartner,
-  getOriginalPlannedDate,
-  getSafeDayCountLabel,
-  getScheduleDay,
-  getScheduleDayEditState,
-  getScheduleHealth,
-  getShiftPreview,
-  getSubjectFromPrimaryFocus,
-  getTrackableBlocks,
-  getVisibleBlockKeys,
-  buildDailyRevisionPlan,
-  isCompressedHiddenDay,
-  getPreviousVisibleDayNumber,
-  getShiftHiddenDayLabel,
-} from "@/lib/domain/schedule";
 import { getTrafficLightBacklogSourceTag, previewOverrunCascade, shouldCreateBacklogItem } from "@/lib/domain/backlog";
 import {
   buildGtComparisonSummary,
@@ -57,22 +34,49 @@ import {
   getMcqTopWrongSubjects,
 } from "@/lib/domain/mcq";
 import { getTodayQuoteSelection } from "@/lib/domain/quotes";
+import {
+  buildDailyRevisionPlan,
+  getBacklogCount,
+  getBlockProgress,
+  getCurrentDayNumber,
+  getDayCompletionState,
+  getDayState,
+  getDisplayBlockDescription,
+  getMappedDate,
+  getMorningRevisionStatsForDate,
+  getMergedPartner,
+  getOriginalPlannedDate,
+  getPhaseDayStatus,
+  getSafeDayCountLabel,
+  getScheduleDay,
+  getScheduleDays,
+  getScheduleDayEditState,
+  getScheduleHealth,
+  getShiftHiddenDayLabel,
+  getShiftPreview,
+  getSubjectFromPrimaryFocus,
+  getTopicProgress,
+  getTrackableBlocks,
+  getVisibleBlockKeys,
+  isCompressedHiddenDay,
+  reconcileRevisionCompletionsForSource,
+} from "@/lib/domain/schedule";
 import { findWeeklySummaryByWeekKey, getWeeklyScheduleStatus, WEEKLY_AUTOMATION_MINUTES } from "@/lib/domain/weekly";
 import type {
   AppSettings,
-  BacklogItem,
   BacklogSourceTag,
   BacklogSortMode,
   BacklogViewFilter,
   BlockKey,
-  BlockProgress,
+  BlockTiming,
   GtLog,
   LocalStore,
+  TopicProgress,
+  TopicStatus,
   TrafficLight,
   UserState,
   WeeklySummary,
 } from "@/lib/domain/types";
-import { scheduleData } from "@/lib/generated/schedule-data";
 import { getEffectiveNow } from "@/lib/data/local-store";
 import { getRuntimeMode } from "@/lib/runtime/mode";
 import {
@@ -84,72 +88,222 @@ import {
   weekBounds,
 } from "@/lib/utils/date";
 
-function progressKey(dayNumber: number, blockKey: BlockKey) {
+function timingKey(dayNumber: number, blockKey: BlockKey) {
   return `${dayNumber}:${blockKey}`;
 }
 
-export function getOrCreateProgress(userState: UserState, dayNumber: number, blockKey: BlockKey): BlockProgress {
-  const key = progressKey(dayNumber, blockKey);
-  if (!userState.blockProgress[key]) {
-    userState.blockProgress[key] = {
+function topicKey(itemId: string) {
+  return itemId;
+}
+
+function getBlockOrThrow(dayNumber: number, blockKey: BlockKey) {
+  const day = getScheduleDay(dayNumber);
+  const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey);
+  if (!day || !block) {
+    throw new Error(`Missing schedule block ${dayNumber}:${blockKey}`);
+  }
+
+  return { day, block };
+}
+
+function getBlockItems(dayNumber: number, blockKey: BlockKey) {
+  return getBlockOrThrow(dayNumber, blockKey).block.items;
+}
+
+function getUnresolvedItems(userState: UserState, dayNumber: number, blockKey: BlockKey) {
+  return getBlockItems(dayNumber, blockKey).filter((item) => {
+    const progress = getTopicProgress(userState, item, dayNumber, blockKey);
+    return progress.status !== "completed";
+  });
+}
+
+function setTopicProgress(
+  userState: UserState,
+  dayNumber: number,
+  blockKey: BlockKey,
+  itemId: string,
+  updates: Partial<Omit<TopicProgress, "itemId" | "dayNumber" | "blockKey">>,
+) {
+  const item = getBlockItems(dayNumber, blockKey).find((entry) => entry.itemId === itemId);
+  if (!item) {
+    throw new Error(`Missing schedule item ${itemId} for ${dayNumber}:${blockKey}`);
+  }
+
+  const key = topicKey(itemId);
+  const current =
+    userState.topicProgress[key] ??
+    ({
+      itemId,
       dayNumber,
       blockKey,
       status: "pending",
-      actualStart: null,
-      actualEnd: null,
       completedAt: null,
       sourceTag: null,
       note: null,
+      updatedAt: null,
+    } satisfies TopicProgress);
+
+  userState.topicProgress[key] = {
+    ...current,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+  };
+
+  return userState.topicProgress[key]!;
+}
+
+export function getOrCreateProgress(userState: UserState, dayNumber: number, blockKey: BlockKey): BlockTiming {
+  const key = timingKey(dayNumber, blockKey);
+  if (!userState.blockTiming[key]) {
+    userState.blockTiming[key] = {
+      dayNumber,
+      blockKey,
+      actualStart: null,
+      actualEnd: null,
+      note: null,
+      updatedAt: null,
     };
   }
-  return userState.blockProgress[key];
+  return userState.blockTiming[key]!;
+}
+
+export function getOrCreateTopicProgress(userState: UserState, dayNumber: number, blockKey: BlockKey, itemId: string) {
+  const key = topicKey(itemId);
+  if (!userState.topicProgress[key]) {
+    userState.topicProgress[key] = {
+      itemId,
+      dayNumber,
+      blockKey,
+      status: "pending",
+      completedAt: null,
+      sourceTag: null,
+      note: null,
+      updatedAt: null,
+    };
+  }
+
+  return userState.topicProgress[key]!;
+}
+
+function markBacklogCompletedBySourceItem(userState: UserState, sourceItemId: string, completedAt: string) {
+  const item = userState.backlogItems[sourceItemId];
+  if (!item || item.status === "dismissed") {
+    return;
+  }
+
+  item.status = "completed";
+  item.completedAt = completedAt;
+}
+
+export function completeTopicItem(
+  userState: UserState,
+  dayNumber: number,
+  blockKey: BlockKey,
+  itemId: string,
+  completedAt: string,
+  note: string | null = null,
+) {
+  const progress = setTopicProgress(userState, dayNumber, blockKey, itemId, {
+    status: "completed",
+    completedAt,
+    sourceTag: null,
+    note,
+  });
+  reconcileRevisionCompletionsForSource(userState.revisionCompletions, itemId, completedAt);
+  markBacklogCompletedBySourceItem(userState, itemId, completedAt);
+  return progress;
+}
+
+export function completeBlockItems(
+  userState: UserState,
+  dayNumber: number,
+  blockKey: BlockKey,
+  completedAt: string,
+  note: string | null = null,
+) {
+  const unresolvedItems = getUnresolvedItems(userState, dayNumber, blockKey);
+  for (const item of unresolvedItems) {
+    completeTopicItem(userState, dayNumber, blockKey, item.itemId, completedAt, note);
+  }
+
+  completeAssignedRecoveryForTarget(userState, dayNumber, blockKey, completedAt);
+}
+
+function markTopicForRecovery(
+  userState: UserState,
+  dayNumber: number,
+  blockKey: BlockKey,
+  itemId: string,
+  sourceTag: BacklogSourceTag,
+  status: TopicStatus,
+  note: string | null,
+) {
+  setTopicProgress(userState, dayNumber, blockKey, itemId, {
+    status,
+    completedAt: null,
+    sourceTag,
+    note,
+  });
+}
+
+export function skipTopicItem(
+  userState: UserState,
+  dayNumber: number,
+  blockKey: BlockKey,
+  itemId: string,
+  sourceTag: BacklogSourceTag,
+  status: TopicStatus = "skipped",
+  note: string | null = null,
+) {
+  markTopicForRecovery(userState, dayNumber, blockKey, itemId, sourceTag, status, note);
+  if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag)) {
+    upsertBacklogItem(userState, dayNumber, blockKey, itemId, sourceTag);
+  }
 }
 
 export function upsertBacklogItem(
   userState: UserState,
   dayNumber: number,
   blockKey: BlockKey,
+  itemId: string,
   sourceTag: BacklogSourceTag,
 ) {
-  const existing = Object.values(userState.backlogItems).find(
-    (item) =>
-      item.originalDay === dayNumber &&
-      item.originalBlockKey === blockKey &&
-      item.status === "pending" &&
-      item.sourceTag === sourceTag,
-  );
-  if (existing) {
-    return existing;
+  const { day, block } = getBlockOrThrow(dayNumber, blockKey);
+  const item = block.items.find((entry) => entry.itemId === itemId);
+  if (!item) {
+    throw new Error(`Missing schedule item ${itemId}`);
   }
 
-  const day = getScheduleDay(dayNumber);
-  if (!day) {
-    throw new Error(`Missing schedule day ${dayNumber}`);
-  }
-  const slot = day.slots.find((entry) => entry.key === blockKey);
-  const subject = getSubjectFromPrimaryFocus(day.primaryFocus);
-  const backlogItem: BacklogItem = {
-    id: randomUUID(),
+  const existing = userState.backlogItems[itemId];
+  const subject = item.subjectIds[0] ? item.subjectIds[0].replaceAll("_", " ") : getSubjectFromPrimaryFocus(day.primaryFocusRaw);
+
+  userState.backlogItems[itemId] = {
+    id: itemId,
+    sourceItemId: itemId,
     originalDay: dayNumber,
     originalBlockKey: blockKey,
-    originalStart: slot?.start ?? null,
-    originalEnd: slot?.end ?? null,
-    priorityOrder: getNextBacklogPriorityOrder(userState),
-    topicDescription: slot?.description ?? day.primaryFocus,
+    originalStart: block.timeSlotKey.split("-")[0] ?? null,
+    originalEnd: block.timeSlotKey.split("-")[1] ?? null,
+    priorityOrder: existing?.priorityOrder ?? getNextBacklogPriorityOrder(userState),
+    topicDescription: item.label,
     subject,
+    subjectIds: [...item.subjectIds],
+    plannedMinutes: item.plannedMinutes,
     sourceTag,
+    recoveryLane: item.recoveryLane,
+    phaseFence: item.phaseFence,
     status: "pending",
     suggestedDay: null,
     suggestedBlockKey: null,
     suggestedNote: null,
     rescheduledToDay: null,
     rescheduledToBlockKey: null,
-    createdAt: new Date().toISOString(),
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
     completedAt: null,
     dismissedAt: null,
   };
-  userState.backlogItems[backlogItem.id] = backlogItem;
-  return backlogItem;
+
+  return userState.backlogItems[itemId]!;
 }
 
 export function moveBlockToBacklog(
@@ -157,26 +311,37 @@ export function moveBlockToBacklog(
   dayNumber: number,
   blockKey: BlockKey,
   sourceTag: BacklogSourceTag,
-  status: BlockProgress["status"] = "rescheduled",
+  status: TopicStatus = "rescheduled",
   note: string | null = null,
 ) {
-  const progress = getOrCreateProgress(userState, dayNumber, blockKey);
-  if (progress.status !== "pending") {
-    return;
-  }
+  const { block } = getBlockOrThrow(dayNumber, blockKey);
+  const movedItemIds: string[] = [];
 
   releaseAssignedRecoveryForTarget(userState, dayNumber, blockKey);
-  progress.status = status;
-  progress.completedAt = null;
-  progress.sourceTag = sourceTag;
-  progress.note = note;
 
-  if (shouldCreateBacklogItem(blockKey, sourceTag)) {
-    upsertBacklogItem(userState, dayNumber, blockKey, sourceTag);
+  for (const item of block.items) {
+    const progress = getOrCreateTopicProgress(userState, dayNumber, blockKey, item.itemId);
+    if (progress.status === "completed") {
+      continue;
+    }
+
+    markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, sourceTag, status, note);
+    if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag)) {
+      upsertBacklogItem(userState, dayNumber, blockKey, item.itemId, sourceTag);
+    }
+    movedItemIds.push(item.itemId);
   }
+
+  if (!block.reschedulable) {
+    return movedItemIds;
+  }
+
+  return movedItemIds;
 }
 
 function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, restoredBlocks: Set<BlockKey>) {
+  const day = getScheduleDay(dayNumber);
+
   for (const item of Object.values(userState.backlogItems)) {
     if (
       item.originalDay === dayNumber &&
@@ -186,8 +351,35 @@ function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, res
     ) {
       item.status = "dismissed";
       item.dismissedAt = new Date().toISOString();
-      const progress = getOrCreateProgress(userState, item.originalDay, item.originalBlockKey);
-      if (progress.status === "rescheduled") {
+      const progress = userState.topicProgress[item.sourceItemId];
+      if (progress && progress.status === "rescheduled") {
+        progress.status = "pending";
+        progress.sourceTag = null;
+        progress.note = null;
+      }
+    }
+  }
+
+  if (!day) {
+    return;
+  }
+
+  for (const blockKey of restoredBlocks) {
+    const block = day.blocks.find((entry) => entry.timeSlotKey === blockKey);
+    if (!block) {
+      continue;
+    }
+
+    for (const item of block.items) {
+      const progress = userState.topicProgress[item.itemId];
+      if (!progress) {
+        continue;
+      }
+
+      if (
+        progress.status === "rescheduled" &&
+        (progress.sourceTag === "yellow_day" || progress.sourceTag === "red_day")
+      ) {
         progress.status = "pending";
         progress.sourceTag = null;
         progress.note = null;
@@ -202,6 +394,11 @@ export function applyTrafficLightToDay(
   trafficLight: TrafficLight,
   options?: { allowRestore?: boolean },
 ) {
+  const day = getScheduleDay(dayNumber);
+  if (!day) {
+    return;
+  }
+
   const previous = getDayState(userState, dayNumber);
   userState.dayStates[String(dayNumber)] = {
     dayNumber,
@@ -213,8 +410,8 @@ export function applyTrafficLightToDay(
     return;
   }
 
-  const previousVisible = new Set(getVisibleBlockKeys(previous.trafficLight));
-  const nextVisible = new Set(getVisibleBlockKeys(trafficLight));
+  const previousVisible = new Set(getVisibleBlockKeys(previous.trafficLight, day));
+  const nextVisible = new Set(getVisibleBlockKeys(trafficLight, day));
   const hiddenSourceTag = getTrafficLightBacklogSourceTag(trafficLight === "red" ? "red" : "yellow");
 
   if (options?.allowRestore) {
@@ -226,10 +423,6 @@ export function applyTrafficLightToDay(
 
   const hiddenBlocks = [...previousVisible].filter((blockKey) => !nextVisible.has(blockKey));
   for (const blockKey of hiddenBlocks) {
-    const progress = getOrCreateProgress(userState, dayNumber, blockKey);
-    if (progress.status !== "pending") {
-      continue;
-    }
     moveBlockToBacklog(userState, dayNumber, blockKey, hiddenSourceTag);
   }
 }
@@ -240,19 +433,40 @@ export function moveVisibleBlocksToBacklog(
   trafficLight: TrafficLight,
   options?: { excludeNightRecall?: boolean; note?: string | null },
 ) {
-  const visibleBlocks = getVisibleBlockKeys(trafficLight);
+  const day = getScheduleDay(dayNumber);
+  if (!day) {
+    return;
+  }
+
+  const visibleBlocks = getVisibleBlockKeys(trafficLight, day);
   for (const blockKey of visibleBlocks) {
-    if (blockKey === "morning_revision") {
+    const block = day.blocks.find((entry) => entry.timeSlotKey === blockKey);
+    if (!block) {
       continue;
     }
-    if (options?.excludeNightRecall && blockKey === "night_recall") {
+
+    if (block.displayLabel === "Morning Revision") {
+      for (const item of getUnresolvedItems(userState, dayNumber, blockKey)) {
+        markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, "missed", "missed", options?.note ?? null);
+      }
       continue;
     }
+
+    if (options?.excludeNightRecall && block.displayLabel === "Night Recall") {
+      continue;
+    }
+
     moveBlockToBacklog(userState, dayNumber, blockKey, "missed", "missed", options?.note ?? null);
   }
 }
 
-export function runLateNightSweep(userState: UserState, settings: AppSettings, todayDate: string, todayDayNumber: number, nowMinutes: number) {
+export function runLateNightSweep(
+  userState: UserState,
+  settings: AppSettings,
+  todayDate: string,
+  todayDayNumber: number,
+  nowMinutes: number,
+) {
   if (!settings.dayOneDate || todayDayNumber < 1 || todayDayNumber > 100 || nowMinutes < 23 * 60 + 15) {
     return;
   }
@@ -262,10 +476,36 @@ export function runLateNightSweep(userState: UserState, settings: AppSettings, t
 
   const trafficLight = getDayState(userState, todayDayNumber).trafficLight;
   moveVisibleBlocksToBacklog(userState, todayDayNumber, trafficLight, {
-    note: "Moved to backlog by wind-down prompt.",
+    note: "Moved to recovery by wind-down prompt.",
   });
 
   userState.processedDates.lateNightSweepDates.push(todayDate);
+}
+
+function buildOverrunSlots(userState: UserState, dayNumber: number) {
+  const day = getScheduleDay(dayNumber);
+  if (!day) {
+    return [];
+  }
+
+  const trafficLight = getDayState(userState, dayNumber).trafficLight;
+  const visible = new Set(getVisibleBlockKeys(trafficLight, day));
+
+  return getTrackableBlocks(day).map((block) => {
+    const progress = getBlockProgress(userState, dayNumber, block.timeSlotKey);
+    const [start, end] = block.timeSlotKey.split("-");
+    return {
+      key: block.timeSlotKey,
+      label: block.displayLabel,
+      start,
+      end,
+      status: progress.status,
+      actualStart: progress.actualStart,
+      actualEnd: progress.actualEnd,
+      visible: visible.has(block.timeSlotKey),
+      reschedulable: block.reschedulable,
+    };
+  });
 }
 
 export function applyOverrunCascadeBacklog(
@@ -275,33 +515,21 @@ export function applyOverrunCascadeBacklog(
   newEndTime: string,
   note?: string | null,
 ) {
-  const day = getScheduleDay(dayNumber);
-  if (!day) {
-    return { preview: { kind: "none" } as const, movedBlockKeys: [] as BlockKey[] };
-  }
-
-  const trafficLight = getDayState(userState, dayNumber).trafficLight;
   const preview = previewOverrunCascade({
     editedBlockKey: blockKey,
     newEndTime,
-    trafficLight,
-    slots: getTrackableBlocks(day).map((slot) => {
-      const key = slot.key as BlockKey;
-      const progress = getBlockProgress(userState, dayNumber, key);
-      return {
-        key,
-        label: slot.label,
-        start: slot.start,
-        end: slot.end,
-        status: progress.status,
-        actualStart: progress.actualStart,
-        actualEnd: progress.actualEnd,
-      };
-    }),
+    slots: buildOverrunSlots(userState, dayNumber),
   });
 
   if (preview.kind === "decision") {
-    moveBlockToBacklog(userState, dayNumber, preview.affectedBlockKey, "overrun_cascade", "rescheduled", note ?? "Moved to backlog after an overrun.");
+    moveBlockToBacklog(
+      userState,
+      dayNumber,
+      preview.affectedBlockKey,
+      "overrun_cascade",
+      "rescheduled",
+      note ?? "Moved to recovery after an overrun.",
+    );
     return { preview, movedBlockKeys: [preview.affectedBlockKey] };
   }
 
@@ -313,7 +541,7 @@ export function applyOverrunCascadeBacklog(
         affectedBlockKey,
         "overrun_cascade",
         "rescheduled",
-        note ?? "Moved to backlog to protect sleep.",
+        note ?? "Moved to recovery to protect sleep.",
       );
     }
     return { preview, movedBlockKeys: [...preview.affectedBlockKeys] };
@@ -328,42 +556,23 @@ export function applyOverrunCascadeShift(
   blockKey: BlockKey,
   newEndTime: string,
 ) {
-  const day = getScheduleDay(dayNumber);
-  if (!day) {
-    return { preview: { kind: "none" } as const, shiftedBlockKey: null as BlockKey | null };
-  }
-
-  const trafficLight = getDayState(userState, dayNumber).trafficLight;
   const preview = previewOverrunCascade({
     editedBlockKey: blockKey,
     newEndTime,
-    trafficLight,
-    slots: getTrackableBlocks(day).map((slot) => {
-      const key = slot.key as BlockKey;
-      const progress = getBlockProgress(userState, dayNumber, key);
-      return {
-        key,
-        label: slot.label,
-        start: slot.start,
-        end: slot.end,
-        status: progress.status,
-        actualStart: progress.actualStart,
-        actualEnd: progress.actualEnd,
-      };
-    }),
+    slots: buildOverrunSlots(userState, dayNumber),
   });
 
   if (preview.kind !== "decision") {
     return { preview, shiftedBlockKey: null as BlockKey | null };
   }
 
-  const affectedProgress = getOrCreateProgress(userState, dayNumber, preview.affectedBlockKey);
-  if (affectedProgress.status !== "pending") {
-    return { preview: { kind: "none" } as const, shiftedBlockKey: null as BlockKey | null };
+  for (const shifted of preview.shiftedBlocks) {
+    const timing = getOrCreateProgress(userState, dayNumber, shifted.key);
+    timing.actualStart = shifted.shiftedStart;
+    timing.actualEnd = shifted.shiftedEnd;
+    timing.updatedAt = new Date().toISOString();
   }
 
-  affectedProgress.actualStart = preview.shiftedStart;
-  affectedProgress.actualEnd = preview.shiftedEnd;
   return { preview, shiftedBlockKey: preview.affectedBlockKey };
 }
 
@@ -397,22 +606,20 @@ export function runMidnightRollover(userState: UserState, settings: AppSettings,
     };
   }
 
-  const previousDayNumber = getPreviousVisibleDayNumber(todayDayNumber, settings);
+  const previousDayNumber = todayDayNumber - 1;
   let missedBlocks = 0;
   let backlogCreated = 0;
-  if (previousDayNumber && previousDayNumber >= 1 && previousDayNumber <= 100) {
-    for (const blockKey of getVisibleBlockKeys(getDayState(userState, previousDayNumber).trafficLight)) {
-      const progress = getOrCreateProgress(userState, previousDayNumber, blockKey);
-      if (progress.status === "pending") {
-        progress.status = "missed";
-        progress.sourceTag = "missed";
-        missedBlocks += 1;
-        if (blockKey !== "morning_revision") {
-          releaseAssignedRecoveryForTarget(userState, previousDayNumber, blockKey);
-          upsertBacklogItem(userState, previousDayNumber, blockKey, "missed");
-          backlogCreated += 1;
-        }
-      }
+
+  if (previousDayNumber >= 1 && previousDayNumber <= 100) {
+    const day = getScheduleDay(previousDayNumber);
+    if (day) {
+      const trafficLight = getDayState(userState, previousDayNumber).trafficLight;
+      const visibleBlocks = getVisibleBlockKeys(trafficLight, day);
+      const beforeCount = Object.values(userState.backlogItems).filter((item) => item.status === "pending").length;
+      moveVisibleBlocksToBacklog(userState, previousDayNumber, trafficLight);
+      const afterCount = Object.values(userState.backlogItems).filter((item) => item.status === "pending").length;
+      backlogCreated += Math.max(0, afterCount - beforeCount);
+      missedBlocks += visibleBlocks.filter((blockKey) => getBlockProgress(userState, previousDayNumber, blockKey).status === "missed").length;
     }
   }
 
@@ -459,21 +666,22 @@ export function applyScheduleShiftToUserState(
     }
   }
 
-  for (const progress of Object.values(userState.blockProgress)) {
+  for (const [key, timing] of Object.entries(userState.blockTiming)) {
+    if (timing.dayNumber >= preview.anchorDayNumber) {
+      delete userState.blockTiming[key];
+    }
+  }
+
+  for (const [key, progress] of Object.entries(userState.topicProgress)) {
     if (progress.dayNumber < preview.anchorDayNumber) {
       continue;
     }
 
-    if (progress.status === "completed" || progress.status === "partial") {
+    if (progress.status === "completed") {
       continue;
     }
 
-    progress.status = "pending";
-    progress.actualStart = null;
-    progress.actualEnd = null;
-    progress.completedAt = null;
-    progress.sourceTag = null;
-    progress.note = null;
+    delete userState.topicProgress[key];
   }
 
   for (const item of Object.values(userState.backlogItems)) {
@@ -494,11 +702,8 @@ export function applyScheduleShiftToUserState(
       continue;
     }
 
-    const sourceProgress = getBlockProgress(userState, completion.sourceDay, completion.sourceBlockKey);
-    const sourceStillCompleted =
-      (sourceProgress.status === "completed" || sourceProgress.status === "partial") && Boolean(sourceProgress.completedAt);
-
-    if (!sourceStillCompleted) {
+    const source = userState.topicProgress[completion.sourceItemId];
+    if (!source || source.status !== "completed" || !source.completedAt) {
       delete userState.revisionCompletions[revisionId];
     }
   }
@@ -536,7 +741,7 @@ export function generateWeeklySummary(
 ): WeeklySummary {
   const { start, end } = weekBounds(weekStartDate);
   const coveredThroughDate = clampWeeklyCoverage(start, options?.throughDate);
-  const summaryDays = scheduleData.days.filter((day) => {
+  const summaryDays = getScheduleDays().filter((day) => {
     if (isCompressedHiddenDay(day.dayNumber, settings)) {
       return false;
     }
@@ -559,7 +764,7 @@ export function generateWeeklySummary(
 
   for (const day of summaryDays) {
     const state = getDayState(userState, day.dayNumber);
-    const visibleBlocks = getVisibleBlockKeys(state.trafficLight);
+    const visibleBlocks = getVisibleBlockKeys(state.trafficLight, day);
     if (state.trafficLight === "green") greenDays += 1;
     if (state.trafficLight === "yellow") yellowDays += 1;
     if (state.trafficLight === "red") redDays += 1;
@@ -567,10 +772,9 @@ export function generateWeeklySummary(
 
     const mappedDate = getMappedDate(day.dayNumber, settings)!;
     const revisionPlan = buildDailyRevisionPlan(mappedDate, userState, settings);
-    morningRevisionPlanned += revisionPlan.queue.length;
-    morningRevisionCompleted += revisionPlan.queue.filter((item) =>
-      Boolean(userState.revisionCompletions[createRevisionId(item.sourceDay, item.sourceBlockKey, item.revisionType)]),
-    ).length;
+    const morningRevisionStats = getMorningRevisionStatsForDate(mappedDate, userState, settings);
+    morningRevisionPlanned += morningRevisionStats.planned;
+    morningRevisionCompleted += morningRevisionStats.completed;
 
     if (revisionPlan.overflow.length > 0) {
       revisionOverflowDays += 1;
@@ -582,30 +786,26 @@ export function generateWeeklySummary(
       restudyRevisionIds.add(item.id);
     }
 
-    for (const block of visibleBlocks) {
-      const progress = getBlockProgress(userState, day.dayNumber, block);
-      if (progress.status === "completed" || progress.status === "partial") {
+    for (const blockKey of visibleBlocks) {
+      const progress = getBlockProgress(userState, day.dayNumber, blockKey);
+      if (progress.status === "completed") {
         blocksCompleted += 1;
       }
 
-      const slot = day.slots.find((entry) => entry.key === block);
-      if (progress.actualEnd && slot && progress.actualEnd > slot.end) {
-        const label = `${getSubjectFromPrimaryFocus(day.primaryFocus)} · ${slot.label}`;
+      const [, slotEnd] = blockKey.split("-");
+      if (progress.actualEnd && slotEnd && progress.actualEnd > slotEnd) {
+        const label = `${getSubjectFromPrimaryFocus(day.primaryFocusRaw)} · ${getBlockOrThrow(day.dayNumber, blockKey).block.displayLabel}`;
         overrunMap.set(label, (overrunMap.get(label) ?? 0) + 1);
       }
     }
 
     if (getDayCompletionState(day, userState, state.trafficLight)) {
-      subjectsStudied.add(getSubjectFromPrimaryFocus(day.primaryFocus));
+      subjectsStudied.add(getSubjectFromPrimaryFocus(day.primaryFocusRaw));
     }
   }
 
-  const bulkLogs = Object.values(userState.mcqBulkLogs).filter(
-    (item) => item.entryDate >= start && item.entryDate <= coveredThroughDate,
-  );
-  const itemLogs = Object.values(userState.mcqItemLogs).filter(
-    (item) => item.entryDate >= start && item.entryDate <= coveredThroughDate,
-  );
+  const bulkLogs = Object.values(userState.mcqBulkLogs).filter((item) => item.entryDate >= start && item.entryDate <= coveredThroughDate);
+  const itemLogs = Object.values(userState.mcqItemLogs).filter((item) => item.entryDate >= start && item.entryDate <= coveredThroughDate);
   const totalMcqsSolved = bulkLogs.reduce((sum, log) => sum + log.totalAttempted, 0) + itemLogs.length;
   const correctFromBulk = bulkLogs.reduce((sum, log) => sum + log.correct, 0);
   const correctFromItems = itemLogs.filter((item) => item.result !== "wrong").length;
@@ -948,11 +1148,12 @@ export function getScheduleListData(store: LocalStore, userId: string) {
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
 
-  return scheduleData.days.map((day) => {
+  return getScheduleDays().map((day) => {
     const mappedDate = getMappedDate(day.dayNumber, userState.settings);
     const originalPlannedDate = getOriginalPlannedDate(day.dayNumber, userState.settings);
     const dayState = getDayState(userState, day.dayNumber);
     const completed = getDayCompletionState(day, userState, dayState.trafficLight);
+    const dayStatus = getPhaseDayStatus(day.dayNumber, userState);
     const mergedPartnerDay = getMergedPartner(day.dayNumber, userState.settings);
     const isPastVisibleDay = mappedDate !== null && mappedDate < todayDate;
 
@@ -966,7 +1167,14 @@ export function getScheduleListData(store: LocalStore, userId: string) {
       mergedPartnerDay,
       hiddenByCompression: isCompressedHiddenDay(day.dayNumber, userState.settings),
       hiddenShiftLabel: getShiftHiddenDayLabel(day.dayNumber, userState.settings),
-      status: day.dayNumber === todayDayNumber ? "today" : completed ? "completed" : isPastVisibleDay ? "missed" : "upcoming",
+      status:
+        day.dayNumber === todayDayNumber
+          ? "today"
+          : dayStatus === "completed"
+            ? "completed"
+            : isPastVisibleDay
+              ? "missed"
+              : "upcoming",
     };
   });
 }
@@ -1003,10 +1211,19 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
     mergedPartnerDay: getMergedPartner(dayNumber, userState.settings),
     revisionPlan,
     plannedRecovery,
-    blocks: getTrackableBlocks(day).map((slot) => ({
-      ...slot,
-      progress: getBlockProgress(userState, dayNumber, slot.key as BlockKey),
-      displayDescription: getDisplayBlockDescription(day, slot.key as BlockKey, state.trafficLight),
-    })),
+    blocks: getTrackableBlocks(day).map((block) => {
+      const [start, end] = block.timeSlotKey.split("-");
+      return {
+        ...block,
+        start,
+        end,
+        progress: getBlockProgress(userState, dayNumber, block.timeSlotKey),
+        displayDescription: getDisplayBlockDescription(day, block.timeSlotKey, state.trafficLight),
+        items: block.items.map((item) => ({
+          ...item,
+          progress: getTopicProgress(userState, item, dayNumber, block.timeSlotKey),
+        })),
+      };
+    }),
   };
 }

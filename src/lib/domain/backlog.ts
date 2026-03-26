@@ -1,4 +1,4 @@
-import { RED_VISIBLE_BLOCKS, TRACKABLE_BLOCK_ORDER, YELLOW_VISIBLE_BLOCKS } from "@/lib/domain/constants";
+import { getScheduleDay } from "@/lib/domain/schedule";
 import type { BacklogSourceTag, BlockKey, BlockStatus, TrafficLight } from "@/lib/domain/types";
 import { timeValue } from "@/lib/utils/date";
 
@@ -10,6 +10,8 @@ export interface OverrunPreviewSlot {
   status: BlockStatus;
   actualStart: string | null;
   actualEnd: string | null;
+  visible: boolean;
+  reschedulable: boolean;
 }
 
 export type OverrunCascadePreview =
@@ -23,6 +25,12 @@ export type OverrunCascadePreview =
       shiftedStart: string;
       shiftedEnd: string;
       shiftMinutes: number;
+      shiftedBlocks: Array<{
+        key: BlockKey;
+        label: string;
+        shiftedStart: string;
+        shiftedEnd: string;
+      }>;
       message: string;
     }
   | {
@@ -32,25 +40,21 @@ export type OverrunCascadePreview =
       message: string;
     };
 
-function getVisibleBlocks(trafficLight: TrafficLight) {
-  if (trafficLight === "yellow") {
-    return YELLOW_VISIBLE_BLOCKS;
-  }
-  if (trafficLight === "red") {
-    return RED_VISIBLE_BLOCKS;
-  }
-  return TRACKABLE_BLOCK_ORDER;
-}
-
 function formatClock(totalMinutes: number) {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-export function shouldCreateBacklogItem(blockKey: BlockKey, sourceTag: BacklogSourceTag) {
-  if (blockKey === "morning_revision" && (sourceTag === "missed" || sourceTag === "skipped" || sourceTag === "overrun_cascade")) {
+export function shouldCreateBacklogItem(dayNumber: number, blockKey: BlockKey, sourceTag: BacklogSourceTag) {
+  const day = getScheduleDay(dayNumber);
+  const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey);
+  if (!block || !block.trackable || !block.reschedulable) {
     return false;
+  }
+
+  if (sourceTag === "yellow_day" || sourceTag === "red_day") {
+    return block.trafficLightPolicy.backlogWhenHidden;
   }
 
   return true;
@@ -64,75 +68,100 @@ export function previewOverrunCascade({
   editedBlockKey,
   newEndTime,
   slots,
-  trafficLight,
 }: {
   editedBlockKey: BlockKey;
   newEndTime: string;
   slots: OverrunPreviewSlot[];
-  trafficLight: TrafficLight;
+  trafficLight?: TrafficLight;
 }): OverrunCascadePreview {
-  const visibleOrder = getVisibleBlocks(trafficLight);
-  const editedIndex = visibleOrder.indexOf(editedBlockKey);
-  const editedSlot = slots.find((slot) => slot.key === editedBlockKey);
+  const visibleSlots = slots.filter((slot) => slot.visible);
+  const editedIndex = visibleSlots.findIndex((slot) => slot.key === editedBlockKey);
+  const editedSlot = visibleSlots[editedIndex];
 
-  if (editedIndex === -1 || !editedSlot) {
+  if (!editedSlot || editedIndex === -1) {
     return { kind: "none" };
   }
 
-  if (timeValue(newEndTime) <= timeValue(editedSlot.end)) {
+  if (timeValue(newEndTime) <= timeValue(editedSlot.actualEnd ?? editedSlot.end)) {
     return { kind: "none" };
   }
 
-  const visibleSlots = visibleOrder
-    .map((key) => slots.find((slot) => slot.key === key))
-    .filter((slot): slot is OverrunPreviewSlot => Boolean(slot));
+  let cascadeEndMinutes = timeValue(newEndTime);
+  const shiftedBlocks: Array<{
+    key: BlockKey;
+    label: string;
+    shiftedStart: string;
+    shiftedEnd: string;
+  }> = [];
 
-  const currentEnd = timeValue(newEndTime);
   for (let index = editedIndex + 1; index < visibleSlots.length; index += 1) {
     const slot = visibleSlots[index]!;
+    if (!slot.reschedulable) {
+      continue;
+    }
 
     if (slot.status !== "pending") {
-      return { kind: "none" };
+      continue;
     }
 
     const baseStart = slot.actualStart ?? slot.start;
     const baseEnd = slot.actualEnd ?? slot.end;
-    const scheduledStart = timeValue(baseStart);
+    const scheduledStartMinutes = timeValue(baseStart);
 
-    if (currentEnd <= scheduledStart) {
+    if (cascadeEndMinutes <= scheduledStartMinutes && shiftedBlocks.length === 0) {
       return { kind: "none" };
     }
 
-    const duration = timeValue(baseEnd) - scheduledStart;
-    const shiftedStartMinutes = currentEnd;
+    const shiftedStartMinutes = Math.max(cascadeEndMinutes, scheduledStartMinutes);
+    const duration = timeValue(baseEnd) - scheduledStartMinutes;
     const shiftedEndMinutes = shiftedStartMinutes + duration;
+    cascadeEndMinutes = shiftedEndMinutes;
 
-    if (shiftedEndMinutes > timeValue("23:00")) {
-      const affectedBlockKeys = visibleSlots
-        .slice(index)
-        .filter((candidate) => candidate.status === "pending")
-        .map((candidate) => candidate.key);
-
-      return {
-        kind: "force_to_backlog",
-        affectedBlockKeys,
-        firstAffectedLabel: slot.label,
-        message: "Remaining blocks moved to backlog to protect sleep.",
-      };
-    }
-
-    return {
-      kind: "decision",
-      affectedBlockKey: slot.key,
-      affectedLabel: slot.label,
-      scheduledStart: baseStart,
-      scheduledEnd: baseEnd,
+    shiftedBlocks.push({
+      key: slot.key,
+      label: slot.label,
       shiftedStart: formatClock(shiftedStartMinutes),
       shiftedEnd: formatClock(shiftedEndMinutes),
-      shiftMinutes: shiftedStartMinutes - scheduledStart,
-      message: `${slot.label} now starts at ${formatClock(shiftedStartMinutes)} instead of ${baseStart}. Keep it visible, or move the overflow to backlog?`,
-    };
+    });
+
+    if (shiftedEndMinutes > timeValue("23:00")) {
+      return {
+        kind: "force_to_backlog",
+        affectedBlockKeys: visibleSlots
+          .slice(index)
+          .filter((candidate) => candidate.reschedulable && candidate.status === "pending")
+          .map((candidate) => candidate.key),
+        firstAffectedLabel: slot.label,
+        message: "Remaining reschedulable work moves to recovery so the day still ends by 23:00.",
+      };
+    }
   }
 
-  return { kind: "none" };
+  if (shiftedBlocks.length === 0) {
+    return { kind: "none" };
+  }
+
+  const firstShift = shiftedBlocks[0]!;
+  const scheduledStart = visibleSlots.find((slot) => slot.key === firstShift.key)?.actualStart
+    ?? visibleSlots.find((slot) => slot.key === firstShift.key)?.start
+    ?? firstShift.shiftedStart;
+  const scheduledEnd = visibleSlots.find((slot) => slot.key === firstShift.key)?.actualEnd
+    ?? visibleSlots.find((slot) => slot.key === firstShift.key)?.end
+    ?? firstShift.shiftedEnd;
+
+  return {
+    kind: "decision",
+    affectedBlockKey: firstShift.key,
+    affectedLabel: firstShift.label,
+    scheduledStart,
+    scheduledEnd,
+    shiftedStart: firstShift.shiftedStart,
+    shiftedEnd: firstShift.shiftedEnd,
+    shiftMinutes: timeValue(firstShift.shiftedStart) - timeValue(scheduledStart),
+    shiftedBlocks,
+    message:
+      shiftedBlocks.length === 1
+        ? `${firstShift.label} now starts at ${firstShift.shiftedStart} instead of ${scheduledStart}. Keep it visible, or move the overflow to recovery?`
+        : `${firstShift.label} and the later visible blocks will shift forward. Keep the cascade visible, or move the first overflow block to recovery?`,
+  };
 }

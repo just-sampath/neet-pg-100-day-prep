@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getBacklogPageData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
+import { getTrackableBlockOptions } from "@/lib/domain/schedule";
 import type { BacklogBulkScope, BacklogSortMode, BacklogStatus, BacklogViewFilter } from "@/lib/domain/types";
 import { bulkBacklogAction, updateBacklogAction } from "@/lib/server/actions";
 import { formatDateLabel } from "@/lib/utils/format";
@@ -28,6 +29,8 @@ const BULK_SCOPES: Array<{ value: BacklogBulkScope; label: string }> = [
   { value: "yellow_red", label: "Yellow / red day" },
   { value: "overrun", label: "Overruns only" },
 ];
+
+const MANUAL_RESCHEDULE_OPTIONS = getTrackableBlockOptions();
 
 function isBacklogFilter(value: string | undefined): value is BacklogViewFilter {
   return FILTERS.some((item) => item.value === value);
@@ -304,14 +307,18 @@ export default async function BacklogPage({
                           <select
                             className="field"
                             name="rescheduledToBlockKey"
-                            defaultValue={item.rescheduledToBlockKey ?? item.suggestedBlockKey ?? "consolidation"}
+                            defaultValue={
+                              item.rescheduledToBlockKey ??
+                              item.suggestedBlockKey ??
+                              MANUAL_RESCHEDULE_OPTIONS[0]?.value ??
+                              ""
+                            }
                           >
-                            <option value="block_a">Block A</option>
-                            <option value="block_b">Block B</option>
-                            <option value="consolidation">Consolidation</option>
-                            <option value="mcq">MCQ</option>
-                            <option value="pyq_image">PYQ / Image</option>
-                            <option value="night_recall">Night Recall</option>
+                            {MANUAL_RESCHEDULE_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
                           </select>
                         </div>
                         <button className="button-secondary w-full" type="submit">

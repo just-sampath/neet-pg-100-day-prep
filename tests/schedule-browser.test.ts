@@ -2,15 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import { getDayDetailData, getScheduleListData } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
-import {
-  getOriginalPlannedDate,
-  getScheduleDayEditState,
-} from "@/lib/domain/schedule";
+import { getOriginalPlannedDate, getScheduleDayEditState } from "@/lib/domain/schedule";
 import type { LocalStore, UserState } from "@/lib/domain/types";
 
 function createStore(userState?: UserState, simulatedNowIso = "2026-05-03T06:30:00.000Z"): LocalStore {
   return {
-    version: 1,
+    version: 2,
     users: {
       "local-user": {
         id: "local-user",
@@ -96,16 +93,6 @@ describe("schedule browser and retroactive editing", () => {
   it("marks today distinctly in the browser list and keeps missed past days visible", () => {
     const userState = createEmptyUserState();
     userState.settings.dayOneDate = "2026-05-01";
-    userState.blockProgress["2:block_a"] = {
-      dayNumber: 2,
-      blockKey: "block_a",
-      status: "pending",
-      actualStart: null,
-      actualEnd: null,
-      completedAt: null,
-      sourceTag: null,
-      note: null,
-    };
 
     const days = getScheduleListData(createStore(userState), "local-user");
 
@@ -118,7 +105,7 @@ describe("schedule browser and retroactive editing", () => {
     });
   });
 
-  it("exposes retroactive-completion mode only on past day detail views", () => {
+  it("exposes retroactive completion only on past day detail views and returns semantic block items", () => {
     const userState = createEmptyUserState();
     userState.settings.dayOneDate = "2026-05-01";
     userState.settings.scheduleShiftDays = 1;
@@ -143,6 +130,11 @@ describe("schedule browser and retroactive editing", () => {
       relation: "past",
       canRetroactivelyComplete: true,
     });
+    expect(pastDetail?.blocks[0]).toMatchObject({
+      displayLabel: "Morning Revision",
+    });
+    expect(pastDetail?.blocks[0]?.items.length).toBeGreaterThan(0);
+
     expect(futureDetail?.editState).toMatchObject({
       relation: "future",
       isReadOnly: true,

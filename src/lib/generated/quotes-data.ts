@@ -69,7 +69,7 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-12",
-    "quote": "Perfection of means and confusion of goals seemâin my opinionâto characterize our age.",
+    "quote": "Perfection of means and confusion of goals seem—in my opinion—to characterize our age.",
     "author": "Albert Einstein",
     "category": "daily"
   },
@@ -135,7 +135,7 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-23",
-    "quote": "The time is always right to do whatâs right.",
+    "quote": "The time is always right to do what’s right.",
     "author": "Martin Luther King, Jr.",
     "category": "tough_day"
   },
@@ -507,7 +507,7 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-85",
-    "quote": "First, believe in the worldâthat there is meaning behind everything.",
+    "quote": "First, believe in the world—that there is meaning behind everything.",
     "author": "Swami Vivekananda",
     "category": "tough_day"
   },
@@ -729,7 +729,7 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-122",
-    "quote": "Liars â¦ when they speak the truth they are not believed.",
+    "quote": "Liars … when they speak the truth they are not believed.",
     "author": "Aristotle",
     "category": "daily"
   },
@@ -771,7 +771,7 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-129",
-    "quote": "All our dreams can come true â if we have the courage to pursue them.",
+    "quote": "All our dreams can come true — if we have the courage to pursue them.",
     "author": "Walt Disney",
     "category": "celebration"
   },
@@ -867,7 +867,7 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-145",
-    "quote": "In three words I can sum up everything I've learned about life â It goes on.",
+    "quote": "In three words I can sum up everything I've learned about life — It goes on.",
     "author": "Robert Frost",
     "category": "tough_day"
   },
@@ -987,7 +987,7 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-165",
-    "quote": "There is only one way to learn â¦ It's through action.",
+    "quote": "There is only one way to learn … It's through action.",
     "author": "Paulo Coelho",
     "category": "daily"
   },
@@ -1005,7 +1005,7 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-168",
-    "quote": "Thatâs the problem, we do get used to things.",
+    "quote": "That’s the problem, we do get used to things.",
     "author": "Paulo Coelho",
     "category": "daily"
   },
@@ -1143,13 +1143,13 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-191",
-    "quote": "You control the terms of the conflict. Make them play your game. Donât try to play theirs.",
+    "quote": "You control the terms of the conflict. Make them play your game. Don’t try to play theirs.",
     "author": "John Wooden",
     "category": "daily"
   },
   {
     "id": "quote-192",
-    "quote": "Donât beat yourself. Thatâs the worst kind of defeat youâll ever suffer.",
+    "quote": "Don’t beat yourself. That’s the worst kind of defeat you’ll ever suffer.",
     "author": "John Wooden",
     "category": "tough_day"
   },
@@ -1197,7 +1197,7 @@ export const quotesData: GeneratedQuote[] = [
   },
   {
     "id": "quote-200",
-    "quote": "This is where dreamsâdreams, do you understandâcome to life, come real. Not daydreams: dreams.",
+    "quote": "This is where dreams—dreams, do you understand—come to life, come real. Not daydreams: dreams.",
     "author": "C. S. Lewis",
     "category": "celebration"
   }

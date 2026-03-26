@@ -7,7 +7,6 @@ import { redirect } from "next/navigation";
 
 import { loginUser, logoutUser, requireCurrentUser } from "@/lib/auth/session";
 import {
-  completeAssignedRecoveryForTarget,
   dismissBacklogScope,
   isValidBacklogRescheduleTarget,
   moveBacklogItemPriority,
@@ -19,21 +18,23 @@ import {
   applyOverrunCascadeShift,
   applyScheduleShiftToUserState,
   applyTrafficLightToDay,
+  completeBlockItems,
+  completeTopicItem,
   getOrCreateProgress,
   moveBlockToBacklog,
   moveVisibleBlocksToBacklog,
   runLateNightSweep,
+  skipTopicItem,
   upsertWeeklySummary,
 } from "@/lib/data/app-state";
 import { createEmptyUserState, getEffectiveNow, mutateStore } from "@/lib/data/local-store";
 import {
-  createRevisionId,
   getCurrentDayNumber,
   getMappedDate,
+  getScheduleDay,
   getScheduleDayEditState,
   getScheduleHealth,
   getShiftPreview,
-  reconcileRevisionCompletionsForSource,
 } from "@/lib/domain/schedule";
 import { validateGtDraft } from "@/lib/domain/gt";
 import { validateMcqBulkDraft, validateMcqItemDraft } from "@/lib/domain/mcq";
@@ -41,7 +42,7 @@ import type {
   BacklogBulkScope,
   BacklogMoveDirection,
   BlockKey,
-  RevisionSourceBlockKey,
+  RevisionType,
   TrafficLight,
 } from "@/lib/domain/types";
 import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE, toDateOnly, toDateOnlyInTimeZone, weekBounds } from "@/lib/utils/date";
@@ -174,43 +175,23 @@ export async function updateBlockAction(formData: FormData) {
       }
     }
 
-    const progressKey = `${dayNumber}:${blockKey}`;
-    const progress =
-      userState.blockProgress[progressKey] ??
-      (userState.blockProgress[progressKey] = {
-        dayNumber,
-        blockKey,
-        status: "pending",
-        actualStart: null,
-        actualEnd: null,
-        completedAt: null,
-        sourceTag: null,
-        note: null,
-      });
-
     if (intent === "complete") {
-      progress.status = "completed";
-      progress.completedAt = completionIsoForDateOnly(resolvedCompletionDate);
-      progress.sourceTag = null;
-      progress.note = note;
-      reconcileRevisionCompletionsForSource(userState.revisionCompletions, dayNumber, blockKey, progress.completedAt);
-      for (const item of Object.values(userState.backlogItems)) {
-        if (item.originalDay === dayNumber && item.originalBlockKey === blockKey && item.status !== "dismissed") {
-          item.status = "completed";
-          item.completedAt = progress.completedAt;
-        }
+      completeBlockItems(userState, dayNumber, blockKey, completionIsoForDateOnly(resolvedCompletionDate), note);
+    } else if (intent === "partial" || intent === "quick_finish") {
+      const block = getScheduleDay(dayNumber)?.blocks.find((entry) => entry.timeSlotKey === blockKey);
+      const nextItem = block?.items.find((item) => userState.topicProgress[item.itemId]?.status !== "completed");
+      if (!nextItem) {
+        return;
       }
-      completeAssignedRecoveryForTarget(userState, dayNumber, blockKey, progress.completedAt);
-    } else if (intent === "partial") {
-      progress.status = "partial";
-      progress.completedAt = completionIsoForDateOnly(completionDate);
-      progress.note = note;
+      completeTopicItem(userState, dayNumber, blockKey, nextItem.itemId, completionIsoForDateOnly(completionDate), note ?? "Quick version.");
     } else if (intent === "skip") {
       moveBlockToBacklog(userState, dayNumber, blockKey, "skipped", "skipped", note);
     } else if (intent === "time") {
+      const progress = getOrCreateProgress(userState, dayNumber, blockKey);
       progress.actualStart = actualStart;
       progress.actualEnd = actualEnd;
       progress.note = note;
+      progress.updatedAt = new Date().toISOString();
 
       if (actualEnd && cascadeDecision === "keep_next_visible") {
         applyOverrunCascadeShift(userState, dayNumber, blockKey, actualEnd);
@@ -241,22 +222,73 @@ export async function updateBlockAction(formData: FormData) {
   refresh();
 }
 
+export async function updateTopicAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const dayNumber = Number(asString(formData.get("dayNumber")));
+  const blockKey = asString(formData.get("blockKey")) as BlockKey;
+  const itemId = asString(formData.get("itemId"));
+  const intent = asString(formData.get("intent"));
+  const completionDate = asString(formData.get("completionDate")) || null;
+  const note = asString(formData.get("note")) || null;
+
+  if (!dayNumber || !blockKey || !itemId || !["complete", "skip"].includes(intent)) {
+    return;
+  }
+
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
+    const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
+    const isRetroactiveCompletion = intent === "complete" && editState.canRetroactivelyComplete;
+
+    if (!editState.canAdjustToday && !isRetroactiveCompletion) {
+      return;
+    }
+
+    if (!isDateOnly(completionDate)) {
+      return;
+    }
+
+    let resolvedCompletionDate = completionDate;
+    if (isRetroactiveCompletion) {
+      resolvedCompletionDate = completionDate || getMappedDate(dayNumber, userState.settings) || todayDate;
+      if (resolvedCompletionDate > todayDate) {
+        return;
+      }
+      if (userState.settings.dayOneDate && resolvedCompletionDate < userState.settings.dayOneDate) {
+        return;
+      }
+    }
+
+    if (intent === "complete") {
+      completeTopicItem(userState, dayNumber, blockKey, itemId, completionIsoForDateOnly(resolvedCompletionDate), note);
+      return;
+    }
+
+    skipTopicItem(userState, dayNumber, blockKey, itemId, "skipped", "skipped", note);
+  });
+
+  refresh();
+}
+
 export async function completeRevisionAction(formData: FormData) {
   const user = await requireCurrentUser();
+  const sourceItemId = asString(formData.get("sourceItemId"));
   const sourceDay = Number(asString(formData.get("sourceDay")));
-  const sourceBlockKey = asString(formData.get("sourceBlockKey")) as RevisionSourceBlockKey;
-  const revisionType = asString(formData.get("revisionType"));
-  if (!sourceDay || !["block_a", "block_b"].includes(sourceBlockKey) || !["D+1", "D+3", "D+7", "D+14", "D+28"].includes(revisionType)) {
+  const sourceBlockKey = asString(formData.get("sourceBlockKey")) as BlockKey;
+  const revisionType = asString(formData.get("revisionType")) as RevisionType;
+  if (!sourceItemId || !sourceDay || !sourceBlockKey || !["D+1", "D+3", "D+7", "D+14", "D+28"].includes(revisionType)) {
     return;
   }
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    const revisionId = createRevisionId(sourceDay, sourceBlockKey, revisionType as never);
+    const revisionId = `${sourceItemId}:${revisionType}`;
     userState.revisionCompletions[revisionId] = {
       revisionId,
+      sourceItemId,
       sourceDay,
       sourceBlockKey,
-      revisionType: revisionType as never,
+      revisionType,
       completedAt: new Date().toISOString(),
     };
   });
@@ -284,22 +316,9 @@ export async function updateBacklogAction(formData: FormData) {
 
     if (intent === "complete") {
       const completedAt = completionIsoForDateOnly(completionDate);
-      for (const entry of Object.values(userState.backlogItems)) {
-        if (entry.originalDay === item.originalDay && entry.originalBlockKey === item.originalBlockKey && entry.status !== "dismissed") {
-          entry.status = "completed";
-          entry.completedAt = completedAt;
-        }
-      }
-      const progress = getOrCreateProgress(userState, item.originalDay, item.originalBlockKey);
-      progress.status = "completed";
-      progress.completedAt = completedAt;
-      progress.sourceTag = null;
-      reconcileRevisionCompletionsForSource(
-        userState.revisionCompletions,
-        item.originalDay,
-        item.originalBlockKey,
-        progress.completedAt,
-      );
+      completeTopicItem(userState, item.originalDay, item.originalBlockKey, item.sourceItemId, completedAt);
+      item.status = "completed";
+      item.completedAt = completedAt;
     } else if (intent === "dismiss") {
       item.status = "dismissed";
       item.dismissedAt = new Date().toISOString();

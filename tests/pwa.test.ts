@@ -1,9 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import manifest from "@/app/manifest";
-import { APP_VERSION, PWA_BACKGROUND_COLOR, PWA_THEME_COLOR, STUDY_DOCUMENT_LINKS } from "@/lib/domain/app-meta";
+import { APP_DESCRIPTION, APP_VERSION, PWA_BACKGROUND_COLOR, PWA_THEME_COLOR } from "@/lib/domain/app-meta";
 import { detectPlatform, PWA_MANIFEST_ICONS, resolveInstallGuide } from "@/lib/domain/pwa";
-import { createDownloadHeaders } from "@/lib/server/repo-docs";
 
 describe("settings, pwa, and installability", () => {
   it("exposes production-ready manifest metadata and icons", () => {
@@ -22,20 +21,10 @@ describe("settings, pwa, and installability", () => {
     expect(appManifest.icons).toEqual([...PWA_MANIFEST_ICONS]);
   });
 
-  it("keeps the about/download metadata complete", () => {
+  it("keeps app metadata focused on runtime product details, not source downloads", () => {
     expect(APP_VERSION).toMatch(/^\d+\.\d+\.\d+$/u);
-    expect(STUDY_DOCUMENT_LINKS.map((link) => link.href)).toEqual(["/api/docs/schedule-workbook"]);
-
-    expect(
-      createDownloadHeaders({
-        contentType: "application/json",
-        fileName: "beside-you-export.json",
-      }),
-    ).toMatchObject({
-      "Content-Type": "application/json",
-      "Content-Disposition": 'attachment; filename="beside-you-export.json"',
-      "Cache-Control": "no-store",
-    });
+    expect(APP_DESCRIPTION).toContain("quiet");
+    expect(APP_DESCRIPTION).toContain("NEET PG 2026");
   });
 
   it("detects Apple Safari install flow separately from Android and desktop flows", () => {

@@ -1,50 +1,68 @@
 import { scheduleData } from "@/lib/generated/schedule-data";
 import {
-  BREAK_MICRO_SLOT_ORDER,
   BREAK_MICRO_SLOT_LABELS,
+  BREAK_MICRO_SLOT_ORDER,
   BUFFER_DAY,
   EXAM_DATE,
   HARD_BOUNDARY_DATE,
-  RED_VISIBLE_BLOCKS,
-  REVISION_SOURCE_BLOCKS,
   REVISION_INTERVALS,
   SHIFT_COMPRESSION_PAIRS,
-  TRACKABLE_BLOCK_ORDER,
-  YELLOW_VISIBLE_BLOCKS,
 } from "@/lib/domain/constants";
+import type { ScheduleDayBlock, ScheduleDayBlockItem, ScheduleDayPlan } from "@/lib/domain/schedule-data-types";
 import type {
   AppSettings,
-  BacklogItem,
   BlockKey,
   BlockProgress,
+  BlockStatus,
   DailyRevisionPlan,
   DayState,
-  GeneratedScheduleDay,
   OverflowRevisionItem,
   RevisionCompletion,
   RevisionDisplayGroup,
-  RevisionSourceBlockKey,
   RevisionQueueItem,
+  RevisionType,
   ScheduleDayEditState,
   ScheduleDayRelation,
   ScheduleHealth,
   ScheduleShiftEvent,
   ScheduleShiftPreview,
   ShiftMergedDay,
+  TopicProgress,
+  TopicStatus,
   TrafficLight,
   UserState,
 } from "@/lib/domain/types";
-import { addDaysToDateOnly, diffDays, parseDateOnly, timeValue, toDateOnlyInTimeZone } from "@/lib/utils/date";
+import { addDaysToDateOnly, diffDays, parseDateOnly, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
-const SCHEDULE_DAY_BY_NUMBER = new Map(scheduleData.days.map((day) => [day.dayNumber, day]));
-const DAY_SLOT_BY_KEY = new Map(
-  scheduleData.days.map((day) => [day.dayNumber, new Map(day.slots.map((slot) => [slot.key, slot]))]),
+const ALL_DAYS = scheduleData.daywisePlan.days;
+const DAY_BY_NUMBER = new Map(ALL_DAYS.map((day) => [day.dayNumber, day] as const));
+const SUBJECTS = scheduleData.subjectStrategy.subjects;
+const SUBJECT_LABEL_BY_ID = new Map(SUBJECTS.map((subject) => [subject.subjectId, subject.subjectName] as const));
+const ITEM_LOOKUP = new Map(
+  ALL_DAYS.flatMap((day) =>
+    day.blocks.flatMap((block) =>
+      block.items.map((item) => [
+        item.itemId,
+        {
+          day,
+          block,
+          item,
+        },
+      ] as const),
+    ),
+  ),
 );
-const TRACKABLE_BLOCKS_BY_DAY = new Map(scheduleData.days.map((day) => [day.dayNumber, day.slots.filter((slot) => slot.trackable)]));
-const SUBJECTS_SORTED_BY_LENGTH = [...scheduleData.subjects].sort((left, right) => right.subject.length - left.subject.length);
+const SUBJECT_MATCHERS = SUBJECTS.flatMap((subject) => [
+  { label: subject.subjectName, normalized: subject.subjectName.toLowerCase() },
+  ...subject.aliases.map((alias) => ({ label: subject.subjectName, normalized: alias.toLowerCase() })),
+]).sort((left, right) => right.normalized.length - left.normalized.length);
 
-export function getScheduleDay(dayNumber: number): GeneratedScheduleDay | undefined {
-  return SCHEDULE_DAY_BY_NUMBER.get(dayNumber);
+function timingKey(dayNumber: number, blockKey: BlockKey) {
+  return `${dayNumber}:${blockKey}`;
+}
+
+function getTopicProgressKey(itemId: string) {
+  return itemId;
 }
 
 function getShiftEvents(settings: AppSettings): ScheduleShiftEvent[] {
@@ -65,17 +83,6 @@ function getConsumedShiftRecoveryKeys(settings: AppSettings) {
   }
 
   return keys;
-}
-
-function getMergedDayDescription(pair: [number, number]): ShiftMergedDay {
-  const [leftDay, rightDay] = pair;
-  const left = getScheduleDay(leftDay);
-  const right = getScheduleDay(rightDay);
-
-  return {
-    originalDays: [leftDay, rightDay],
-    mergedDescription: `Days ${leftDay} and ${rightDay}: ${left?.primaryFocus ?? `Day ${leftDay}`} + ${right?.primaryFocus ?? `Day ${rightDay}`} will be merged into a single day.`,
-  };
 }
 
 function getAvailableShiftRecoveries(settings: AppSettings, anchorDayNumber: number) {
@@ -117,6 +124,247 @@ function getAvailableShiftRecoveries(settings: AppSettings, anchorDayNumber: num
   }
 
   return recoveries;
+}
+
+function defaultDayState(dayNumber: number): DayState {
+  return {
+    dayNumber,
+    trafficLight: "green",
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function defaultBlockTiming(dayNumber: number, blockKey: BlockKey) {
+  return {
+    dayNumber,
+    blockKey,
+    actualStart: null,
+    actualEnd: null,
+    note: null,
+    updatedAt: null,
+  };
+}
+
+function defaultTopicProgress(item: ScheduleDayBlockItem, dayNumber: number, blockKey: BlockKey): TopicProgress {
+  return {
+    itemId: item.itemId,
+    dayNumber,
+    blockKey,
+    status: "pending",
+    completedAt: null,
+    sourceTag: null,
+    note: null,
+    updatedAt: null,
+  };
+}
+
+function getLastCompletedAt(values: Array<string | null>) {
+  return values
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => right.localeCompare(left))[0] ?? null;
+}
+
+function getDerivedStatus(statuses: TopicStatus[]) {
+  if (statuses.length === 0) {
+    return "pending" as const;
+  }
+
+  if (statuses.every((status) => status === "completed")) {
+    return "completed" as const;
+  }
+
+  const unresolved = statuses.filter((status) => status !== "completed");
+  if (unresolved.some((status) => status === "missed")) {
+    return "missed" as const;
+  }
+  if (unresolved.some((status) => status === "rescheduled")) {
+    return "rescheduled" as const;
+  }
+  if (unresolved.some((status) => status === "skipped")) {
+    return "skipped" as const;
+  }
+  if (statuses.includes("completed")) {
+    return "partially_complete" as const;
+  }
+
+  return "pending" as const;
+}
+
+function getSubjectLabel(subjectIds: string[], fallback: string) {
+  const first = subjectIds.find((subjectId) => SUBJECT_LABEL_BY_ID.has(subjectId));
+  return (first ? SUBJECT_LABEL_BY_ID.get(first) : null) ?? fallback;
+}
+
+function getBlock(day: ScheduleDayPlan, blockKey: BlockKey) {
+  return day.blocks.find((block) => block.timeSlotKey === blockKey) ?? null;
+}
+
+function getActiveAssignedRecovery(userState: UserState, dayNumber: number, blockKey: BlockKey) {
+  return Object.values(userState.backlogItems).filter(
+    (item) => item.status === "rescheduled" && item.rescheduledToDay === dayNumber && item.rescheduledToBlockKey === blockKey,
+  );
+}
+
+function getCompletedAssignedRecovery(userState: UserState, dayNumber: number, blockKey: BlockKey) {
+  return Object.values(userState.backlogItems).filter(
+    (item) =>
+      item.status === "completed" &&
+      item.rescheduledToDay === dayNumber &&
+      item.rescheduledToBlockKey === blockKey,
+  );
+}
+
+function getItemCompletion(userState: UserState, item: ScheduleDayBlockItem, dayNumber: number, blockKey: BlockKey) {
+  return userState.topicProgress[getTopicProgressKey(item.itemId)] ?? defaultTopicProgress(item, dayNumber, blockKey);
+}
+
+export function getScheduleDay(dayNumber: number): ScheduleDayPlan | undefined {
+  return DAY_BY_NUMBER.get(dayNumber);
+}
+
+export function getScheduleDays() {
+  return ALL_DAYS;
+}
+
+export function getScheduleItemById(itemId: string) {
+  return ITEM_LOOKUP.get(itemId) ?? null;
+}
+
+export function getTrackableBlocks(day: ScheduleDayPlan) {
+  return day.blocks.filter((block) => block.trackable);
+}
+
+export function getDayState(userState: UserState, dayNumber: number): DayState {
+  return userState.dayStates[String(dayNumber)] ?? defaultDayState(dayNumber);
+}
+
+export function getBlockTiming(userState: UserState, dayNumber: number, blockKey: BlockKey) {
+  return userState.blockTiming[timingKey(dayNumber, blockKey)] ?? defaultBlockTiming(dayNumber, blockKey);
+}
+
+export function getTopicProgress(userState: UserState, item: ScheduleDayBlockItem, dayNumber: number, blockKey: BlockKey) {
+  return getItemCompletion(userState, item, dayNumber, blockKey);
+}
+
+export function getBlockProgress(userState: UserState, dayNumber: number, blockKey: BlockKey): BlockProgress {
+  const day = getScheduleDay(dayNumber);
+  const timing = getBlockTiming(userState, dayNumber, blockKey);
+
+  if (!day) {
+    return {
+      dayNumber,
+      blockKey,
+      status: "pending",
+      actualStart: timing.actualStart,
+      actualEnd: timing.actualEnd,
+      completedAt: null,
+      sourceTag: null,
+      note: timing.note,
+      completedItemCount: 0,
+      totalItemCount: 0,
+      unresolvedItemCount: 0,
+    };
+  }
+
+  const block = getBlock(day, blockKey);
+  if (!block) {
+    return {
+      dayNumber,
+      blockKey,
+      status: "pending",
+      actualStart: timing.actualStart,
+      actualEnd: timing.actualEnd,
+      completedAt: null,
+      sourceTag: null,
+      note: timing.note,
+      completedItemCount: 0,
+      totalItemCount: 0,
+      unresolvedItemCount: 0,
+    };
+  }
+
+  const nativeProgress = block.items.map((item) => getItemCompletion(userState, item, dayNumber, blockKey));
+  const assignedRecovery = getActiveAssignedRecovery(userState, dayNumber, blockKey);
+  const completedRecovery = getCompletedAssignedRecovery(userState, dayNumber, blockKey);
+  const statuses: TopicStatus[] = [
+    ...nativeProgress.map((entry) => entry.status),
+    ...assignedRecovery.map(() => "rescheduled" as const),
+    ...completedRecovery.map(() => "completed" as const),
+  ];
+  const status = getDerivedStatus(statuses);
+  const completedItemCount = statuses.filter((entry) => entry === "completed").length;
+  const totalItemCount = statuses.length;
+  const unresolvedItemCount = statuses.filter((entry) => entry !== "completed").length;
+  const completedAt = getLastCompletedAt([
+    ...nativeProgress.map((entry) => entry.completedAt),
+    ...completedRecovery.map((entry) => entry.completedAt),
+  ]);
+  const firstSourceTag =
+    nativeProgress.find((entry) => entry.sourceTag)?.sourceTag ??
+    assignedRecovery[0]?.sourceTag ??
+    completedRecovery[0]?.sourceTag ??
+    null;
+
+  return {
+    dayNumber,
+    blockKey,
+    status,
+    actualStart: timing.actualStart,
+    actualEnd: timing.actualEnd,
+    completedAt,
+    sourceTag: firstSourceTag,
+    note: timing.note,
+    completedItemCount,
+    totalItemCount,
+    unresolvedItemCount,
+  };
+}
+
+export function getSubjectFromPrimaryFocus(primaryFocus: string): string {
+  const normalized = primaryFocus.toLowerCase();
+  const match = SUBJECT_MATCHERS.find((candidate) => normalized.includes(candidate.normalized));
+  if (match) {
+    return match.label;
+  }
+
+  return primaryFocus.split(/[+/]/u)[0]?.trim() || primaryFocus;
+}
+
+export function getDisplayBlockDescription(day: ScheduleDayPlan, blockKey: BlockKey, trafficLight: TrafficLight) {
+  void trafficLight;
+  const block = getBlock(day, blockKey);
+  if (!block) {
+    return day.primaryFocusRaw;
+  }
+
+  const labels = block.items.map((item) => item.label).filter(Boolean);
+  if (labels.length === 0) {
+    return block.rawText || day.primaryFocusRaw;
+  }
+  if (labels.length === 1) {
+    return labels[0]!;
+  }
+  if (labels.length === 2) {
+    return `${labels[0]} · ${labels[1]}`;
+  }
+
+  return `${labels[0]} · ${labels[1]} · ${labels.length - 2} more`;
+}
+
+function isBlockVisible(block: ScheduleDayBlock, trafficLight: TrafficLight) {
+  return block.trafficLightPolicy[trafficLight] === "visible";
+}
+
+export function getVisibleBlockKeys(trafficLight: TrafficLight, day: ScheduleDayPlan): BlockKey[] {
+  return getTrackableBlocks(day)
+    .filter((block) => isBlockVisible(block, trafficLight))
+    .map((block) => block.timeSlotKey);
+}
+
+export function getHiddenBlockKeys(trafficLight: TrafficLight, day: ScheduleDayPlan): BlockKey[] {
+  return getTrackableBlocks(day)
+    .filter((block) => !isBlockVisible(block, trafficLight))
+    .map((block) => block.timeSlotKey);
 }
 
 export function getConsumedCompressionPairs(settings: AppSettings) {
@@ -193,7 +441,7 @@ export function getCurrentDayNumber(settings: AppSettings, todayDate: string): n
     return 0;
   }
 
-  const visibleDays = scheduleData.days
+  const visibleDays = ALL_DAYS
     .map((day) => day.dayNumber)
     .filter((dayNumber) => !isCompressedHiddenDay(dayNumber, settings));
   const firstVisibleDay = visibleDays.at(0);
@@ -298,126 +546,32 @@ export function getNextVisibleDayNumber(dayNumber: number, settings: AppSettings
   return null;
 }
 
-export function getVisibleBlockKeys(trafficLight: TrafficLight): BlockKey[] {
-  if (trafficLight === "yellow") {
-    return [...YELLOW_VISIBLE_BLOCKS];
-  }
-  if (trafficLight === "red") {
-    return [...RED_VISIBLE_BLOCKS];
-  }
-  return [...TRACKABLE_BLOCK_ORDER];
-}
-
-export function getHiddenBlockKeys(trafficLight: TrafficLight): BlockKey[] {
-  const visible = new Set(getVisibleBlockKeys(trafficLight));
-  return TRACKABLE_BLOCK_ORDER.filter((block) => !visible.has(block));
-}
-
-export function getDayState(userState: UserState, dayNumber: number): DayState {
-  return (
-    userState.dayStates[String(dayNumber)] ?? {
-      dayNumber,
-      trafficLight: "green",
-      updatedAt: new Date().toISOString(),
-    }
-  );
-}
-
-export function getBlockProgress(
-  userState: UserState,
-  dayNumber: number,
-  blockKey: BlockKey,
-): BlockProgress {
-  return (
-    userState.blockProgress[`${dayNumber}:${blockKey}`] ?? {
-      dayNumber,
-      blockKey,
-      status: "pending",
-      actualStart: null,
-      actualEnd: null,
-      completedAt: null,
-      sourceTag: null,
-      note: null,
-    }
-  );
-}
-
-export function getTrackableBlocks(day: GeneratedScheduleDay) {
-  return TRACKABLE_BLOCKS_BY_DAY.get(day.dayNumber) ?? day.slots.filter((slot) => slot.trackable);
-}
-
-export function getSubjectFromPrimaryFocus(primaryFocus: string): string {
-  const lowerPrimaryFocus = primaryFocus.toLowerCase();
-  const match = SUBJECTS_SORTED_BY_LENGTH.find((subject) => lowerPrimaryFocus.includes(subject.subject.toLowerCase()));
-  if (match) {
-    return match.subject;
-  }
-
-  return primaryFocus.split(" ")[0] ?? primaryFocus;
-}
-
-function getRevisionBlockLabel(day: GeneratedScheduleDay, blockKey: RevisionSourceBlockKey) {
-  return DAY_SLOT_BY_KEY.get(day.dayNumber)?.get(blockKey)?.label ?? blockKey;
-}
-
-function getRevisionTopic(day: GeneratedScheduleDay, blockKey: RevisionSourceBlockKey) {
-  const slot = DAY_SLOT_BY_KEY.get(day.dayNumber)?.get(blockKey);
-  const description = slot?.description ?? day.primaryFocus;
-  return description.replace(/^Block [AB]\s+—\s+/u, "").trim() || day.primaryFocus;
-}
-
-function isCompletedRevisionSource(progress: BlockProgress) {
-  return (progress.status === "completed" || progress.status === "partial") && Boolean(progress.completedAt);
-}
-
-function getAnchorDateForRevisionSource(
-  day: GeneratedScheduleDay,
-  blockKey: RevisionSourceBlockKey,
-  settings: AppSettings,
-  userState: UserState,
-) {
-  const progress = getBlockProgress(userState, day.dayNumber, blockKey);
-  if (isCompletedRevisionSource(progress) && progress.completedAt) {
-    return {
-      anchorDate: toDateOnlyInTimeZone(progress.completedAt),
-      anchorMode: "actual" as const,
-    };
-  }
-
-  const mappedDate = getMappedDate(day.dayNumber, settings);
-  if (!mappedDate) {
-    return null;
-  }
-
-  return {
-    anchorDate: mappedDate,
-    anchorMode: "planned" as const,
-  };
-}
-
+export function createRevisionId(sourceItemId: string, revisionType: RevisionType): string;
+export function createRevisionId(sourceDay: number, sourceBlockKey: BlockKey, revisionType: RevisionType): string;
 export function createRevisionId(
-  sourceDay: number,
-  sourceBlockKey: RevisionSourceBlockKey,
-  revisionType: RevisionQueueItem["revisionType"],
+  sourceItemIdOrDay: string | number,
+  sourceBlockKeyOrRevisionType: BlockKey | RevisionType,
+  maybeRevisionType?: RevisionType,
 ) {
-  return `${sourceDay}:${sourceBlockKey}:${revisionType}`;
+  if (typeof sourceItemIdOrDay === "string" && maybeRevisionType === undefined) {
+    return `${sourceItemIdOrDay}:${sourceBlockKeyOrRevisionType}`;
+  }
+
+  return `${sourceItemIdOrDay}:${sourceBlockKeyOrRevisionType}:${maybeRevisionType}`;
 }
 
 export function reconcileRevisionCompletionsForSource(
   revisionCompletions: Record<string, RevisionCompletion>,
-  dayNumber: number,
-  blockKey: BlockKey,
+  sourceItemId: string,
   completedAtIso: string | null,
 ) {
-  if (!completedAtIso || (blockKey !== "block_a" && blockKey !== "block_b")) {
+  if (!completedAtIso) {
     return;
   }
 
   const anchorDate = toDateOnlyInTimeZone(completedAtIso);
-  for (const [revisionType, offset] of Object.entries(REVISION_INTERVALS) as Array<
-    [RevisionQueueItem["revisionType"], number]
-  >) {
-    const revisionId = createRevisionId(dayNumber, blockKey, revisionType);
+  for (const [revisionType, offset] of Object.entries(REVISION_INTERVALS) as Array<[RevisionType, number]>) {
+    const revisionId = createRevisionId(sourceItemId, revisionType);
     const completion = revisionCompletions[revisionId];
     if (!completion) {
       continue;
@@ -430,17 +584,8 @@ export function reconcileRevisionCompletionsForSource(
   }
 }
 
-function getRevisionCompletion(
-  completions: Record<string, RevisionCompletion>,
-  sourceDay: number,
-  sourceBlockKey: RevisionSourceBlockKey,
-  revisionType: RevisionQueueItem["revisionType"],
-) {
-  return completions[createRevisionId(sourceDay, sourceBlockKey, revisionType)];
-}
-
-function getRevisionPriority(revisionType: RevisionQueueItem["revisionType"]) {
-  const order: Record<RevisionQueueItem["revisionType"], number> = {
+function getRevisionPriority(revisionType: RevisionType) {
+  const order: Record<RevisionType, number> = {
     "D+1": 1,
     "D+3": 2,
     "D+7": 3,
@@ -451,45 +596,63 @@ function getRevisionPriority(revisionType: RevisionQueueItem["revisionType"]) {
   return order[revisionType];
 }
 
+function getRevisionCompletion(
+  completions: Record<string, RevisionCompletion>,
+  sourceItemId: string,
+  revisionType: RevisionType,
+) {
+  return completions[createRevisionId(sourceItemId, revisionType)];
+}
+
+function getRevisionEligibleItems() {
+  return ALL_DAYS.flatMap((day) =>
+    getTrackableBlocks(day).flatMap((block) =>
+      block.items
+        .filter((item) => item.revisionEligible)
+        .map((item) => ({
+          day,
+          block,
+          item,
+        })),
+    ),
+  );
+}
+
 export function buildRevisionInventory(userState: UserState, settings: AppSettings): RevisionQueueItem[] {
   if (!settings.dayOneDate) {
     return [];
   }
 
   const items: RevisionQueueItem[] = [];
-  for (const day of scheduleData.days) {
-    const subject = getSubjectFromPrimaryFocus(day.primaryFocus);
+  for (const entry of getRevisionEligibleItems()) {
+    const progress = getItemCompletion(userState, entry.item, entry.day.dayNumber, entry.block.timeSlotKey);
+    if (progress.status !== "completed" || !progress.completedAt) {
+      continue;
+    }
 
-    for (const blockKey of REVISION_SOURCE_BLOCKS) {
-      const anchor = getAnchorDateForRevisionSource(day, blockKey, settings, userState);
-      if (!anchor) {
-        continue;
-      }
+    const anchorDate = toDateOnlyInTimeZone(progress.completedAt);
+    const subject = getSubjectLabel(entry.item.subjectIds, getSubjectFromPrimaryFocus(entry.day.primaryFocusRaw));
 
-      const topic = getRevisionTopic(day, blockKey);
-      const sourceBlockLabel = getRevisionBlockLabel(day, blockKey);
-      for (const [revisionType, offset] of Object.entries(REVISION_INTERVALS) as Array<
-        [RevisionQueueItem["revisionType"], number]
-      >) {
-        const scheduledDate = addDaysToDateOnly(anchor.anchorDate, offset);
-        const completion = getRevisionCompletion(userState.revisionCompletions, day.dayNumber, blockKey, revisionType);
-        items.push({
-          id: createRevisionId(day.dayNumber, blockKey, revisionType),
-          sourceDay: day.dayNumber,
-          sourceBlockKey: blockKey,
-          sourceBlockLabel,
-          sourceTopicLabel: day.primaryFocus,
-          subject,
-          topic,
-          revisionType,
-          scheduledDate,
-          sourceAnchorDate: anchor.anchorDate,
-          anchorMode: anchor.anchorMode,
-          assignedSlot: "morning_revision",
-          overdueBy: 0,
-          status: completion ? "completed" : "due",
-        });
-      }
+    for (const [revisionType, offset] of Object.entries(REVISION_INTERVALS) as Array<[RevisionType, number]>) {
+      const scheduledDate = addDaysToDateOnly(anchorDate, offset);
+      const completion = getRevisionCompletion(userState.revisionCompletions, entry.item.itemId, revisionType);
+      items.push({
+        id: createRevisionId(entry.item.itemId, revisionType),
+        sourceItemId: entry.item.itemId,
+        sourceDay: entry.day.dayNumber,
+        sourceBlockKey: entry.block.timeSlotKey,
+        sourceBlockLabel: entry.block.displayLabel,
+        sourceTopicLabel: entry.item.label,
+        subject,
+        topic: entry.item.label,
+        revisionType,
+        scheduledDate,
+        sourceAnchorDate: anchorDate,
+        anchorMode: "actual",
+        assignedSlot: "morning_revision",
+        overdueBy: 0,
+        status: completion ? "completed" : "due",
+      });
     }
   }
 
@@ -500,10 +663,11 @@ export function buildRevisionInventory(userState: UserState, settings: AppSettin
         return priorityDelta;
       }
       if (left.sourceDay === right.sourceDay) {
-        return left.sourceBlockKey.localeCompare(right.sourceBlockKey);
+        return left.sourceItemId.localeCompare(right.sourceItemId);
       }
       return left.sourceDay - right.sourceDay;
     }
+
     return left.scheduledDate.localeCompare(right.scheduledDate);
   });
 }
@@ -512,9 +676,7 @@ export function groupRevisionItemsForDisplay(items: RevisionQueueItem[]): Revisi
   const groups = new Map<string, RevisionDisplayGroup>();
 
   for (const item of items) {
-    const groupKey = `${item.sourceDay}`;
-    const existing = groups.get(groupKey);
-
+    const existing = groups.get(item.sourceItemId);
     if (existing) {
       existing.items.push(item);
       if (!existing.revisionTypes.includes(item.revisionType)) {
@@ -523,9 +685,11 @@ export function groupRevisionItemsForDisplay(items: RevisionQueueItem[]): Revisi
       continue;
     }
 
-    groups.set(groupKey, {
-      id: groupKey,
+    groups.set(item.sourceItemId, {
+      id: item.sourceItemId,
+      sourceItemId: item.sourceItemId,
       sourceDay: item.sourceDay,
+      sourceBlockKey: item.sourceBlockKey,
       sourceTopicLabel: item.sourceTopicLabel,
       subject: item.subject,
       revisionTypes: [item.revisionType],
@@ -536,18 +700,15 @@ export function groupRevisionItemsForDisplay(items: RevisionQueueItem[]): Revisi
   return [...groups.values()]
     .map((group) => ({
       ...group,
-      revisionTypes: [...group.revisionTypes].sort(
-        (left, right) => getRevisionPriority(left) - getRevisionPriority(right),
-      ),
-      items: [...group.items].sort((left, right) => {
-        const priorityDelta = getRevisionPriority(left.revisionType) - getRevisionPriority(right.revisionType);
-        if (priorityDelta !== 0) {
-          return priorityDelta;
-        }
-        return left.sourceBlockKey.localeCompare(right.sourceBlockKey);
-      }),
+      revisionTypes: [...group.revisionTypes].sort((left, right) => getRevisionPriority(left) - getRevisionPriority(right)),
+      items: [...group.items].sort((left, right) => getRevisionPriority(left.revisionType) - getRevisionPriority(right.revisionType)),
     }))
-    .sort((left, right) => left.sourceDay - right.sourceDay);
+    .sort((left, right) => {
+      if (left.sourceDay !== right.sourceDay) {
+        return left.sourceDay - right.sourceDay;
+      }
+      return left.sourceTopicLabel.localeCompare(right.sourceTopicLabel);
+    });
 }
 
 function calculateMorningMinutesPerItem(itemCount: number) {
@@ -568,8 +729,8 @@ function buildRevisionPlanBase(
     if (item.status === "completed") {
       return false;
     }
-    const overdueBy = diffDays(targetDate, item.scheduledDate);
-    return overdueBy >= 0;
+
+    return diffDays(targetDate, item.scheduledDate) >= 0;
   });
 
   const mainQueue: RevisionQueueItem[] = [];
@@ -577,12 +738,9 @@ function buildRevisionPlanBase(
   const restudyFlags: RevisionQueueItem[] = [];
 
   for (const candidate of queueCandidates) {
-    const item = {
-      ...candidate,
-      overdueBy: diffDays(targetDate, candidate.scheduledDate),
-    };
+    const overdueBy = diffDays(targetDate, candidate.scheduledDate);
+    const item = { ...candidate, overdueBy };
 
-    const overdueBy = diffDays(targetDate, item.scheduledDate);
     if (overdueBy <= 2) {
       mainQueue.push({
         ...item,
@@ -591,6 +749,7 @@ function buildRevisionPlanBase(
       });
       continue;
     }
+
     if (overdueBy <= 6) {
       catchUp.push({
         ...item,
@@ -599,6 +758,7 @@ function buildRevisionPlanBase(
       });
       continue;
     }
+
     restudyFlags.push({
       ...item,
       assignedSlot: "next_revision_phase",
@@ -608,14 +768,17 @@ function buildRevisionPlanBase(
 
   const queue = mainQueue.slice(0, 5);
   const overflowItems = mainQueue.slice(5);
-  const overflow: OverflowRevisionItem[] = overflowItems.map((item, index) => ({
-    item: {
-      ...item,
-      assignedSlot: index === 0 ? "night_recall" : BREAK_MICRO_SLOT_ORDER[(index - 1) % BREAK_MICRO_SLOT_ORDER.length],
-    },
-    assignedSlot: index === 0 ? "night_recall" : BREAK_MICRO_SLOT_ORDER[(index - 1) % BREAK_MICRO_SLOT_ORDER.length],
-    label: index === 0 ? "22:00 night recall" : BREAK_MICRO_SLOT_LABELS[(index - 1) % BREAK_MICRO_SLOT_LABELS.length],
-  }));
+  const overflow: OverflowRevisionItem[] = overflowItems.map((item, index) => {
+    const assignedSlot = index === 0 ? "night_recall" : BREAK_MICRO_SLOT_ORDER[(index - 1) % BREAK_MICRO_SLOT_ORDER.length];
+    return {
+      item: {
+        ...item,
+        assignedSlot,
+      },
+      assignedSlot,
+      label: index === 0 ? "22:00 night recall" : BREAK_MICRO_SLOT_LABELS[(index - 1) % BREAK_MICRO_SLOT_LABELS.length],
+    };
+  });
 
   return {
     queue,
@@ -681,50 +844,30 @@ export function buildDailyRevisionPlan(
     overflowStreakDays,
     overflowSuggestion:
       overflowStreakDays >= 3
-        ? "Your revision queue is growing. Consider deferring low-priority items to next revision phase."
+        ? "Your revision queue is growing. Consider deferring low-priority items to the next revision phase."
         : null,
+  };
+}
+
+export function getMorningRevisionStatsForDate(
+  targetDate: string,
+  userState: UserState,
+  settings: AppSettings,
+) {
+  const inventory = buildRevisionInventory(userState, settings);
+  const dueSoon = inventory.filter((item) => {
+    const overdueBy = diffDays(targetDate, item.scheduledDate);
+    return overdueBy >= 0 && overdueBy <= 2;
+  });
+
+  return {
+    planned: dueSoon.length,
+    completed: dueSoon.filter((item) => item.status === "completed").length,
   };
 }
 
 export function getBacklogCount(userState: UserState): number {
   return Object.values(userState.backlogItems).filter((item) => item.status === "pending").length;
-}
-
-export function getSuggestedBacklogTarget(originalDay: number, blockKey: BlockKey) {
-  const suggestedDay = Math.min(100, originalDay + 1);
-  switch (blockKey) {
-    case "block_a":
-    case "block_b":
-      return {
-        suggestedDay,
-        suggestedBlockKey: "consolidation" as const,
-        suggestedNote: "Recover this in the next consolidation slot for a calm catch-up.",
-      };
-    case "mcq":
-      return {
-        suggestedDay,
-        suggestedBlockKey: "mcq" as const,
-        suggestedNote: "Merge with the next MCQ session and increase the target slightly.",
-      };
-    case "pyq_image":
-      return {
-        suggestedDay,
-        suggestedBlockKey: "pyq_image" as const,
-        suggestedNote: "Roll this into the next PYQ/image slot.",
-      };
-    case "night_recall":
-      return {
-        suggestedDay,
-        suggestedBlockKey: "night_recall" as const,
-        suggestedNote: "Stack this on the next night recall block.",
-      };
-    default:
-      return {
-        suggestedDay,
-        suggestedBlockKey: "consolidation" as const,
-        suggestedNote: "Use the next calm revision slot rather than stretching the day.",
-      };
-  }
 }
 
 export function createShiftPreviewSignature(preview: Omit<ScheduleShiftPreview, "signature">) {
@@ -759,45 +902,32 @@ export function getShiftPreview(settings: AppSettings, missedDays: number[]): Sc
   );
   const bufferDaysAvailable = recoveries.some((recovery) => recovery.kind === "buffer") ? 1 : 0;
   const bufferDaysUsed = selectedRecoveries.some((recovery) => recovery.kind === "buffer") ? 1 : 0;
-  const projectedSettings: AppSettings = {
-    ...settings,
-    scheduleShiftDays: settings.scheduleShiftDays + shiftDays,
-    shiftEvents: [
-      ...getShiftEvents(settings),
-      {
-        id: "preview",
-        anchorDayNumber,
-        shiftDays,
-        appliedAt: "preview",
-        missedDays: orderedMissedDays,
-        bufferDayUsed: bufferDaysUsed ? BUFFER_DAY : null,
-        compressedPairs,
-      },
-    ],
-  };
-  const day100 = getMappedDate(100, projectedSettings);
-  if (!day100) {
-    return null;
-  }
+  const savings = selectedRecoveries.length;
+  const shiftedDay100 = addDaysToDateOnly(
+    addDaysToDateOnly(settings.dayOneDate, 99),
+    shiftDays - savings,
+  );
 
-  const visibleProjectedDays = scheduleData.days
-    .map((day) => day.dayNumber)
-    .filter((dayNumber) => !isCompressedHiddenDay(dayNumber, projectedSettings));
-  const lastProjectedDay = visibleProjectedDays.at(-1);
-  const projectedLastDate = lastProjectedDay ? getMappedDate(lastProjectedDay, projectedSettings) : day100;
   const previewBase: Omit<ScheduleShiftPreview, "signature"> = {
     anchorDayNumber,
     shiftDays,
     missedDays: orderedMissedDays,
     bufferDaysAvailable,
     bufferDaysUsed,
-    isCleanShift: bufferDaysAvailable >= shiftDays,
+    isCleanShift: shiftDays === savings && compressedPairs.length === 0,
     compressedPairs,
-    mergedDays: compressedPairs.map((pair) => getMergedDayDescription(pair)),
-    day100,
-    hardBoundaryExceeded:
-      selectedRecoveries.length < shiftDays ||
-      (projectedLastDate ? parseDateOnly(projectedLastDate) >= parseDateOnly(HARD_BOUNDARY_DATE) : true),
+    mergedDays: compressedPairs.map((pair) => {
+      const [leftDay, rightDay] = pair;
+      const left = getScheduleDay(leftDay);
+      const right = getScheduleDay(rightDay);
+
+      return {
+        originalDays: [leftDay, rightDay],
+        mergedDescription: `Days ${leftDay} and ${rightDay}: ${left?.primaryFocusRaw ?? `Day ${leftDay}`} + ${right?.primaryFocusRaw ?? `Day ${rightDay}`} will be merged into a single day.`,
+      } satisfies ShiftMergedDay;
+    }),
+    day100: shiftedDay100,
+    hardBoundaryExceeded: parseDateOnly(shiftedDay100) > parseDateOnly(HARD_BOUNDARY_DATE),
   };
 
   return {
@@ -807,82 +937,116 @@ export function getShiftPreview(settings: AppSettings, missedDays: number[]): Sc
 }
 
 export function getScheduleHealth(userState: UserState, settings: AppSettings, todayDayNumber: number): ScheduleHealth {
-  const lookbackStart = Math.max(1, todayDayNumber - 6);
-  const fullMissDays = scheduleData.days
-    .filter((day) => day.dayNumber >= lookbackStart && day.dayNumber < todayDayNumber)
-    .filter((day) => !isCompressedHiddenDay(day.dayNumber, settings))
-    .filter((day) => {
-      const missedCount = TRACKABLE_BLOCK_ORDER.filter((block) => {
-        const progress = getBlockProgress(userState, day.dayNumber, block);
-        return progress.status === "missed" || progress.status === "skipped";
-      }).length;
-      return missedCount >= 5;
+  if (!settings.dayOneDate || todayDayNumber < 1) {
+    return {
+      missedDays: [],
+      anchorDayNumber: null,
+      suggestShift: false,
+    };
+  }
+
+  const visibleProjectedDays = ALL_DAYS
+    .map((day) => day.dayNumber)
+    .filter((dayNumber) => !isCompressedHiddenDay(dayNumber, settings))
+    .filter((dayNumber) => dayNumber <= todayDayNumber)
+    .slice(-7);
+
+  const missedDays = visibleProjectedDays.filter((dayNumber) => {
+    const day = getScheduleDay(dayNumber);
+    if (!day) {
+      return false;
+    }
+
+    const trafficLight = getDayState(userState, dayNumber).trafficLight;
+    const badBlocks = getVisibleBlockKeys(trafficLight, day).filter((blockKey) => {
+      const status = getBlockProgress(userState, dayNumber, blockKey).status;
+      return status === "missed" || status === "skipped" || status === "rescheduled";
     });
 
+    return badBlocks.length >= 5;
+  });
+
   return {
-    missedDays: fullMissDays.map((day) => day.dayNumber),
-    anchorDayNumber: fullMissDays[0]?.dayNumber ?? null,
-    suggestShift: fullMissDays.length >= 2,
+    missedDays,
+    anchorDayNumber: missedDays[0] ?? null,
+    suggestShift: missedDays.length >= 2,
   };
 }
 
-export function getDisplayBlockDescription(day: GeneratedScheduleDay, blockKey: BlockKey, trafficLight: TrafficLight): string {
-  const slot = day.slots.find((item) => item.key === blockKey);
-  const original = slot?.description ?? "";
+export function getDayCompletionState(day: ScheduleDayPlan, userState: UserState, trafficLight: TrafficLight) {
+  const visibleBlocks = getVisibleBlockKeys(trafficLight, day);
 
-  if (trafficLight === "red") {
-    if (blockKey === "morning_revision") {
-      return "Volatile notebook review and gentle recall only.";
-    }
-    if (blockKey === "block_a") {
-      return "One high-confidence subject review. Keep it calm and finite.";
-    }
-    if (blockKey === "mcq") {
-      return "25 easy MCQs with explanation review only.";
-    }
-  }
-
-  if (trafficLight === "yellow") {
-    if (blockKey === "mcq") {
-      return `${original} Reduced target: 40 MCQs.`;
-    }
-  }
-
-  return original;
-}
-
-export function getDayCompletionState(day: GeneratedScheduleDay, userState: UserState, trafficLight: TrafficLight) {
-  const visibleBlocks = getVisibleBlockKeys(trafficLight);
-  return visibleBlocks.every((block) => {
-    const progress = getBlockProgress(userState, day.dayNumber, block);
-    return progress.status === "completed" || progress.status === "partial";
+  return visibleBlocks.every((blockKey) => {
+    const status = getBlockProgress(userState, day.dayNumber, blockKey).status;
+    return status === "completed" || status === "skipped" || status === "missed" || status === "rescheduled";
   });
 }
 
-export function getBacklogByDay(userState: UserState, dayNumber: number): BacklogItem[] {
-  return Object.values(userState.backlogItems)
-    .filter((item) => item.status === "pending" && item.originalDay === dayNumber)
-    .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
-}
-
-export function isEndTimeBeyondSleep(end: string) {
-  return timeValue(end) > timeValue("23:00");
-}
-
-export function isStartTimeBeforeSleep(start: string) {
-  return timeValue(start) < timeValue("06:30");
-}
-
-export function getSafeDayCountLabel(todayDayNumber: number) {
-  if (todayDayNumber <= 0) {
+export function getSafeDayCountLabel(dayNumber: number) {
+  if (dayNumber <= 0) {
     return "Before Day 1";
   }
-  if (todayDayNumber > 100) {
-    return "Post plan";
+
+  if (dayNumber > 100) {
+    return `Beyond Day 100`;
   }
-  return `Day ${todayDayNumber} / 100`;
+
+  return `Day ${dayNumber}`;
 }
 
-export function getExamCountdown(todayDate: string) {
-  return diffDays(EXAM_DATE, todayDate);
+export function getPhaseDayStatus(dayNumber: number, userState: UserState): BlockStatus {
+  const day = getScheduleDay(dayNumber);
+  if (!day) {
+    return "pending";
+  }
+
+  const visibleStatuses = getTrackableBlocks(day).map((block) => getBlockProgress(userState, day.dayNumber, block.timeSlotKey).status);
+  return getDerivedStatus(
+    visibleStatuses.map((status) => {
+      if (status === "partially_complete") {
+        return "pending";
+      }
+
+      return status as TopicStatus;
+    }),
+  );
+}
+
+export function getPhaseStatus(phaseId: string, userState: UserState, settings: AppSettings): BlockStatus {
+  void settings;
+  const days = ALL_DAYS.filter((day) => day.phaseId === phaseId);
+  const statuses = days.map((day) => getPhaseDayStatus(day.dayNumber, userState));
+
+  return getDerivedStatus(
+    statuses.map((status) => {
+      if (status === "partially_complete") {
+        return "pending";
+      }
+
+      return status as TopicStatus;
+    }),
+  );
+}
+
+export function getTrackableBlockOptions(dayNumber?: number) {
+  if (dayNumber) {
+    const day = getScheduleDay(dayNumber);
+    if (day) {
+      return getTrackableBlocks(day).map((block) => ({
+        value: block.timeSlotKey,
+        label: `${block.displayLabel} · ${block.timeSlotKey}`,
+      }));
+    }
+  }
+
+  return scheduleData.daywisePlan.slotCatalog
+    .filter((slot) => slot.defaultTrackable)
+    .map((slot) => ({
+      value: slot.timeSlotKey,
+      label: `${slot.start}-${slot.end}`,
+    }));
+}
+
+export function getExamDate() {
+  return EXAM_DATE;
 }

@@ -1,17 +1,26 @@
 import { describe, expect, it } from "vitest";
 
+import { completeBlockItems, completeTopicItem } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import {
   buildDailyRevisionPlan,
   buildRevisionInventory,
   createRevisionId,
-  getAbsorptionSavings,
-  getMappedDate,
-  getVisibleBlockKeys,
+  getBlockProgress,
+  getPhaseStatus,
+  getScheduleDay,
   groupRevisionItemsForDisplay,
   reconcileRevisionCompletionsForSource,
 } from "@/lib/domain/schedule";
-import type { BlockKey, RevisionQueueItem, UserState } from "@/lib/domain/types";
+import type { RevisionQueueItem } from "@/lib/domain/types";
+
+function getBlock(dayNumber: number, semanticBlockKey: string) {
+  return getScheduleDay(dayNumber)!.blocks.find((block) => block.semanticBlockKey === semanticBlockKey)!;
+}
+
+function getItem(dayNumber: number, semanticBlockKey: string, index = 0) {
+  return getBlock(dayNumber, semanticBlockKey).items[index]!;
+}
 
 function createConfiguredState() {
   const userState = createEmptyUserState();
@@ -19,43 +28,18 @@ function createConfiguredState() {
   return userState;
 }
 
-function markCompleted(userState: UserState, dayNumber: number, blockKey: BlockKey, completedAt: string) {
-  userState.blockProgress[`${dayNumber}:${blockKey}`] = {
-    dayNumber,
-    blockKey,
-    status: "completed",
-    actualStart: null,
-    actualEnd: null,
-    completedAt,
-    sourceTag: null,
-    note: null,
-  };
-}
-
-function activeRevisionIdsForPlan(userState: UserState, targetDate: string) {
-  const plan = buildDailyRevisionPlan(targetDate, userState, userState.settings);
-  return {
-    plan,
-    ids: [
-      ...plan.queue.map((item) => item.id),
-      ...plan.overflow.map((item) => item.item.id),
-      ...plan.catchUp.map((item) => item.id),
-      ...plan.restudyFlags.map((item) => item.id),
-    ],
-  };
-}
-
 function createDisplayRevisionItem(
-  overrides: Partial<RevisionQueueItem> & Pick<RevisionQueueItem, "id" | "revisionType">,
+  overrides: Partial<RevisionQueueItem> & Pick<RevisionQueueItem, "id" | "sourceItemId" | "revisionType">,
 ): RevisionQueueItem {
   return {
     id: overrides.id,
+    sourceItemId: overrides.sourceItemId,
     sourceDay: overrides.sourceDay ?? 2,
-    sourceBlockKey: overrides.sourceBlockKey ?? "block_a",
-    sourceBlockLabel: overrides.sourceBlockLabel ?? "Block A",
-    sourceTopicLabel: overrides.sourceTopicLabel ?? "Pathology FP-1",
+    sourceBlockKey: overrides.sourceBlockKey ?? getBlock(2, "study_block_1").timeSlotKey,
+    sourceBlockLabel: overrides.sourceBlockLabel ?? "Study Block 1",
+    sourceTopicLabel: overrides.sourceTopicLabel ?? "Introduction to Pathology Revision",
     subject: overrides.subject ?? "Pathology",
-    topic: overrides.topic ?? "General pathology review",
+    topic: overrides.topic ?? "Introduction to Pathology Revision",
     revisionType: overrides.revisionType,
     scheduledDate: overrides.scheduledDate ?? "2026-05-04",
     sourceAnchorDate: overrides.sourceAnchorDate ?? "2026-05-01",
@@ -67,211 +51,137 @@ function createDisplayRevisionItem(
 }
 
 describe("schedule engine", () => {
-  it("uses the green layout for the full block set", () => {
-    expect(getVisibleBlockKeys("green")).toEqual([
-      "morning_revision",
-      "block_a",
-      "block_b",
-      "consolidation",
-      "mcq",
-      "pyq_image",
-      "night_recall",
-    ]);
-  });
-
-  it("absorbs one day when the buffer is used", () => {
-    const settings = {
-      dayOneDate: "2026-05-01",
-      theme: "dark" as const,
-      scheduleShiftDays: 1,
-      shiftAppliedAt: "2026-05-10T00:00:00.000Z",
-      shiftEvents: [
-        {
-          id: "shift-1",
-          anchorDayNumber: 1,
-          shiftDays: 1,
-          appliedAt: "2026-05-10T00:00:00.000Z",
-          missedDays: [],
-          bufferDayUsed: 84,
-          compressedPairs: [],
-        },
-      ],
-    };
-
-    expect(getAbsorptionSavings(83, settings)).toBe(0);
-    expect(getAbsorptionSavings(84, settings)).toBe(1);
-  });
-
-  it("keeps mapped dates stable when the first shift is absorbed by the buffer", () => {
-    const settings = {
-      dayOneDate: "2026-05-01",
-      theme: "dark" as const,
-      scheduleShiftDays: 1,
-      shiftAppliedAt: "2026-05-10T00:00:00.000Z",
-      shiftEvents: [
-        {
-          id: "shift-1",
-          anchorDayNumber: 1,
-          shiftDays: 1,
-          appliedAt: "2026-05-10T00:00:00.000Z",
-          missedDays: [],
-          bufferDayUsed: 84,
-          compressedPairs: [],
-        },
-      ],
-    };
-    expect(getMappedDate(84, settings)).toBe("2026-07-23");
-  });
-
-  it("falls back to planned mapped dates when an actual completion is not present", () => {
+  it("derives partial block state automatically from item completion", () => {
     const userState = createConfiguredState();
-    const inventory = buildRevisionInventory(userState, userState.settings);
-    const item = inventory.find((entry) => entry.id === createRevisionId(2, "block_a", "D+1"));
+    const studyBlock1 = getBlock(2, "study_block_1");
+    const firstItem = studyBlock1.items[0]!;
 
-    expect(item).toMatchObject({
-      sourceDay: 2,
-      sourceBlockKey: "block_a",
-      revisionType: "D+1",
-      scheduledDate: "2026-05-03",
-      anchorMode: "planned",
+    completeTopicItem(userState, 2, studyBlock1.timeSlotKey, firstItem.itemId, "2026-05-02T10:00:00.000Z");
+
+    expect(getBlockProgress(userState, 2, studyBlock1.timeSlotKey)).toMatchObject({
+      status: "partially_complete",
+      completedItemCount: 1,
+      totalItemCount: 2,
+      unresolvedItemCount: 1,
     });
   });
 
-  it("moves future revision anchors when a source block is completed late", () => {
+  it("builds spaced revision only from completed first-pass core-study topics", () => {
     const userState = createConfiguredState();
-    markCompleted(userState, 2, "block_a", "2026-05-04T12:00:00.000Z");
+    const day1Diagnostic = getItem(1, "diagnostic_block");
+    const day2Topic = getItem(2, "study_block_1");
+    const day42RevisionTopic = getItem(42, "revision_block_1");
+
+    completeTopicItem(userState, 1, getBlock(1, "diagnostic_block").timeSlotKey, day1Diagnostic.itemId, "2026-05-01T09:00:00.000Z");
+    completeTopicItem(userState, 2, getBlock(2, "study_block_1").timeSlotKey, day2Topic.itemId, "2026-05-01T12:00:00.000Z");
+    completeTopicItem(userState, 42, getBlock(42, "revision_block_1").timeSlotKey, day42RevisionTopic.itemId, "2026-06-11T12:00:00.000Z");
 
     const inventory = buildRevisionInventory(userState, userState.settings);
-    const item = inventory.find((entry) => entry.id === createRevisionId(2, "block_a", "D+1"));
 
-    expect(item).toMatchObject({
-      scheduledDate: "2026-05-05",
+    expect(inventory).toHaveLength(5);
+    expect(inventory.every((item) => item.sourceItemId === day2Topic.itemId)).toBe(true);
+    expect(inventory.find((item) => item.id === createRevisionId(day2Topic.itemId, "D+1"))).toMatchObject({
+      scheduledDate: "2026-05-02",
+      sourceAnchorDate: "2026-05-01",
       anchorMode: "actual",
-      sourceAnchorDate: "2026-05-04",
     });
   });
 
-  it("surfaces overflow after five morning items and raises the three-day warning streak", () => {
+  it("surfaces overflow after five morning items and routes later due work into overflow slots", () => {
     const userState = createConfiguredState();
-    const plan = buildDailyRevisionPlan("2026-05-11", userState, userState.settings);
+    const sameCompletion = "2026-05-01T12:00:00.000Z";
+    const items = [
+      ...getBlock(2, "study_block_1").items,
+      ...getBlock(2, "study_block_2").items,
+      getItem(3, "study_block_1"),
+    ];
+
+    for (const item of items) {
+      completeTopicItem(userState, item.itemId.startsWith("d003") ? 3 : 2, item.itemId.startsWith("d003") ? getBlock(3, "study_block_1").timeSlotKey : item.itemId.startsWith("d002-0815") ? getBlock(2, "study_block_1").timeSlotKey : getBlock(2, "study_block_2").timeSlotKey, item.itemId, sameCompletion);
+    }
+
+    const plan = buildDailyRevisionPlan("2026-05-02", userState, userState.settings);
 
     expect(plan.queue).toHaveLength(5);
-    expect(plan.overflow.length).toBeGreaterThan(0);
+    expect(plan.overflow).toHaveLength(1);
     expect(plan.morningMinutesPerItem).toBe(18);
-    expect(plan.overflowStreakDays).toBeGreaterThanOrEqual(3);
-    expect(plan.overflowSuggestion).toBeTruthy();
     expect(plan.overflow[0]?.assignedSlot).toBe("night_recall");
-    expect(plan.overflow[1]?.assignedSlot).toBe("break_08_00");
-    expect(plan.overflow[2]?.assignedSlot).toBe("break_10_45");
   });
 
-  it("keeps 1-2 day misses in the main morning queue as overdue_1_2 items", () => {
+  it("moves 3-6 day misses into catch-up and 7+ day misses into restudy flags", () => {
     const userState = createConfiguredState();
-    markCompleted(userState, 2, "block_a", "2026-05-01T12:00:00.000Z");
+    const day2Topic = getItem(2, "study_block_1");
 
-    const plan = buildDailyRevisionPlan("2026-05-03", userState, userState.settings);
-    expect(plan.queue.find((item) => item.id === createRevisionId(2, "block_a", "D+1"))?.status).toBe("overdue_1_2");
+    completeTopicItem(userState, 2, getBlock(2, "study_block_1").timeSlotKey, day2Topic.itemId, "2026-05-01T12:00:00.000Z");
+
+    const catchUpPlan = buildDailyRevisionPlan("2026-05-05", userState, userState.settings);
+    expect(catchUpPlan.catchUp.find((item) => item.id === createRevisionId(day2Topic.itemId, "D+1"))).toMatchObject({
+      assignedSlot: "consolidation",
+      status: "overdue_3_6",
+    });
+
+    const restudyPlan = buildDailyRevisionPlan("2026-05-10", userState, userState.settings);
+    expect(restudyPlan.restudyFlags.find((item) => item.id === createRevisionId(day2Topic.itemId, "D+1"))).toMatchObject({
+      assignedSlot: "next_revision_phase",
+      status: "overdue_7_plus",
+    });
   });
 
-  it("moves 3-6 day misses into catch-up revision and 7+ day misses into restudy flags", () => {
+  it("drops impossible revision checkoffs after a later source completion", () => {
     const userState = createConfiguredState();
-    markCompleted(userState, 2, "block_a", "2026-05-01T12:00:00.000Z");
+    const day2Topic = getItem(2, "study_block_1");
+    const revisionId = createRevisionId(day2Topic.itemId, "D+1");
 
-    const catchUpPlan = buildDailyRevisionPlan("2026-05-06", userState, userState.settings);
-    expect(catchUpPlan.catchUp.map((item) => item.id)).toContain(createRevisionId(2, "block_a", "D+1"));
-    expect(catchUpPlan.catchUp.find((item) => item.id === createRevisionId(2, "block_a", "D+1"))?.assignedSlot).toBe("consolidation");
-
-    const restudyPlan = buildDailyRevisionPlan("2026-05-12", userState, userState.settings);
-    expect(restudyPlan.restudyFlags.map((item) => item.id)).toContain(createRevisionId(2, "block_a", "D+1"));
-    expect(restudyPlan.restudyFlags.find((item) => item.id === createRevisionId(2, "block_a", "D+1"))?.assignedSlot).toBe("next_revision_phase");
-  });
-
-  it("excludes explicitly completed revision items from later plans", () => {
-    const userState = createConfiguredState();
-    const revisionId = createRevisionId(2, "block_a", "D+1");
     userState.revisionCompletions[revisionId] = {
       revisionId,
+      sourceItemId: day2Topic.itemId,
       sourceDay: 2,
-      sourceBlockKey: "block_a",
+      sourceBlockKey: getBlock(2, "study_block_1").timeSlotKey,
       revisionType: "D+1",
-      completedAt: "2026-05-03T12:00:00.000Z",
-    };
-
-    const { ids } = activeRevisionIdsForPlan(userState, "2026-05-03");
-    expect(ids).not.toContain(revisionId);
-  });
-
-  it("recomputes revision placement cleanly after a retroactive completion edit", () => {
-    const userState = createConfiguredState();
-    const beforeRetroactiveEdit = activeRevisionIdsForPlan(userState, "2026-05-03");
-    expect(beforeRetroactiveEdit.ids).toContain(createRevisionId(2, "block_a", "D+1"));
-
-    markCompleted(userState, 2, "block_a", "2026-05-04T12:00:00.000Z");
-
-    const originalPlannedDay = activeRevisionIdsForPlan(userState, "2026-05-03");
-    const actualAnchorDay = activeRevisionIdsForPlan(userState, "2026-05-05");
-
-    expect(originalPlannedDay.ids).not.toContain(createRevisionId(2, "block_a", "D+1"));
-    expect(actualAnchorDay.ids).toContain(createRevisionId(2, "block_a", "D+1"));
-  });
-
-  it("drops revision checkoffs that become impossible after the source block is completed later", () => {
-    const userState = createConfiguredState();
-    const revisionId = createRevisionId(2, "block_a", "D+1");
-    userState.revisionCompletions[revisionId] = {
-      revisionId,
-      sourceDay: 2,
-      sourceBlockKey: "block_a",
-      revisionType: "D+1",
-      completedAt: "2026-05-03T12:00:00.000Z",
+      completedAt: "2026-05-02T06:45:00.000Z",
     };
 
     reconcileRevisionCompletionsForSource(
       userState.revisionCompletions,
-      2,
-      "block_a",
-      "2026-05-04T12:00:00.000Z",
+      day2Topic.itemId,
+      "2026-05-03T12:00:00.000Z",
     );
 
     expect(userState.revisionCompletions[revisionId]).toBeUndefined();
   });
 
-  it("groups block-level revision items under the parent day topic for display", () => {
-    const userState = createConfiguredState();
-    markCompleted(userState, 2, "block_a", "2026-05-01T12:00:00.000Z");
-    markCompleted(userState, 2, "block_b", "2026-05-01T13:00:00.000Z");
-
-    const plan = buildDailyRevisionPlan("2026-05-02", userState, userState.settings);
-    const groups = groupRevisionItemsForDisplay(plan.queue);
-    const pathologyGroup = groups.find((group) => group.sourceDay === 2);
-
-    expect(pathologyGroup).toMatchObject({
-      sourceTopicLabel: "Pathology FP-1",
-      subject: "Pathology",
-    });
-    expect(pathologyGroup?.items).toHaveLength(2);
-    expect(pathologyGroup?.items.map((item) => item.sourceBlockKey)).toEqual(["block_a", "block_b"]);
-  });
-
-  it("keeps revision types sorted inside grouped display sections", () => {
+  it("groups revision display items by source topic and sorts revision types", () => {
+    const sourceItemId = getItem(2, "study_block_1").itemId;
     const groups = groupRevisionItemsForDisplay([
       createDisplayRevisionItem({
-        id: createRevisionId(2, "block_b", "D+1"),
-        sourceBlockKey: "block_b",
-        sourceBlockLabel: "Block B",
-        topic: "Systemic pathology review",
-        revisionType: "D+1",
-      }),
-      createDisplayRevisionItem({
-        id: createRevisionId(2, "block_a", "D+3"),
-        sourceBlockKey: "block_a",
-        sourceBlockLabel: "Block A",
-        topic: "Haematology review",
+        id: createRevisionId(sourceItemId, "D+3"),
+        sourceItemId,
         revisionType: "D+3",
       }),
+      createDisplayRevisionItem({
+        id: createRevisionId(sourceItemId, "D+1"),
+        sourceItemId,
+        revisionType: "D+1",
+      }),
     ]);
-    const pathologyGroup = groups.find((group) => group.sourceDay === 2);
 
-    expect(pathologyGroup?.revisionTypes).toEqual(["D+1", "D+3"]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]).toMatchObject({
+      sourceItemId,
+      revisionTypes: ["D+1", "D+3"],
+    });
+    expect(groups[0]?.items.map((item) => item.revisionType)).toEqual(["D+1", "D+3"]);
+  });
+
+  it("derives phase status from the semantic day content instead of block_a/block_b shortcuts", () => {
+    const userState = createConfiguredState();
+    const day1 = getScheduleDay(1)!;
+
+    for (const block of day1.blocks.filter((entry) => entry.trackable)) {
+      completeBlockItems(userState, 1, block.timeSlotKey, "2026-05-01T20:00:00.000Z");
+    }
+
+    expect(getPhaseStatus("orientation_baseline", userState, userState.settings)).toBe("completed");
+    expect(getPhaseStatus("first_pass", userState, userState.settings)).toBe("pending");
   });
 });

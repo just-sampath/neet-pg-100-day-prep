@@ -1,21 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  applyScheduleShiftToUserState,
-  getOrCreateProgress,
-  moveBlockToBacklog,
-} from "@/lib/data/app-state";
+import { applyScheduleShiftToUserState, moveBlockToBacklog } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import {
   createRevisionId,
   getCurrentDayNumber,
   getMappedDate,
   getPreviousVisibleDayNumber,
+  getScheduleDay,
   getScheduleHealth,
   getShiftPreview,
   isCompressedHiddenDay,
 } from "@/lib/domain/schedule";
-import type { BlockKey, BlockStatus, UserState } from "@/lib/domain/types";
+import type { BlockKey, UserState } from "@/lib/domain/types";
 
 function createConfiguredState() {
   const userState = createEmptyUserState();
@@ -23,27 +20,21 @@ function createConfiguredState() {
   return userState;
 }
 
-function markBlock(userState: UserState, dayNumber: number, blockKey: BlockKey, status: BlockStatus) {
-  const progress = getOrCreateProgress(userState, dayNumber, blockKey);
-  progress.status = status;
-  progress.sourceTag = status === "missed" ? "missed" : status === "skipped" ? "skipped" : progress.sourceTag;
-  progress.completedAt = null;
+function getVisibleStudyKeys(dayNumber: number) {
+  return getScheduleDay(dayNumber)!.blocks
+    .filter((block) => block.trackable)
+    .slice(0, 5)
+    .map((block) => block.timeSlotKey);
 }
 
 function markHeavilyMissed(userState: UserState, dayNumber: number) {
-  ([
-    "morning_revision",
-    "block_a",
-    "block_b",
-    "consolidation",
-    "mcq",
-  ] as const).forEach((blockKey) => {
-    markBlock(userState, dayNumber, blockKey, "missed");
-  });
+  for (const blockKey of getVisibleStudyKeys(dayNumber)) {
+    moveBlockToBacklog(userState, dayNumber, blockKey as BlockKey, "missed", "missed", "Missed for shift detection.");
+  }
 }
 
 describe("schedule shift mechanism", () => {
-  it("suggests a shift only when two heavily missed days exist in the last seven days", () => {
+  it("suggests a shift only when two heavily missed/rescheduled days exist in the last seven visible days", () => {
     const userState = createConfiguredState();
     markHeavilyMissed(userState, 32);
     markHeavilyMissed(userState, 38);
@@ -58,7 +49,7 @@ describe("schedule shift mechanism", () => {
     });
   });
 
-  it("builds a preview from the earliest missed day and uses Day 84 before fixed compression pairs", () => {
+  it("builds a preview from the earliest missed day and uses Day 84 before compression pairs", () => {
     const userState = createConfiguredState();
     const preview = getShiftPreview(userState.settings, [38, 39]);
 
@@ -76,9 +67,10 @@ describe("schedule shift mechanism", () => {
     });
   });
 
-  it("applies a shift from the missed anchor day, clears covered backlog, and resets unresolved progress", () => {
+  it("applies a shift from the missed anchor day, clears covered recovery, and resets unresolved progress", () => {
     const userState = createConfiguredState();
     const originalSettings = structuredClone(userState.settings);
+    const day38Block = getScheduleDay(38)!.blocks.find((block) => block.semanticBlockKey === "study_block_1")!;
 
     userState.dayStates["38"] = {
       dayNumber: 38,
@@ -86,15 +78,23 @@ describe("schedule shift mechanism", () => {
       updatedAt: "2026-06-07T10:00:00.000Z",
     };
 
-    markHeavilyMissed(userState, 38);
-    moveBlockToBacklog(userState, 38, "pyq_image", "missed", "missed", "Needs recovery.");
-    moveBlockToBacklog(userState, 37, "block_a", "missed", "missed", "Older backlog stays.");
+    moveBlockToBacklog(userState, 38, day38Block.timeSlotKey, "missed", "missed", "Needs recovery.");
+    moveBlockToBacklog(
+      userState,
+      37,
+      getScheduleDay(37)!.blocks.find((block) => block.semanticBlockKey === "study_block_1")!.timeSlotKey,
+      "missed",
+      "missed",
+      "Older recovery stays.",
+    );
 
-    const revisionId = createRevisionId(38, "block_a", "D+1");
+    const sourceItem = day38Block.items[0]!;
+    const revisionId = createRevisionId(sourceItem.itemId, "D+1");
     userState.revisionCompletions[revisionId] = {
       revisionId,
+      sourceItemId: sourceItem.itemId,
       sourceDay: 38,
-      sourceBlockKey: "block_a",
+      sourceBlockKey: day38Block.timeSlotKey,
       revisionType: "D+1",
       completedAt: "2026-06-09T12:00:00.000Z",
     };
@@ -109,15 +109,14 @@ describe("schedule shift mechanism", () => {
     expect(userState.settings.shiftEvents[0]?.compressedPairs).toEqual(preview?.compressedPairs);
     expect(getMappedDate(100, userState.settings)).toBe(preview?.day100);
     expect(userState.dayStates["38"]?.trafficLight).toBe("green");
-    expect(getOrCreateProgress(userState, 38, "block_a").status).toBe("pending");
-    expect(getOrCreateProgress(userState, 38, "block_a").sourceTag).toBeNull();
+    expect(userState.topicProgress[sourceItem.itemId]).toBeUndefined();
     expect(userState.revisionCompletions[revisionId]).toBeUndefined();
 
-    const coveredBacklog = Object.values(userState.backlogItems).find((item) => item.originalDay === 38);
-    const olderBacklog = Object.values(userState.backlogItems).find((item) => item.originalDay === 37);
+    const coveredRecovery = Object.values(userState.backlogItems).find((item) => item.originalDay === 38);
+    const olderRecovery = Object.values(userState.backlogItems).find((item) => item.originalDay === 37);
 
-    expect(coveredBacklog?.status).toBe("dismissed");
-    expect(olderBacklog?.status).toBe("pending");
+    expect(coveredRecovery?.status).toBe("dismissed");
+    expect(olderRecovery?.status).toBe("pending");
     expect(getMappedDate(37, userState.settings)).toBe(getMappedDate(37, originalSettings));
     expect(getMappedDate(38, userState.settings)).toBe(getMappedDate(40, originalSettings));
     expect(getMappedDate(66, userState.settings)).toBe(getMappedDate(68, originalSettings));

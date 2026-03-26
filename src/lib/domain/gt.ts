@@ -1,8 +1,8 @@
 import { scheduleData } from "@/lib/generated/schedule-data";
 import { getMappedDate } from "@/lib/domain/schedule";
+import type { GtPlanEntry } from "@/lib/domain/schedule-data-types";
 import type {
   AppSettings,
-  GeneratedGtPlanItem,
   GtDevice,
   GtLog,
   GtOverallFeeling,
@@ -64,7 +64,7 @@ type ValidGtDraft = {
   changeBeforeNextGt: string | null;
 };
 
-export type GtScheduleContextItem = GeneratedGtPlanItem & {
+export type GtScheduleContextItem = GtPlanEntry & {
   label: string;
   mappedDate: string | null;
   isToday: boolean;
@@ -136,7 +136,7 @@ function parseNullableInteger(value: string | null | undefined) {
 }
 
 function normalizeSubjects(values: Array<string | null | undefined>) {
-  const allowed = new Set(scheduleData.subjects.map((entry) => entry.subject.trim()));
+  const allowed = new Set(scheduleData.subjectStrategy.subjects.map((entry) => entry.subjectName.trim()));
   const picked = new Set<string>();
 
   for (const raw of values) {
@@ -396,8 +396,8 @@ export function validateGtDraft(
   };
 }
 
-function getGtLabel(item: GeneratedGtPlanItem) {
-  const gtMatch = item.purpose.match(/^GT-\d+/u);
+function getGtLabel(item: GtPlanEntry) {
+  const gtMatch = item.purposeRaw.match(/^GT-\d+/u);
   if (gtMatch) {
     return gtMatch[0];
   }
@@ -407,11 +407,11 @@ function getGtLabel(item: GeneratedGtPlanItem) {
   if (item.testType === "120Q half-sim") {
     return "120Q half-simulation";
   }
-  return item.purpose;
+  return item.purposeRaw;
 }
 
 export function getMappedGtSchedule(settings: AppSettings, todayDate: string): GtScheduleContextItem[] {
-  return scheduleData.gtPlan.map((item) => {
+  return scheduleData.gtTestPlan.tests.map((item) => {
     const mappedDate = getMappedDate(item.dayNumber, settings);
     return {
       ...item,

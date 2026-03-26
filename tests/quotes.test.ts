@@ -1,17 +1,63 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, expect, it } from "vitest";
-import XLSX from "xlsx";
 
 import { createEmptyUserState } from "@/lib/data/local-store";
-import {
-  getTodayQuoteSelection,
-  normalizeQuoteState,
-  selectQuoteForDay,
-} from "@/lib/domain/quotes";
+import { getTodayQuoteSelection, normalizeQuoteState, selectQuoteForDay } from "@/lib/domain/quotes";
 import type { GeneratedQuote, QuoteCategory } from "@/lib/domain/types";
 import { quotesData } from "@/lib/generated/quotes-data";
 
-const quotesWorkbook = XLSX.readFile("resources/quotes.csv", { type: "string" });
-const quoteRows = XLSX.utils.sheet_to_json(quotesWorkbook.Sheets[quotesWorkbook.SheetNames[0] as string], { defval: "" });
+function parseCsv(text: string) {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    const next = text[index + 1];
+
+    if (char === "\"") {
+      if (inQuotes && next === "\"") {
+        cell += "\"";
+        index += 1;
+        continue;
+      }
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+
+    if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && next === "\n") {
+        index += 1;
+      }
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+
+    cell += char;
+  }
+
+  if (cell.length > 0 || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  return rows.filter((entry) => entry.some((value) => value.length > 0));
+}
+
+const csvRows = parseCsv(readFileSync(join(process.cwd(), "resources/quotes.csv"), "utf8"));
+const [, ...quoteRows] = csvRows;
 
 function createQuote(category: QuoteCategory, suffix: string): GeneratedQuote {
   return {
@@ -36,10 +82,10 @@ describe("quote system", () => {
     expect(new Set(quotesData.map((quote) => quote.category))).toEqual(new Set(["daily", "tough_day", "celebration"]));
 
     quotesData.forEach((quote, index) => {
-      const row = quoteRows[index] as Record<string, string>;
-      expect(quote.quote).toBe(String(row.quote));
-      expect(quote.author).toBe(String(row.author));
-      expect(quote.category).toBe(String(row.category));
+      const row = quoteRows[index]!;
+      expect(quote.quote).toBe(row[0]);
+      expect(quote.author).toBe(row[1]);
+      expect(quote.category).toBe(row[2]);
     });
   });
 

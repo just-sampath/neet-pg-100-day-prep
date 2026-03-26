@@ -3,10 +3,10 @@ import {
   getDisplayBlockDescription,
   getVisibleBlockKeys,
 } from "@/lib/domain/schedule";
+import type { ScheduleDayPlan } from "@/lib/domain/schedule-data-types";
 import type {
   BlockKey,
   BlockProgress,
-  GeneratedScheduleDay,
   TimelineSlotKind,
   TrafficLight,
   UserState,
@@ -60,35 +60,36 @@ export type WindDownState =
     };
 
 export function buildTodayTimeline(
-  day: GeneratedScheduleDay,
+  day: ScheduleDayPlan,
   userState: UserState,
   trafficLight: TrafficLight,
 ): TodayTimelineEntry[] {
-  const visibleBlocks = new Set(getVisibleBlockKeys(trafficLight));
+  const visibleBlocks = new Set(getVisibleBlockKeys(trafficLight, day));
 
-  return [...day.slots]
-    .sort((left, right) => left.order - right.order)
-    .map((slot) => {
-      if (!slot.trackable) {
+  return [...day.blocks]
+    .sort((left, right) => left.timeSlotKey.localeCompare(right.timeSlotKey))
+    .map((block) => {
+      const [start, end] = block.timeSlotKey.split("-");
+      if (!block.trackable) {
         return {
           kind: "separator" as const,
-          id: `${day.dayNumber}:${slot.key}`,
-          slotKey: slot.key,
-          label: slot.label,
-          slotKind: (slot.kind ?? "break") as Exclude<TimelineSlotKind, "study">,
-          start: slot.start,
-          end: slot.end,
+          id: `${day.dayNumber}:${block.timeSlotKey}`,
+          slotKey: block.timeSlotKey,
+          label: block.displayLabel,
+          slotKind: (block.blockIntent === "meal" ? "meal" : "break") as Exclude<TimelineSlotKind, "study">,
+          start,
+          end,
         };
       }
 
-      const blockKey = slot.key as BlockKey;
+      const blockKey = block.timeSlotKey as BlockKey;
       return {
         kind: "block" as const,
         id: `${day.dayNumber}:${blockKey}`,
         blockKey,
-        label: slot.label,
-        start: slot.start,
-        end: slot.end,
+        label: block.displayLabel,
+        start,
+        end,
         mode: visibleBlocks.has(blockKey) ? "visible" : "hidden",
         progress: getBlockProgress(userState, day.dayNumber, blockKey),
         displayDescription: getDisplayBlockDescription(day, blockKey, trafficLight),
@@ -99,6 +100,7 @@ export function buildTodayTimeline(
 type WindDownStateInput = {
   minutes: number;
   incompleteVisibleBlocks: BlockKey[];
+  nightRecallBlockKey: BlockKey | null;
   wrapUpDismissals: number;
   lateNightSweepProcessed: boolean;
 };
@@ -106,11 +108,16 @@ type WindDownStateInput = {
 export function getWindDownState({
   minutes,
   incompleteVisibleBlocks,
+  nightRecallBlockKey,
   wrapUpDismissals,
   lateNightSweepProcessed,
 }: WindDownStateInput): WindDownState {
-  const nightRecallPending = incompleteVisibleBlocks.includes("night_recall");
-  const otherPendingBlocks = incompleteVisibleBlocks.filter((blockKey) => blockKey !== "night_recall");
+  const nightRecallPending = nightRecallBlockKey
+    ? incompleteVisibleBlocks.includes(nightRecallBlockKey)
+    : false;
+  const otherPendingBlocks = nightRecallBlockKey
+    ? incompleteVisibleBlocks.filter((blockKey) => blockKey !== nightRecallBlockKey)
+    : incompleteVisibleBlocks;
 
   if (minutes >= 23 * 60 + 15) {
     if (lateNightSweepProcessed) {

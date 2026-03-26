@@ -8,6 +8,33 @@ import {
   setSimulatedNowAction,
 } from "@/lib/server/actions";
 
+function formatDateTimeLocalValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function resolveToolbarDate(value: string, simulatedNow: string | null) {
+  if (value) {
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  if (simulatedNow) {
+    const parsed = new Date(simulatedNow);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed;
+    }
+  }
+
+  return new Date();
+}
+
 export function DevToolbar({ simulatedNow }: { simulatedNow: string | null }) {
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState(simulatedNow ? simulatedNow.slice(0, 16) : "");
@@ -18,6 +45,14 @@ export function DevToolbar({ simulatedNow }: { simulatedNow: string | null }) {
       formData.set("simulatedNow", nextValue);
       await setSimulatedNowAction(formData);
     });
+  }
+
+  function jumpDays(days: number) {
+    const nextDate = resolveToolbarDate(value, simulatedNow);
+    nextDate.setDate(nextDate.getDate() + days);
+    const nextValue = formatDateTimeLocalValue(nextDate);
+    setValue(nextValue);
+    submit(nextValue);
   }
 
   return (
@@ -36,6 +71,12 @@ export function DevToolbar({ simulatedNow }: { simulatedNow: string | null }) {
         <div className="flex flex-wrap gap-2">
           <button className="button-primary" type="button" disabled={pending} onClick={() => submit(value)}>
             Set simulated time
+          </button>
+          <button className="button-secondary" type="button" disabled={pending} onClick={() => jumpDays(1)}>
+            +1 day
+          </button>
+          <button className="button-secondary" type="button" disabled={pending} onClick={() => jumpDays(7)}>
+            +7 days
           </button>
           <button
             className="button-secondary"
@@ -65,7 +106,7 @@ export function DevToolbar({ simulatedNow }: { simulatedNow: string | null }) {
         </div>
       </div>
       <p className="mt-3 text-sm text-(--text-secondary)">
-        Set `22:30`, `23:00`, `23:15`, or the next day after midnight to test wind-down and rollover behavior instantly.
+        Set `22:30`, `23:00`, `23:15`, jump ahead by a day, or move a week forward without waiting on the wall clock.
       </p>
     </section>
   );

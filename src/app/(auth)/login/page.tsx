@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 
 const entryPoints = [
-  "The workbook becomes typed app data before runtime.",
+  "The schedule is curated as typed semantic app data before runtime.",
   "Traffic lights change the scope of the day without guilt language.",
   "Revision, backlog, GTs, exports, and rollover logic stay locally testable.",
 ];
@@ -23,22 +23,22 @@ export default async function LoginPage({
   const { error } = await searchParams;
   const runtimeMode = getRuntimeMode();
 
-  const stats = [
-    {
-      label: "Schedule Days",
-      value: String(scheduleData.days.length),
-      note: "Mapped directly from the provided Excel plan.",
-    },
-    {
-      label: "Subjects",
-      value: String(scheduleData.subjects.length),
-      note: "Strategy data included as first-class metadata.",
-    },
-    {
-      label: "GT Markers",
-      value: String(scheduleData.gtPlan.length),
-      note: "Grand tests preserved as part of the cadence.",
-    },
+const stats = [
+  {
+    label: "Schedule Days",
+    value: String(scheduleData.daywisePlan.days.length),
+    note: "Mapped from the curated semantic schedule data.",
+  },
+  {
+    label: "Subjects",
+    value: String(scheduleData.subjectStrategy.subjects.length),
+    note: "Strategy data included as first-class metadata.",
+  },
+  {
+    label: "GT Markers",
+    value: String(scheduleData.gtTestPlan.tests.length),
+    note: "Grand tests preserved as part of the cadence.",
+  },
   ];
 
   return (
