@@ -411,12 +411,50 @@ export interface RevisionDisplayGroup {
   items: RevisionQueueItem[];
 }
 
+export type RevisionSessionLane =
+  | "due_this_morning"
+  | "also_review_today"
+  | "revision_recovery"
+  | "needs_restudy";
+
+export type MorningPhaseMode = "session_primary" | "workbook_blend" | "workbook_only";
+export type MorningBlockStatusMode = "revision_sessions" | "workbook_block";
+
+export interface RevisionSession {
+  id: string;
+  sourceItemId: TopicItemId;
+  sourceDay: number;
+  sourceBlockKey: BlockKey;
+  sourceTopicLabel: string;
+  subject: string;
+  lane: RevisionSessionLane;
+  revisionTypes: RevisionType[];
+  revisionIds: string[];
+  items: RevisionQueueItem[];
+  assignedSlot: RevisionAssignedSlot;
+  earliestScheduledDate: string;
+  maxOverdueBy: number;
+  totalIntervals: number;
+  completedIntervals: number;
+  remainingIntervals: number;
+  status: "pending" | "completed";
+}
+
 export interface DailyRevisionPlan {
   queue: RevisionQueueItem[];
   overflow: OverflowRevisionItem[];
   catchUp: RevisionQueueItem[];
   restudyFlags: RevisionQueueItem[];
-  morningMinutesPerItem: number;
+  queueSessions: RevisionSession[];
+  overflowSessions: RevisionSession[];
+  catchUpSessions: RevisionSession[];
+  restudySessions: RevisionSession[];
+  phaseMode: MorningPhaseMode;
+  blockStatusMode: MorningBlockStatusMode;
+  morningSessionPlanned: number;
+  morningSessionCompleted: number;
+  morningSessionRemaining: number;
+  morningMinutesPerSession: number;
   overflowStreakDays: number;
   overflowSuggestion: string | null;
 }

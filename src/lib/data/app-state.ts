@@ -71,6 +71,7 @@ import type {
   BlockTiming,
   GtLog,
   LocalStore,
+  RevisionType,
   TopicProgress,
   TopicStatus,
   TrafficLight,
@@ -227,6 +228,31 @@ export function completeBlockItems(
   }
 
   completeAssignedRecoveryForTarget(userState, dayNumber, blockKey, completedAt);
+}
+
+export function completeRevisionSession(
+  userState: UserState,
+  sourceItemId: string,
+  sourceDay: number,
+  sourceBlockKey: BlockKey,
+  revisionIds: string[],
+  completedAt = new Date().toISOString(),
+) {
+  for (const revisionId of revisionIds) {
+    const revisionType = revisionId.split(":").at(-1);
+    if (!revisionType || !["D+1", "D+3", "D+7", "D+14", "D+28"].includes(revisionType)) {
+      continue;
+    }
+
+    userState.revisionCompletions[revisionId] = {
+      revisionId,
+      sourceItemId,
+      sourceDay,
+      sourceBlockKey,
+      revisionType: revisionType as RevisionType,
+      completedAt,
+    };
+  }
 }
 
 function markTopicForRecovery(

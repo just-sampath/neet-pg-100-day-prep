@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { completeBlockItems, completeTopicItem } from "@/lib/data/app-state";
+import { completeBlockItems, completeRevisionSession, completeTopicItem } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import {
   buildDailyRevisionPlan,
@@ -87,7 +87,7 @@ describe("schedule engine", () => {
     });
   });
 
-  it("surfaces overflow after five morning items and routes later due work into overflow slots", () => {
+  it("caps the morning lane at five topic sessions and routes later sessions into overflow slots", () => {
     const userState = createConfiguredState();
     const sameCompletion = "2026-05-01T12:00:00.000Z";
     const items = [
@@ -102,10 +102,60 @@ describe("schedule engine", () => {
 
     const plan = buildDailyRevisionPlan("2026-05-02", userState, userState.settings);
 
+    expect(plan.queueSessions).toHaveLength(5);
+    expect(plan.overflowSessions).toHaveLength(1);
     expect(plan.queue).toHaveLength(5);
     expect(plan.overflow).toHaveLength(1);
-    expect(plan.morningMinutesPerItem).toBe(18);
-    expect(plan.overflow[0]?.assignedSlot).toBe("night_recall");
+    expect(plan.morningMinutesPerSession).toBe(18);
+    expect(plan.phaseMode).toBe("session_primary");
+    expect(plan.blockStatusMode).toBe("revision_sessions");
+    expect(plan.morningSessionPlanned).toBe(5);
+    expect(plan.morningSessionRemaining).toBe(5);
+    expect(plan.overflowSessions[0]?.assignedSlot).toBe("night_recall");
+  });
+
+  it("does not pull overflow sessions back into the morning lane after one session is completed", () => {
+    const userState = createConfiguredState();
+    const sameCompletion = "2026-05-01T12:00:00.000Z";
+    const items = [
+      ...getBlock(2, "study_block_1").items,
+      ...getBlock(2, "study_block_2").items,
+      getItem(3, "study_block_1"),
+    ];
+
+    for (const item of items) {
+      completeTopicItem(
+        userState,
+        item.itemId.startsWith("d003") ? 3 : 2,
+        item.itemId.startsWith("d003")
+          ? getBlock(3, "study_block_1").timeSlotKey
+          : item.itemId.startsWith("d002-0815")
+            ? getBlock(2, "study_block_1").timeSlotKey
+            : getBlock(2, "study_block_2").timeSlotKey,
+        item.itemId,
+        sameCompletion,
+      );
+    }
+
+    const before = buildDailyRevisionPlan("2026-05-02", userState, userState.settings);
+    const firstSession = before.queueSessions[0]!;
+
+    completeRevisionSession(
+      userState,
+      firstSession.sourceItemId,
+      firstSession.sourceDay,
+      firstSession.sourceBlockKey,
+      firstSession.revisionIds,
+      "2026-05-02T07:00:00.000Z",
+    );
+
+    const after = buildDailyRevisionPlan("2026-05-02", userState, userState.settings);
+
+    expect(after.queueSessions).toHaveLength(4);
+    expect(after.overflowSessions).toHaveLength(1);
+    expect(after.morningSessionPlanned).toBe(5);
+    expect(after.morningSessionCompleted).toBe(1);
+    expect(after.morningSessionRemaining).toBe(4);
   });
 
   it("moves 3-6 day misses into catch-up and 7+ day misses into restudy flags", () => {
@@ -171,6 +221,67 @@ describe("schedule engine", () => {
       revisionTypes: ["D+1", "D+3"],
     });
     expect(groups[0]?.items.map((item) => item.revisionType)).toEqual(["D+1", "D+3"]);
+  });
+
+  it("derives first-pass morning block progress from revision sessions instead of workbook refs", () => {
+    const userState = createConfiguredState();
+    const firstTopic = getItem(2, "study_block_1", 0);
+    const secondTopic = getItem(2, "study_block_1", 1);
+    const morningBlockKey = getBlock(3, "morning_revision").timeSlotKey;
+
+    completeTopicItem(userState, 2, getBlock(2, "study_block_1").timeSlotKey, firstTopic.itemId, "2026-05-02T12:00:00.000Z");
+    completeTopicItem(userState, 2, getBlock(2, "study_block_1").timeSlotKey, secondTopic.itemId, "2026-05-02T12:00:00.000Z");
+
+    expect(getBlockProgress(userState, 3, morningBlockKey)).toMatchObject({
+      status: "pending",
+      completedItemCount: 0,
+      totalItemCount: 2,
+      unresolvedItemCount: 2,
+    });
+
+    completeRevisionSession(
+      userState,
+      firstTopic.itemId,
+      2,
+      getBlock(2, "study_block_1").timeSlotKey,
+      [createRevisionId(firstTopic.itemId, "D+1")],
+      "2026-05-03T07:00:00.000Z",
+    );
+
+    expect(getBlockProgress(userState, 3, morningBlockKey)).toMatchObject({
+      status: "partially_complete",
+      completedItemCount: 1,
+      totalItemCount: 2,
+      unresolvedItemCount: 1,
+    });
+
+    completeRevisionSession(
+      userState,
+      secondTopic.itemId,
+      2,
+      getBlock(2, "study_block_1").timeSlotKey,
+      [createRevisionId(secondTopic.itemId, "D+1")],
+      "2026-05-03T07:10:00.000Z",
+    );
+
+    expect(getBlockProgress(userState, 3, morningBlockKey)).toMatchObject({
+      status: "completed",
+      completedItemCount: 2,
+      totalItemCount: 2,
+      unresolvedItemCount: 0,
+    });
+  });
+
+  it("keeps later revision phases on workbook-driven morning status even when live revision exists", () => {
+    const userState = createConfiguredState();
+    const day2Topic = getItem(2, "study_block_1");
+
+    completeTopicItem(userState, 2, getBlock(2, "study_block_1").timeSlotKey, day2Topic.itemId, "2026-05-01T12:00:00.000Z");
+
+    const revisionPhasePlan = buildDailyRevisionPlan("2026-06-11", userState, userState.settings);
+
+    expect(revisionPhasePlan.phaseMode).toBe("workbook_blend");
+    expect(revisionPhasePlan.blockStatusMode).toBe("workbook_block");
   });
 
   it("derives phase status from the semantic day content instead of block_a/block_b shortcuts", () => {

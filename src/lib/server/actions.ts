@@ -19,6 +19,7 @@ import {
   applyScheduleShiftToUserState,
   applyTrafficLightToDay,
   completeBlockItems,
+  completeRevisionSession,
   completeTopicItem,
   getOrCreateProgress,
   moveBlockToBacklog,
@@ -268,6 +269,24 @@ export async function updateTopicAction(formData: FormData) {
     skipTopicItem(userState, dayNumber, blockKey, itemId, "skipped", "skipped", note);
   });
 
+  refresh();
+}
+
+export async function completeRevisionSessionAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const sourceItemId = asString(formData.get("sourceItemId"));
+  const sourceDay = Number(asString(formData.get("sourceDay")));
+  const sourceBlockKey = asString(formData.get("sourceBlockKey")) as BlockKey;
+  const revisionIds = formData.getAll("revisionId").filter((value): value is string => typeof value === "string");
+
+  if (!sourceItemId || !sourceDay || !sourceBlockKey || revisionIds.length === 0) {
+    return;
+  }
+
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    completeRevisionSession(userState, sourceItemId, sourceDay, sourceBlockKey, revisionIds);
+  });
   refresh();
 }
 

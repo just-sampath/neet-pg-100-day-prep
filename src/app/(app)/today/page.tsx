@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { DevToolbar } from "@/components/app/dev-toolbar";
+import { MorningPlanPanel } from "@/components/app/morning-plan-panel";
 import { ScheduleShiftPanel } from "@/components/app/schedule-shift-panel";
 import { TimeEditor } from "@/components/app/time-editor";
 import { WindDownPrompts } from "@/components/app/wind-down-prompts";
@@ -11,20 +12,16 @@ import type { BlockKey, BlockStatus, ScheduledRecoveryItem } from "@/lib/domain/
 import {
   buildTodayTimeline,
   getBacklogIndicatorLabel,
-  getRevisionMinutesLabel,
 } from "@/lib/domain/today";
 import {
   getBlockProgress,
   getDisplayBlockDescription,
   getHiddenBlockKeys,
   getTopicProgress,
-  getRevisionAssignedSlotLabel,
   getVisibleBlockKeys,
-  groupRevisionItemsForDisplay,
 } from "@/lib/domain/schedule";
 import { scheduleData } from "@/lib/generated/schedule-data";
 import {
-  completeRevisionAction,
   setDayOneDateAction,
   setThemeAction,
   setTrafficLightAction,
@@ -82,12 +79,6 @@ function getProgressLabel(status: BlockStatus) {
     return "Rescheduled";
   }
   return "Pending";
-}
-
-function getRevisionGroupNote(itemCount: number) {
-  return itemCount === 1
-    ? "1 revision segment is due from this topic."
-    : `${itemCount} revision segments are due from this topic.`;
 }
 
 function getRecoveryWaitLabel(daysInBacklog: number) {
@@ -167,10 +158,8 @@ export default async function TodayPage() {
     const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, blockKey);
     return progress.status !== "completed";
   });
-  const revisionDue = data.todayRevisionPlan?.queue.length ?? 0;
-  const overflowCount = data.todayRevisionPlan?.overflow.length ?? 0;
-  const catchUpCount = data.todayRevisionPlan?.catchUp.length ?? 0;
-  const restudyCount = data.todayRevisionPlan?.restudyFlags.length ?? 0;
+  const revisionDue = data.todayRevisionPlan?.queueSessions.length ?? 0;
+  const overflowCount = data.todayRevisionPlan?.overflowSessions.length ?? 0;
   const plannedRecovery = data.plannedRecovery;
   const plannedRecoveryByBlock = plannedRecovery.reduce((map, item) => {
     const entries = map.get(item.targetBlockKey) ?? [];
@@ -178,13 +167,8 @@ export default async function TodayPage() {
     map.set(item.targetBlockKey, entries);
     return map;
   }, new Map<BlockKey, ScheduledRecoveryItem[]>());
-  const revisionGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.queue) : [];
-  const overflowGroups = data.todayRevisionPlan
-    ? groupRevisionItemsForDisplay(data.todayRevisionPlan.overflow.map((entry) => entry.item))
-    : [];
-  const catchUpGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.catchUp) : [];
-  const restudyGroups = data.todayRevisionPlan ? groupRevisionItemsForDisplay(data.todayRevisionPlan.restudyFlags) : [];
   const timelineEntries = buildTodayTimeline(todayScheduleDay, userState, todayState.trafficLight);
+  const morningBlock = todayScheduleDay.blocks.find((block) => block.timeSlotKey === "06:30-08:00") ?? null;
   const timeEditorSlots = todayScheduleDay.blocks
     .filter((block) => block.trackable)
     .map((block) => {
@@ -207,7 +191,6 @@ export default async function TodayPage() {
     todayScheduleDay.blocks.filter((block) => block.trackable).map((block, index) => [block.timeSlotKey, index + 1]),
   );
   const backlogIndicatorLabel = getBacklogIndicatorLabel(data.backlogCount);
-  const revisionMinutesLabel = getRevisionMinutesLabel(data.todayRevisionPlan?.morningMinutesPerItem ?? 0);
   const practiceBlockKey =
     todayScheduleDay.blocks.find((block) => block.blockIntent === "practice")?.timeSlotKey ??
     todayScheduleDay.blocks.find((block) => block.trackable)?.timeSlotKey ??
@@ -232,9 +215,9 @@ export default async function TodayPage() {
       label: "Revision Due",
       value: String(revisionDue),
       note: overflowCount
-        ? `${overflowCount} overflow items also suggested.`
-        : data.todayRevisionPlan?.morningMinutesPerItem
-          ? `~${data.todayRevisionPlan.morningMinutesPerItem} min per item this morning.`
+        ? `${overflowCount} extra review session(s) also suggested.`
+        : data.todayRevisionPlan?.morningMinutesPerSession
+          ? `~${data.todayRevisionPlan.morningMinutesPerSession} min per session this morning.`
           : "No extra overflow pressure.",
     },
     {
@@ -385,156 +368,26 @@ export default async function TodayPage() {
       {data.shiftPreview ? <ScheduleShiftPanel health={data.shiftHealth} preview={data.shiftPreview} /> : null}
 
       <section className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
-        <section className="panel reveal-rise p-6 md:p-7">
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <div className="eyebrow">Morning Revision</div>
-              <h3 className="display mt-3 text-3xl">Open the day with retrieval, not drift.</h3>
-              {revisionMinutesLabel ? (
-                <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                  Equal split today: {revisionMinutesLabel} across the 06:30-08:00 block.
-                </p>
-              ) : null}
-              <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                Only revision work that is due today is shown here. Later recalls stay quiet until their own date arrives.
-              </p>
-            </div>
-            <span className="status-badge" data-tone={revisionDue ? "yellow" : "green"}>
-              {revisionDue} due
-            </span>
-          </div>
-
-          <div className="mt-6 grid gap-3">
-            {revisionGroups.length ? (
-              revisionGroups.map((group, index) => (
-                <article key={group.id} className="note-card p-4">
-                  <div className="flex gap-4">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] font-mono text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                      {String(index + 1).padStart(2, "0")}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
-                        {group.revisionTypes.join(" · ")} / {group.subject}
-                      </div>
-                      <div className="mt-2 text-base font-semibold leading-7">{group.sourceTopicLabel}</div>
-                      <div className="mt-2 text-sm leading-7 text-(--text-secondary)">
-                        {getRevisionGroupNote(group.items.length)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-2">
-                    {group.items.map((item) => (
-                      <form
-                        key={item.id}
-                        action={completeRevisionAction}
-                        className="rounded-2xl border border-[var(--border)] p-3"
-                      >
-                        <input type="hidden" name="sourceItemId" value={item.sourceItemId} />
-                        <input type="hidden" name="sourceDay" value={item.sourceDay} />
-                        <input type="hidden" name="sourceBlockKey" value={item.sourceBlockKey} />
-                        <input type="hidden" name="revisionType" value={item.revisionType} />
-                        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                          <div>
-                            <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
-                              {item.revisionType}
-                            </div>
-                            <div className="mt-1 text-sm leading-7 text-(--text-secondary)">{item.topic}</div>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            {revisionMinutesLabel ? (
-                              <span className="status-badge" data-tone="neutral">
-                                {revisionMinutesLabel}
-                              </span>
-                            ) : null}
-                            <button className="button-secondary" type="submit">
-                              Check off
-                            </button>
-                          </div>
-                        </div>
-                      </form>
-                    ))}
-                  </div>
-                </article>
-              ))
-            ) : (
-              <div className="note-card p-5 text-sm leading-7 text-(--text-secondary)">
-                No revision items are due for this morning yet.
-              </div>
-            )}
-          </div>
-
-          {(overflowCount || catchUpCount || restudyCount || data.todayRevisionPlan?.overflowSuggestion) ? (
-            <div className="mt-5 grid gap-3">
-              {data.todayRevisionPlan?.overflowSuggestion ? (
-                <div className="note-card p-4">
-                  <div className="eyebrow">Revision Pressure</div>
-                  <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                    {data.todayRevisionPlan.overflowSuggestion}
-                  </p>
-                </div>
-              ) : null}
-              {overflowCount ? (
-                <div className="note-card p-4">
-                  <div className="eyebrow">Also Review Today</div>
-                  <div className="mt-3 grid gap-3 text-sm leading-7 text-(--text-secondary)">
-                    {overflowGroups.map((group) => (
-                      <div key={group.id} className="rounded-2xl border border-[var(--border)] p-3">
-                        <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
-                        <div className="mt-2 space-y-1">
-                          {data.todayRevisionPlan!.overflow
-                            .filter((overflow) => overflow.item.sourceItemId === group.sourceItemId)
-                            .map((overflow) => (
-                              <p key={overflow.item.id}>
-                                {getRevisionAssignedSlotLabel(overflow.assignedSlot)}: {overflow.item.revisionType} · {overflow.item.topic}
-                              </p>
-                            ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {catchUpCount ? (
-                <div className="note-card p-4">
-                  <div className="eyebrow">Catch-Up Revision</div>
-                  <div className="mt-3 grid gap-3 text-sm leading-7 text-(--text-secondary)">
-                    {catchUpGroups.map((group) => (
-                      <div key={group.id} className="rounded-2xl border border-[var(--border)] p-3">
-                        <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
-                        <div className="mt-2 space-y-1">
-                          {group.items.map((item) => (
-                            <p key={item.id}>
-                              {getRevisionAssignedSlotLabel(item.assignedSlot)}: {item.revisionType} · {item.topic}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              {restudyCount ? (
-                <div className="note-card p-4">
-                  <div className="eyebrow">Re-Study Flags</div>
-                  <div className="mt-3 grid gap-3 text-sm leading-7 text-(--text-secondary)">
-                    {restudyGroups.map((group) => (
-                      <div key={group.id} className="rounded-2xl border border-[var(--border)] p-3">
-                        <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
-                        <div className="mt-2 space-y-1">
-                          {group.items.map((item) => (
-                            <p key={item.id}>
-                              {item.revisionType} · {item.topic} should return in the next revision phase instead of staying in the daily queue.
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
+        {morningBlock ? (
+          <MorningPlanPanel
+            dayNumber={todayScheduleDay.dayNumber}
+            morningBlock={{
+              blockKey: morningBlock.timeSlotKey,
+              displayLabel: morningBlock.displayLabel,
+              displayDescription: getDisplayBlockDescription(todayScheduleDay, morningBlock.timeSlotKey, todayState.trafficLight),
+              progress: getBlockProgress(userState, todayScheduleDay.dayNumber, morningBlock.timeSlotKey),
+              items: morningBlock.items.map((item) => ({
+                itemId: item.itemId,
+                label: item.label,
+                plannedMinutes: item.plannedMinutes,
+                revisionType: item.revisionType,
+                progress: getTopicProgress(userState, item, todayScheduleDay.dayNumber, morningBlock.timeSlotKey),
+              })),
+            }}
+            morningPlan={data.todayRevisionPlan}
+            canAdjustToday
+          />
+        ) : null}
 
         <section className="grid gap-4">
           <section className="panel reveal-rise p-5 md:p-6">
@@ -633,6 +486,54 @@ export default async function TodayPage() {
                       </div>
                     </div>
                   ) : null}
+                </article>
+              );
+            }
+
+            if (morningBlock && entry.blockKey === morningBlock.timeSlotKey) {
+              const morningSummary = data.todayRevisionPlan?.phaseMode === "session_primary"
+                ? data.todayRevisionPlan.morningSessionRemaining
+                  ? `${data.todayRevisionPlan.morningSessionRemaining} session(s) are still open in the morning panel above.`
+                  : data.todayRevisionPlan?.morningSessionPlanned
+                    ? "The live morning revision set is already closed from the panel above."
+                    : "No live revision sessions are due right now."
+                : "Use the morning panel above as the single place to complete or close this block.";
+
+              return (
+                <article
+                  key={entry.id}
+                  className="panel timeline-card reveal-rise p-5 md:p-6"
+                  data-complete={completed}
+                >
+                  <div className="pl-6">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
+                        Block {String(blockNumber).padStart(2, "0")}
+                      </span>
+                      <span className="text-sm text-(--text-secondary)">
+                        {entry.start} - {entry.end}
+                      </span>
+                      <span className="status-badge" data-tone={getProgressTone(entry.progress.status)}>
+                        {getProgressLabel(entry.progress.status)}
+                      </span>
+                    </div>
+                    <div className="mt-2 display text-2xl md:text-3xl">{entry.label}</div>
+                    <h3 className="mt-3 text-lg font-semibold leading-snug md:text-xl lg:text-2xl">{entry.displayDescription}</h3>
+                    <p className="mt-4 text-sm leading-7 text-(--text-secondary)">{morningSummary}</p>
+                    <div className="note-card mt-5 p-4 text-sm leading-7 text-(--text-secondary)">
+                      The morning block stays in the timeline for structure, but its real interaction now lives in the dedicated morning panel above.
+                    </div>
+                    <TimeEditor
+                      dayNumber={todayScheduleDay.dayNumber}
+                      blockKey={entry.blockKey}
+                      start={entry.start}
+                      end={entry.end}
+                      actualStart={entry.progress.actualStart}
+                      actualEnd={entry.progress.actualEnd}
+                      trafficLight={todayState.trafficLight}
+                      slots={timeEditorSlots}
+                    />
+                  </div>
                 </article>
               );
             }

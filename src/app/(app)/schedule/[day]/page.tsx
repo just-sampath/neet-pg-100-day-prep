@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 
+import { MorningPlanPanel } from "@/components/app/morning-plan-panel";
 import { TimeEditor } from "@/components/app/time-editor";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getDayDetailData } from "@/lib/data/app-state";
 import { mutateStore } from "@/lib/data/local-store";
 import type { BlockKey, ScheduledRecoveryItem } from "@/lib/domain/types";
-import { getRevisionAssignedSlotLabel, groupRevisionItemsForDisplay } from "@/lib/domain/schedule";
-import { completeRevisionAction, setTrafficLightAction, updateBlockAction, updateTopicAction } from "@/lib/server/actions";
+import { setTrafficLightAction, updateBlockAction, updateTopicAction } from "@/lib/server/actions";
 import { toDateOnlyInTimeZone } from "@/lib/utils/date";
 import { formatDateLabel } from "@/lib/utils/format";
 
@@ -44,9 +44,8 @@ export default async function ScheduleDayPage({
     notFound();
   }
 
-  const revisionGroups = detail.revisionPlan ? groupRevisionItemsForDisplay(detail.revisionPlan.queue) : [];
-  const overflowGroups = detail.revisionPlan ? groupRevisionItemsForDisplay(detail.revisionPlan.overflow.map((entry) => entry.item)) : [];
   const readOnlyReason = getReadOnlyReason(detail);
+  const morningBlock = detail.blocks.find((block) => block.timeSlotKey === "06:30-08:00") ?? null;
   const plannedRecoveryByBlock = detail.plannedRecovery.reduce((map, item) => {
     const entries = map.get(item.targetBlockKey) ?? [];
     entries.push(item);
@@ -118,67 +117,25 @@ export default async function ScheduleDayPage({
         </section>
       )}
 
-      {revisionGroups.length ? (
-        <section className="panel p-6">
-          <h2 className="text-xl font-semibold">Revision work due on this date</h2>
-          <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
-            This view only surfaces revision that becomes due on this mapped date. Later recalls stay out of the way until their own day arrives.
-          </p>
-          <div className="mt-4 grid gap-3">
-            {revisionGroups.map((group) => (
-              <article key={group.id} className="rounded-2xl border border-[var(--border)] p-4">
-                <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
-                  {group.revisionTypes.join(" · ")} / {group.subject}
-                </div>
-                <div className="mt-2 text-lg font-semibold">{group.sourceTopicLabel}</div>
-                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
-                  {group.items.length === 1 ? "1 revision segment is due from this topic." : `${group.items.length} revision segments are due from this topic.`}
-                </p>
-                <div className="mt-4 grid gap-2">
-                  {group.items.map((item) => (
-                    <form key={item.id} action={completeRevisionAction} className="rounded-2xl border border-[var(--border)] p-3">
-                      <input type="hidden" name="sourceItemId" value={item.sourceItemId} />
-                      <input type="hidden" name="sourceDay" value={item.sourceDay} />
-                      <input type="hidden" name="sourceBlockKey" value={item.sourceBlockKey} />
-                      <input type="hidden" name="revisionType" value={item.revisionType} />
-                      <div className="flex items-center justify-between gap-4">
-                        <div>
-                          <div className="text-sm text-[var(--muted)]">{item.revisionType}</div>
-                          <div className="font-medium">{item.topic}</div>
-                        </div>
-                        {detail.editState.canAdjustToday ? (
-                          <button className="button-secondary" type="submit">
-                            Check off
-                          </button>
-                        ) : (
-                          <span className="status-badge" data-tone="neutral">
-                            View only
-                          </span>
-                        )}
-                      </div>
-                    </form>
-                  ))}
-                </div>
-              </article>
-            ))}
-          </div>
-          {overflowGroups.length ? (
-            <div className="mt-4 rounded-2xl border border-[var(--border)] p-4 text-sm leading-7 text-(--text-secondary)">
-              {overflowGroups.map((group) => (
-                <div key={group.id} className="mb-3 last:mb-0">
-                  <div className="font-medium text-[var(--text-primary)]">{group.sourceTopicLabel}</div>
-                  {detail.revisionPlan!.overflow
-                    .filter((item) => item.item.sourceItemId === group.sourceItemId)
-                    .map((item) => (
-                      <p key={item.item.id}>
-                        {getRevisionAssignedSlotLabel(item.assignedSlot)}: {item.item.revisionType} · {item.item.topic}
-                      </p>
-                    ))}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </section>
+      {morningBlock ? (
+        <MorningPlanPanel
+          dayNumber={detail.day.dayNumber}
+          morningBlock={{
+            blockKey: morningBlock.timeSlotKey,
+            displayLabel: morningBlock.displayLabel,
+            displayDescription: morningBlock.displayDescription,
+            progress: morningBlock.progress,
+            items: morningBlock.items.map((item) => ({
+              itemId: item.itemId,
+              label: item.label,
+              plannedMinutes: item.plannedMinutes,
+              revisionType: item.revisionType,
+              progress: item.progress,
+            })),
+          }}
+          morningPlan={detail.revisionPlan}
+          canAdjustToday={detail.editState.canAdjustToday}
+        />
       ) : null}
 
       <section className="grid gap-4">
@@ -187,6 +144,42 @@ export default async function ScheduleDayPage({
           const defaultCompletionDate = block.progress.completedAt
             ? toDateOnlyInTimeZone(block.progress.completedAt)
             : detail.mappedDate ?? detail.originalPlannedDate ?? detail.todayDate;
+
+          if (morningBlock && block.timeSlotKey === morningBlock.timeSlotKey) {
+            const morningSummary = detail.revisionPlan?.phaseMode === "session_primary"
+              ? detail.revisionPlan.morningSessionRemaining
+                ? `${detail.revisionPlan.morningSessionRemaining} session(s) are still open in the dedicated morning panel above.`
+                : detail.revisionPlan?.morningSessionPlanned
+                  ? "The live morning revision set is already closed from the panel above."
+                  : "No live revision sessions are due on this mapped date."
+              : "The dedicated morning panel above is the single place to complete or review this block.";
+
+            return (
+              <article key={block.timeSlotKey} className="panel p-5">
+                <div className="eyebrow">{block.displayLabel}</div>
+                <h2 className="mt-2 text-xl font-semibold">{block.displayDescription}</h2>
+                <p className="mt-1 text-sm text-[var(--muted)]">
+                  {block.start} – {block.end} · {block.progress.status}
+                </p>
+                <p className="mt-4 text-sm leading-7 text-(--text-secondary)">{morningSummary}</p>
+                <div className="note-card mt-4 p-4 text-sm leading-7 text-(--text-secondary)">
+                  The schedule block remains visible here for auditability, but its real interaction now lives in the shared morning panel above.
+                </div>
+                {detail.editState.canAdjustToday ? (
+                  <TimeEditor
+                    dayNumber={detail.day.dayNumber}
+                    blockKey={block.timeSlotKey as BlockKey}
+                    start={block.start}
+                    end={block.end}
+                    actualStart={block.progress.actualStart}
+                    actualEnd={block.progress.actualEnd}
+                    trafficLight={detail.state.trafficLight}
+                    slots={timeEditorSlots}
+                  />
+                ) : null}
+              </article>
+            );
+          }
 
           return (
             <article key={block.timeSlotKey} className="panel p-5">

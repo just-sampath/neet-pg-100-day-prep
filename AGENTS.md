@@ -23,6 +23,7 @@ The product goal is still one quiet, supportive companion for one aspirant acros
 - Schedule workbook: `resources/neet_pg_2026_100_day_schedule.xlsx`
 - Quotes CSV: `resources/quotes.csv`
 - Generated app data: `src/lib/generated/schedule-data.ts`, `src/lib/generated/quotes-data.ts`
+- Inspiration: `inspiration/*`
 
 ## Runtime Modes
 
@@ -394,40 +395,42 @@ Every feature should be runnable locally. Minimum manual pass:
 10. Mark revision items complete.
 11. Complete `block_a` or `block_b` on a later date and confirm the revision queue moves.
 12. Use dev time travel to trigger:
-   - 22:30 wind-down prompt
-   - 22:45 wrap-up reappearance after one dismiss
-   - 23:00 night recall prompt
-   - 23:15 late-night sweep
-   - next-day midnight rollover
+
+- 22:30 wind-down prompt
+- 22:45 wrap-up reappearance after one dismiss
+- 23:00 night recall prompt
+- 23:15 late-night sweep
+- next-day midnight rollover
+
 13. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.
-14. Open `/schedule` and confirm it auto-focuses near Today.
-15. Open a future day and confirm the page is view-only.
-16. Open a shift-hidden day and confirm it stays view-only while still explaining the active mapping.
-17. Log MCQ bulk and item data.
-18. Confirm bulk `wrong` auto-derives from attempted and correct.
-19. Confirm one-by-one `MCQ ID + result tap` works with details closed.
-20. Expand `Add details`, submit once, and confirm subject/source plus expander state persist while optional note fields clear.
-21. Log GT data with mapped GT prefill, section A-E details, and wrapper notes.
-22. Confirm GT recurring topics stop at 3 and weakest-subject chips persist.
-23. Confirm GT analytics show score trend, section patterns, comparison, wrapper trend, and weakness repetition.
-24. Generate a weekly summary.
-25. Open the weekly detail page and confirm it shows schedule adherence, revision pressure, overrun labels, MCQ signal, GT signal, backlog breakdown, and subjects studied.
-26. Toggle Green -> Yellow/Red -> Green on Today and confirm the original daily quote returns for that date.
-27. Complete the visible day and confirm the celebration quote appears as its own completion moment.
-28. Refresh and confirm the quote for the current date/category stays stable.
-29. Export JSON.
-30. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
-31. Complete that destination block and confirm the assigned backlog item closes with it.
-32. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
-33. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
-34. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
-35. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
-36. Open Settings and confirm version, runtime label, exam date, export, and the workbook/spec links render correctly.
-37. Install the app or open the install guidance and confirm the platform-specific instructions are sensible.
-38. Disconnect the network after loading once and confirm the offline fallback stays quiet and does not expose stale writable state.
-39. Trigger a route loading state and confirm it uses calm placeholder panels rather than a spinner.
-40. Open an unknown route and confirm the app offers a useful way back to Today or Schedule.
-41. Open MCQ and GT analytics with little data and confirm empty states stay readable while charts defer cleanly.
+2. Open `/schedule` and confirm it auto-focuses near Today.
+3. Open a future day and confirm the page is view-only.
+4. Open a shift-hidden day and confirm it stays view-only while still explaining the active mapping.
+5. Log MCQ bulk and item data.
+6. Confirm bulk `wrong` auto-derives from attempted and correct.
+7. Confirm one-by-one `MCQ ID + result tap` works with details closed.
+8. Expand `Add details`, submit once, and confirm subject/source plus expander state persist while optional note fields clear.
+9. Log GT data with mapped GT prefill, section A-E details, and wrapper notes.
+10. Confirm GT recurring topics stop at 3 and weakest-subject chips persist.
+11. Confirm GT analytics show score trend, section patterns, comparison, wrapper trend, and weakness repetition.
+12. Generate a weekly summary.
+13. Open the weekly detail page and confirm it shows schedule adherence, revision pressure, overrun labels, MCQ signal, GT signal, backlog breakdown, and subjects studied.
+14. Toggle Green -> Yellow/Red -> Green on Today and confirm the original daily quote returns for that date.
+15. Complete the visible day and confirm the celebration quote appears as its own completion moment.
+16. Refresh and confirm the quote for the current date/category stays stable.
+17. Export JSON.
+18. Reschedule a backlog item into a future slot and confirm it renders inside the destination block.
+19. Complete that destination block and confirm the assigned backlog item closes with it.
+20. Miss that destination block in a separate run and confirm the assigned backlog item returns to `pending`.
+21. Create two heavily missed days in the last 7-day window and confirm the shift offer appears.
+22. Open shift preview and confirm it anchors from the earliest missed day, not just from today.
+23. Apply the shift and confirm Today moves to the shifted anchor day, GT markers move with the calendar, and covered backlog is cleared.
+24. Open Settings and confirm version, runtime label, exam date, export, and the workbook/spec links render correctly.
+25. Install the app or open the install guidance and confirm the platform-specific instructions are sensible.
+26. Disconnect the network after loading once and confirm the offline fallback stays quiet and does not expose stale writable state.
+27. Trigger a route loading state and confirm it uses calm placeholder panels rather than a spinner.
+28. Open an unknown route and confirm the app offers a useful way back to Today or Schedule.
+29. Open MCQ and GT analytics with little data and confirm empty states stay readable while charts defer cleanly.
 
 Supabase runtime pass:
 
