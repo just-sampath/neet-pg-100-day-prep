@@ -55,7 +55,7 @@ This SQL expects Supabase Vault secrets for:
 
 ## Update The Schedule
 
-1. Edit `resources/neet_pg_2026_100_day_schedule.xlsx`
+1. Edit `resources/NEET_PG_FINAL_SCHEDULE.xlsx`
 2. Run:
 
 ```bash
@@ -67,8 +67,9 @@ npm run generate:data
 Generation now validates workbook structure. If it fails:
 
 - check sheet names first
-- check `Block_Hours` duration values against the slot ranges
-- check `GT_Test_Plan` day references against `Daywise_Plan`
+- check `WOR_Topic_Map` topic names and minute values
+- check GT-tagged `Daywise_Plan` rows
+- check `Revision_Map` day coverage
 - check required day-plan columns before changing app code
 
 ## Update Quotes

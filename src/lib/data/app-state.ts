@@ -457,7 +457,7 @@ export function moveVisibleBlocksToBacklog(
   userState: UserState,
   dayNumber: number,
   trafficLight: TrafficLight,
-  options?: { excludeNightRecall?: boolean; note?: string | null },
+  options?: { excludeFinalReview?: boolean; note?: string | null },
 ) {
   const day = getScheduleDay(dayNumber);
   if (!day) {
@@ -471,14 +471,14 @@ export function moveVisibleBlocksToBacklog(
       continue;
     }
 
-    if (block.displayLabel === "Morning Revision") {
+    if (block.semanticBlockKey === "morning_revision") {
       for (const item of getUnresolvedItems(userState, dayNumber, blockKey)) {
         markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, "missed", "missed", options?.note ?? null);
       }
       continue;
     }
 
-    if (options?.excludeNightRecall && block.displayLabel === "Night Recall") {
+    if (options?.excludeFinalReview && block.semanticBlockKey === "final_review") {
       continue;
     }
 
@@ -493,7 +493,7 @@ export function runLateNightSweep(
   todayDayNumber: number,
   nowMinutes: number,
 ) {
-  if (!settings.dayOneDate || todayDayNumber < 1 || todayDayNumber > 100 || nowMinutes < 23 * 60 + 15) {
+  if (!settings.dayOneDate || todayDayNumber < 1 || todayDayNumber > 100 || nowMinutes < 22 * 60 + 45) {
     return;
   }
   if (userState.processedDates.lateNightSweepDates.includes(todayDate)) {

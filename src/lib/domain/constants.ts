@@ -13,16 +13,16 @@ export const REVISION_INTERVALS: Record<RevisionType, number> = {
 };
 
 export const BREAK_MICRO_SLOT_LABELS = [
-  "08:00 quick recall",
-  "10:45 quick recall",
-  "16:45 quick recall",
-  "21:45 quick recall",
+  "07:45 quick recall",
+  "11:00 quick recall",
+  "17:45 quick recall",
+  "20:00 quick recall",
 ] as const;
 
 export const BREAK_MICRO_SLOT_ORDER: Exclude<
   RevisionAssignedSlot,
-  "morning_revision" | "night_recall" | "consolidation" | "pyq_image" | "next_revision_phase"
->[] = ["break_08_00", "break_10_45", "break_16_45", "break_21_45"];
+  "morning_revision" | "final_review" | "block_c" | "next_revision_phase"
+>[] = ["break_07_45", "break_11_00", "break_17_45", "break_20_00"];
 
 export const SHIFT_COMPRESSION_PAIRS = [
   [95, 96],

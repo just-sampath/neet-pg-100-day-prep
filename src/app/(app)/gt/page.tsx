@@ -49,7 +49,7 @@ export default async function GtPage() {
 
       <section className="panel p-6">
         <div className="eyebrow">Schedule Context</div>
-        <h2 className="mt-3 text-2xl font-semibold">Workbook GT plan, mapped to the live shifted schedule.</h2>
+        <h2 className="mt-3 text-2xl font-semibold">Derived GT windows, mapped to the live shifted schedule.</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {data.schedule.map((item) => (
             <article key={item.dayNumber} className="note-card p-4">
@@ -63,17 +63,19 @@ export default async function GtPage() {
                   <span className="status-badge" data-tone="neutral">
                     Upcoming
                   </span>
-                ) : (
-                  <span className="status-badge" data-tone="neutral">
-                    Logged window
-                  </span>
-                )}
+              ) : (
+                <span className="status-badge" data-tone="neutral">
+                  Logged window
+                </span>
+              )}
               </div>
               <div className="mt-3 text-lg font-semibold">{item.label}</div>
               {item.purposeRaw !== item.label ? (
                 <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.purposeRaw}</p>
               ) : null}
               <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.mappedDate ?? "No mapped date yet"}</p>
+              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.resourceRaw}</p>
+              <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.reviewRaw}</p>
               <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.whatToMeasureRaw}</p>
               <p className="mt-2 text-sm leading-7 text-(--text-secondary)">{item.mustOutputRaw}</p>
             </article>

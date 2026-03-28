@@ -203,7 +203,7 @@ function getSubjectLabel(subjectIds: string[], fallback: string) {
 }
 
 function getPhaseGroup(day: ScheduleDayPlan): SchedulePhaseGroup {
-  return PHASE_GROUP_BY_ID.get(day.phaseId) ?? "first_pass";
+  return PHASE_GROUP_BY_ID.get(day.phaseId) ?? "phase_1";
 }
 
 function getSubjectPriorityForRevisionItem(item: RevisionQueueItem) {
@@ -893,7 +893,7 @@ function calculateMorningMinutesPerSession(sessionCount: number) {
     return 0;
   }
 
-  return Math.floor(90 / Math.min(sessionCount, 5));
+  return Math.floor(75 / Math.min(sessionCount, 5));
 }
 
 function getMorningPhaseMode(day: ScheduleDayPlan | undefined, morningSessionPlanned: number): MorningPhaseMode {
@@ -901,11 +901,11 @@ function getMorningPhaseMode(day: ScheduleDayPlan | undefined, morningSessionPla
     return "workbook_only";
   }
 
-  if (getPhaseGroup(day) === "first_pass" && morningSessionPlanned > 0) {
+  if (getPhaseGroup(day) === "phase_1" && morningSessionPlanned > 0) {
     return "session_primary";
   }
 
-  if (day.blocks[0]?.semanticBlockKey === "setup_block") {
+  if (getPhaseGroup(day) === "phase_1") {
     return "workbook_only";
   }
 
@@ -945,7 +945,7 @@ function buildRevisionPlanBase(
     if (overdueBy <= 6) {
       catchUpDue.push({
         ...item,
-        assignedSlot: "consolidation",
+        assignedSlot: "block_c",
         status: candidate.status === "completed" ? "completed" : "overdue_3_6",
       });
       continue;
@@ -966,13 +966,13 @@ function buildRevisionPlanBase(
     .filter((session) => session.status === "pending");
   const overflowSessions = overflowMorningBuckets
     .map((bucket, index) => {
-      const assignedSlot = index === 0 ? "night_recall" : BREAK_MICRO_SLOT_ORDER[(index - 1) % BREAK_MICRO_SLOT_ORDER.length];
+      const assignedSlot = index === 0 ? "final_review" : BREAK_MICRO_SLOT_ORDER[(index - 1) % BREAK_MICRO_SLOT_ORDER.length];
       return createRevisionSession(bucket, "also_review_today", assignedSlot);
     })
     .filter((session) => session.status === "pending");
 
   const catchUpSessions = createRevisionSessionBuckets(catchUpDue)
-    .map((bucket, index) => createRevisionSession(bucket, "revision_recovery", index % 2 === 0 ? "consolidation" : "pyq_image"))
+    .map((bucket, index) => createRevisionSession(bucket, "revision_recovery", index % 2 === 0 ? "block_c" : "final_review"))
     .filter((session) => session.status === "pending");
 
   const restudySessions = createRevisionSessionBuckets(restudyDue)
@@ -982,8 +982,8 @@ function buildRevisionPlanBase(
   const queue = queueSessions.flatMap((session) => session.items);
   const overflow: OverflowRevisionItem[] = overflowSessions.flatMap((session) => {
     const label =
-      session.assignedSlot === "night_recall"
-        ? "22:00 night recall"
+      session.assignedSlot === "final_review"
+        ? "20:30 final review"
         : BREAK_MICRO_SLOT_LABELS[BREAK_MICRO_SLOT_ORDER.indexOf(session.assignedSlot as typeof BREAK_MICRO_SLOT_ORDER[number])];
 
     return session.items.map((item) => ({
@@ -1042,20 +1042,18 @@ function getOverflowStreakDays(targetDate: string, userState: UserState, setting
 
 export function getRevisionAssignedSlotLabel(slot: OverflowRevisionItem["assignedSlot"] | RevisionQueueItem["assignedSlot"]) {
   switch (slot) {
-    case "night_recall":
-      return "22:00 night recall";
-    case "break_08_00":
-      return "08:00 quick recall";
-    case "break_10_45":
-      return "10:45 quick recall";
-    case "break_16_45":
-      return "16:45 quick recall";
-    case "break_21_45":
-      return "21:45 quick recall";
-    case "consolidation":
-      return "14:15 catch-up revision";
-    case "pyq_image":
-      return "20:15 catch-up revision";
+    case "final_review":
+      return "20:30 final review";
+    case "break_07_45":
+      return "07:45 quick recall";
+    case "break_11_00":
+      return "11:00 quick recall";
+    case "break_17_45":
+      return "17:45 quick recall";
+    case "break_20_00":
+      return "20:00 quick recall";
+    case "block_c":
+      return "15:00 catch-up revision";
     case "next_revision_phase":
       return "Next revision phase";
     default:
@@ -1257,10 +1255,32 @@ export function getPhaseDayStatus(dayNumber: number, userState: UserState): Bloc
   );
 }
 
+function getMacroPhaseDayStatus(dayNumber: number, userState: UserState): BlockStatus {
+  const day = getScheduleDay(dayNumber);
+  if (!day) {
+    return "pending";
+  }
+
+  // Macro phases should reflect workbook day progress while ignoring only the derived morning revision lane.
+  const visibleStatuses = getTrackableBlocks(day)
+    .filter((block) => block.semanticBlockKey !== "morning_revision")
+    .map((block) => getBlockProgress(userState, day.dayNumber, block.timeSlotKey).status);
+
+  return getDerivedStatus(
+    visibleStatuses.map((status) => {
+      if (status === "partially_complete") {
+        return "pending";
+      }
+
+      return status as TopicStatus;
+    }),
+  );
+}
+
 export function getPhaseStatus(phaseId: string, userState: UserState, settings: AppSettings): BlockStatus {
   void settings;
-  const days = ALL_DAYS.filter((day) => day.phaseId === phaseId);
-  const statuses = days.map((day) => getPhaseDayStatus(day.dayNumber, userState));
+  const days = ALL_DAYS.filter((day) => getPhaseGroup(day) === phaseId);
+  const statuses = days.map((day) => getMacroPhaseDayStatus(day.dayNumber, userState));
 
   return getDerivedStatus(
     statuses.map((status) => {

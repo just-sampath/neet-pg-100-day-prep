@@ -1,19 +1,6 @@
 import type { GtTestType, TimelineSlotKind } from "@/lib/domain/types";
 
-export type SchedulePhaseGroup =
-  | "orientation_baseline"
-  | "first_pass"
-  | "grand_test_analysis"
-  | "revision_1"
-  | "revision_1_mixed_pyq_repair"
-  | "revision_2_compression"
-  | "revision_2_image_heavy"
-  | "revision_2_pyq_day"
-  | "revision_2_error_elimination"
-  | "revision_2_volatile_list_day"
-  | "revision_2_buffer"
-  | "final_assault"
-  | "pre_exam_day";
+export type SchedulePhaseGroup = "phase_1" | "phase_2" | "phase_3";
 
 export type ScheduleBlockIntent =
   | "setup"
@@ -113,6 +100,11 @@ export interface ScheduleDayPlan {
   resourceRaw: string;
   resourceParts: string[];
   deliverableRaw: string;
+  notesRaw: string | null;
+  sourceMinutes: number | null;
+  bufferMinutes: number | null;
+  plannedStudyMinutes: number | null;
+  totalStudyHours: number | null;
   gtTestType: GtTestType;
   gtPlanRef: string | null;
   blocks: ScheduleDayBlock[];
@@ -120,7 +112,8 @@ export interface ScheduleDayPlan {
 
 export interface ScheduleDaywisePlanData {
   version: number;
-  source: "manual-json";
+  source: "workbook";
+  sourceWorkbook: "NEET_PG_FINAL_SCHEDULE.xlsx";
   sourceSheet: "Daywise_Plan";
   phaseCatalog: SchedulePhaseCatalogItem[];
   slotCatalog: ScheduleSlotCatalogItem[];
@@ -141,8 +134,9 @@ export interface SubjectStrategyEntry {
 
 export interface SubjectStrategyData {
   version: number;
-  source: "manual-json";
-  sourceSheet: "Subject_Strategy";
+  source: "workbook";
+  sourceWorkbook: "NEET_PG_FINAL_SCHEDULE.xlsx";
+  sourceSheet: "Subject_Tiering";
   subjects: SubjectStrategyEntry[];
 }
 
@@ -155,12 +149,17 @@ export interface GtPlanEntry {
   whatToMeasureItems: string[];
   mustOutputRaw: string;
   mustOutputItems: string[];
+  resourceRaw: string;
+  reviewRaw: string;
+  wrapUpRaw: string;
+  notesRaw: string | null;
 }
 
 export interface GtPlanData {
   version: number;
-  source: "manual-json";
-  sourceSheet: "GT_Test_Plan";
+  source: "workbook";
+  sourceWorkbook: "NEET_PG_FINAL_SCHEDULE.xlsx";
+  sourceSheet: "Daywise_Plan";
   tests: GtPlanEntry[];
 }
 

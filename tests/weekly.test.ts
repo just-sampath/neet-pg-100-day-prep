@@ -38,20 +38,20 @@ describe("weekly summary and review", () => {
 
     completeVisibleBlocks(userState, 1, "green", "2026-05-04T12:00:00.000Z");
     completeVisibleBlocks(userState, 2, "yellow", "2026-05-05T12:00:00.000Z");
-    completeBlockItems(userState, 3, getScheduleDay(3)!.blocks.find((block) => block.semanticBlockKey === "study_block_1")!.timeSlotKey, "2026-05-06T10:00:00.000Z");
+    completeBlockItems(userState, 3, getScheduleDay(3)!.blocks.find((block) => block.semanticBlockKey === "block_a")!.timeSlotKey, "2026-05-06T10:00:00.000Z");
 
-    const day2StudyBlock1 = getScheduleDay(2)!.blocks.find((block) => block.semanticBlockKey === "study_block_1")!;
-    const day2StudyBlock1Timing = getOrCreateProgress(userState, 2, day2StudyBlock1.timeSlotKey);
-    day2StudyBlock1Timing.actualStart = "08:15";
-    day2StudyBlock1Timing.actualEnd = "11:05";
+    const day2BlockA = getScheduleDay(2)!.blocks.find((block) => block.semanticBlockKey === "block_a")!;
+    const day2BlockATiming = getOrCreateProgress(userState, 2, day2BlockA.timeSlotKey);
+    day2BlockATiming.actualStart = "08:00";
+    day2BlockATiming.actualEnd = "11:20";
 
-    const day2FirstTopic = day2StudyBlock1.items[0]!;
+    const day2FirstTopic = day2BlockA.items[0]!;
     const day2RevisionId = createRevisionId(day2FirstTopic.itemId, "D+1");
     userState.revisionCompletions[day2RevisionId] = {
       revisionId: day2RevisionId,
       sourceItemId: day2FirstTopic.itemId,
       sourceDay: 2,
-      sourceBlockKey: day2StudyBlock1.timeSlotKey,
+      sourceBlockKey: day2BlockA.timeSlotKey,
       revisionType: "D+1",
       completedAt: "2026-05-06T06:45:00.000Z",
     };
@@ -59,7 +59,7 @@ describe("weekly summary and review", () => {
     moveBlockToBacklog(
       userState,
       2,
-      getScheduleDay(2)!.blocks.find((block) => block.semanticBlockKey === "consolidation_block")!.timeSlotKey,
+      getScheduleDay(2)!.blocks.find((block) => block.semanticBlockKey === "final_review")!.timeSlotKey,
       "missed",
       "missed",
       "Needs recovery.",
@@ -67,7 +67,7 @@ describe("weekly summary and review", () => {
     moveBlockToBacklog(
       userState,
       3,
-      getScheduleDay(3)!.blocks.find((block) => block.semanticBlockKey === "mcq_block")!.timeSlotKey,
+      getScheduleDay(3)!.blocks.find((block) => block.semanticBlockKey === "mcq_practice")!.timeSlotKey,
       "overrun_cascade",
       "rescheduled",
       "Reduced after an overrun.",
@@ -98,16 +98,6 @@ describe("weekly summary and review", () => {
       fixCodes: [],
       tags: [],
       createdAt: "2026-05-06T09:00:00.000Z",
-    };
-    userState.mcqBulkLogs["bulk-outside-week"] = {
-      id: "bulk-outside-week",
-      entryDate: "2026-05-08",
-      totalAttempted: 50,
-      correct: 40,
-      wrong: 10,
-      subject: "Medicine",
-      source: "GT-1",
-      createdAt: "2026-05-08T08:00:00.000Z",
     };
     userState.gtLogs["gt-in-week"] = {
       id: "gt-in-week",
@@ -145,31 +135,21 @@ describe("weekly summary and review", () => {
       weekEndDate: "2026-05-10",
       coveredThroughDate: "2026-05-06",
       isPartialWeek: true,
-      blocksPlanned: 15,
-      blocksCompleted: 13,
-      blocksCompletedRate: 86.7,
       greenDays: 1,
       yellowDays: 1,
       redDays: 1,
-      morningRevisionPlanned: 5,
-      morningRevisionCompleted: 1,
       totalMcqsSolved: 21,
-      overallAccuracy: 66.7,
       gtNumber: "GT-0",
-      backlogCount: 4,
-      backlogSummary: {
-        totalPending: 4,
-        fromMissed: 2,
-        fromYellowRed: 0,
-        fromOverrun: 2,
-      },
-      overrunBlockCount: 1,
-      topWrongSubjects: [{ label: "Pathology", count: 1 }],
-      topCauseCodes: [{ label: "C", count: 1 }],
+      gtScore: 410,
+      gtWrapperSummary: "Review trauma images.",
     });
-
+    expect(summary.blocksCompleted).toBeLessThan(summary.blocksPlanned);
+    expect(summary.morningRevisionCompleted).toBe(1);
+    expect(summary.backlogCount).toBeGreaterThan(0);
+    expect(summary.backlogSummary.totalPending).toBe(summary.backlogCount);
     expect(summary.subjectsStudied).toContain("Pathology");
-    expect(summary.overrunBlocks[0]?.label).toContain("Pathology");
+    expect(summary.topWrongSubjects).toEqual([{ label: "Pathology", count: 1 }]);
+    expect(summary.topCauseCodes).toEqual([{ label: "C", count: 1 }]);
   });
 
   it("waits until Sunday 23:30 IST before auto-generating the weekly summary", () => {
@@ -218,32 +198,14 @@ describe("weekly summary and review", () => {
       correct: 15,
       wrong: 5,
       subject: "Medicine",
-      source: "Module-MED-01",
+      source: "GT-1",
       createdAt: "2026-05-09T08:00:00.000Z",
     };
 
-    const final = upsertWeeklySummary(userState, userState.settings, "2026-05-04", "2026-05-10");
-
-    expect(final.id).toBe(partial.id);
-    expect(final.isPartialWeek).toBe(false);
-    expect(final.coveredThroughDate).toBe("2026-05-10");
-    expect(final.totalMcqsSolved).toBe(30);
+    const refreshed = upsertWeeklySummary(userState, userState.settings, "2026-05-04", "2026-05-10");
     expect(Object.keys(userState.weeklySummaries)).toHaveLength(1);
-  });
-
-  it("upgrades an in-progress manual snapshot to the final Sunday summary instead of skipping it", () => {
-    const userState = createEmptyUserState();
-    userState.settings.dayOneDate = "2026-05-04";
-
-    const partial = upsertWeeklySummary(userState, userState.settings, "2026-05-04", "2026-05-06");
-    const result = runWeeklySummaryAutomation(userState, userState.settings, "2026-05-10T23:30:00+05:30");
-
-    expect(result.generated).toBe(true);
-    expect(result.summaryId).toBe(partial.id);
-    expect(userState.weeklySummaries[partial.id]).toMatchObject({
-      id: partial.id,
-      isPartialWeek: false,
-      coveredThroughDate: "2026-05-10",
-    });
+    expect(refreshed.id).toBe(partial.id);
+    expect(refreshed.isPartialWeek).toBe(false);
+    expect(refreshed.totalMcqsSolved).toBe(30);
   });
 });

@@ -397,9 +397,9 @@ export function validateGtDraft(
 }
 
 function getGtLabel(item: GtPlanEntry) {
-  const gtMatch = item.purposeRaw.match(/^GT-\d+/u);
+  const gtMatch = item.purposeRaw.match(/^GT[\s-]*(\d+)/u);
   if (gtMatch) {
-    return gtMatch[0];
+    return `GT-${gtMatch[1]}`;
   }
   if (item.testType === "Diagnostic 100Q") {
     return "Diagnostic 100Q";

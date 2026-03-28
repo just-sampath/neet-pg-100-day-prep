@@ -45,7 +45,7 @@ export default async function ScheduleDayPage({
   }
 
   const readOnlyReason = getReadOnlyReason(detail);
-  const morningBlock = detail.blocks.find((block) => block.timeSlotKey === "06:30-08:00") ?? null;
+  const morningBlock = detail.blocks.find((block) => block.semanticBlockKey === "morning_revision") ?? null;
   const plannedRecoveryByBlock = detail.plannedRecovery.reduce((map, item) => {
     const entries = map.get(item.targetBlockKey) ?? [];
     entries.push(item);
@@ -72,7 +72,10 @@ export default async function ScheduleDayPage({
         </div>
         <h1 className="display mt-3 text-3xl">{detail.day.primaryFocusRaw}</h1>
         <p className="mt-2 text-[var(--muted)]">
-          {detail.mappedDate ? formatDateLabel(detail.mappedDate) : "Day 1 not set"} · {detail.day.deliverableRaw}
+          {detail.mappedDate ? formatDateLabel(detail.mappedDate) : "Day 1 not set"} · {detail.day.resourceRaw}
+        </p>
+        <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
+          {detail.day.notesRaw ?? "No extra note for this day."} Study mins {detail.day.plannedStudyMinutes ?? "—"} / buffer {detail.day.bufferMinutes ?? "—"}.
         </p>
         {detail.originalPlannedDate && detail.originalPlannedDate !== detail.mappedDate ? (
           <p className="mt-3 text-sm leading-7 text-(--text-secondary)">

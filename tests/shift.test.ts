@@ -70,7 +70,7 @@ describe("schedule shift mechanism", () => {
   it("applies a shift from the missed anchor day, clears covered recovery, and resets unresolved progress", () => {
     const userState = createConfiguredState();
     const originalSettings = structuredClone(userState.settings);
-    const day38Block = getScheduleDay(38)!.blocks.find((block) => block.semanticBlockKey === "study_block_1")!;
+    const day38Block = getScheduleDay(38)!.blocks.find((block) => block.semanticBlockKey === "block_a")!;
 
     userState.dayStates["38"] = {
       dayNumber: 38,
@@ -82,7 +82,7 @@ describe("schedule shift mechanism", () => {
     moveBlockToBacklog(
       userState,
       37,
-      getScheduleDay(37)!.blocks.find((block) => block.semanticBlockKey === "study_block_1")!.timeSlotKey,
+      getScheduleDay(37)!.blocks.find((block) => block.semanticBlockKey === "block_a")!.timeSlotKey,
       "missed",
       "missed",
       "Older recovery stays.",

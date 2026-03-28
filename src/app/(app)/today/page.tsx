@@ -168,7 +168,7 @@ export default async function TodayPage() {
     return map;
   }, new Map<BlockKey, ScheduledRecoveryItem[]>());
   const timelineEntries = buildTodayTimeline(todayScheduleDay, userState, todayState.trafficLight);
-  const morningBlock = todayScheduleDay.blocks.find((block) => block.timeSlotKey === "06:30-08:00") ?? null;
+  const morningBlock = todayScheduleDay.blocks.find((block) => block.semanticBlockKey === "morning_revision") ?? null;
   const timeEditorSlots = todayScheduleDay.blocks
     .filter((block) => block.trackable)
     .map((block) => {
@@ -195,8 +195,8 @@ export default async function TodayPage() {
     todayScheduleDay.blocks.find((block) => block.blockIntent === "practice")?.timeSlotKey ??
     todayScheduleDay.blocks.find((block) => block.trackable)?.timeSlotKey ??
     "";
-  const nightRecallBlockKey =
-    todayScheduleDay.blocks.find((block) => block.semanticBlockKey === "night_recall")?.timeSlotKey ?? null;
+  const finalReviewBlockKey =
+    todayScheduleDay.blocks.find((block) => block.semanticBlockKey === "final_review")?.timeSlotKey ?? null;
   const mcqQuickLogNote = practiceBlockKey
     ? getDisplayBlockDescription(todayScheduleDay, practiceBlockKey, todayState.trafficLight)
     : "Capture today’s MCQ block while the pattern is still clear.";
@@ -230,7 +230,7 @@ export default async function TodayPage() {
     {
       label: "GT Marker",
       value: todayScheduleDay.gtTestType === "No" ? "Rest" : todayScheduleDay.gtTestType,
-      note: todayScheduleDay.deliverableRaw,
+      note: todayScheduleDay.notesRaw ?? todayScheduleDay.resourceRaw,
     },
   ];
 
@@ -272,13 +272,16 @@ export default async function TodayPage() {
                   {data.dayCountLabel} / {phase?.phaseName ?? todayScheduleDay.phaseName}
                 </div>
                 <h2 className="display mt-4 text-4xl md:text-6xl">{todayScheduleDay.primaryFocusRaw}</h2>
-                <p className="lead mt-5 max-w-2xl">{phase?.description ?? todayScheduleDay.deliverableRaw}</p>
+                <p className="lead mt-5 max-w-2xl">{todayScheduleDay.notesRaw ?? phase?.description ?? todayScheduleDay.resourceRaw}</p>
               </div>
               <div className="note-card min-w-[15rem] p-5">
                 <div className="eyebrow">Mapped Date</div>
                 <div className="display mt-3 text-2xl md:text-3xl">{formatDateLabel(data.todayDate)}</div>
                 <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                  Deliverable: {todayScheduleDay.deliverableRaw}
+                  Resource: {todayScheduleDay.resourceRaw}
+                </p>
+                <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
+                  Study mins: {todayScheduleDay.plannedStudyMinutes ?? "—"} / buffer {todayScheduleDay.bufferMinutes ?? "—"}
                 </p>
               </div>
             </div>
@@ -679,7 +682,7 @@ export default async function TodayPage() {
       dayNumber={todayScheduleDay.dayNumber}
       trafficLight={todayState.trafficLight}
       incompleteVisibleBlocks={incompleteVisibleBlocks}
-      nightRecallBlockKey={nightRecallBlockKey}
+      finalReviewBlockKey={finalReviewBlockKey}
       lateNightSweepProcessed={data.lateNightSweepProcessed}
     />
 

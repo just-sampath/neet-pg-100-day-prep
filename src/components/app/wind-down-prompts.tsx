@@ -12,7 +12,7 @@ type Props = {
   dayNumber: number;
   trafficLight: "green" | "yellow" | "red";
   incompleteVisibleBlocks: BlockKey[];
-  nightRecallBlockKey: BlockKey | null;
+  finalReviewBlockKey: BlockKey | null;
   lateNightSweepProcessed: boolean;
 };
 
@@ -23,7 +23,7 @@ export function WindDownPrompts({
   dayNumber,
   trafficLight,
   incompleteVisibleBlocks,
-  nightRecallBlockKey,
+  finalReviewBlockKey,
   lateNightSweepProcessed,
 }: Props) {
   const hydrated = useSyncExternalStore(
@@ -42,11 +42,11 @@ export function WindDownPrompts({
       getWindDownState({
         minutes,
         incompleteVisibleBlocks,
-        nightRecallBlockKey,
+        finalReviewBlockKey,
         wrapUpDismissals,
         lateNightSweepProcessed,
       }),
-    [incompleteVisibleBlocks, lateNightSweepProcessed, minutes, nightRecallBlockKey, wrapUpDismissals],
+    [finalReviewBlockKey, incompleteVisibleBlocks, lateNightSweepProcessed, minutes, wrapUpDismissals],
   );
   const triggerAutoMove = useEffectEvent(() => {
     startTransition(async () => {
@@ -75,7 +75,7 @@ export function WindDownPrompts({
 
   function handleWrapUpDismiss() {
     setWrapUpDismissals((current) => {
-      if (current === 0 && minutes < 22 * 60 + 45) {
+      if (current === 0 && minutes < 22 * 60) {
         return 1;
       }
 
@@ -110,8 +110,8 @@ export function WindDownPrompts({
     );
   }
 
-  if (prompt.kind === "night_recall") {
-    if (!nightRecallBlockKey) {
+  if (prompt.kind === "final_review") {
+    if (!finalReviewBlockKey) {
       return null;
     }
 
@@ -130,7 +130,7 @@ export function WindDownPrompts({
               startTransition(async () => {
                 const formData = new FormData();
                 formData.set("dayNumber", String(dayNumber));
-                formData.set("blockKey", nightRecallBlockKey);
+                formData.set("blockKey", finalReviewBlockKey);
                 formData.set("intent", "partial");
                 formData.set("note", "Quick 5-minute version.");
                 await updateBlockAction(formData);
@@ -147,9 +147,9 @@ export function WindDownPrompts({
               startTransition(async () => {
                 const formData = new FormData();
                 formData.set("dayNumber", String(dayNumber));
-                formData.set("blockKey", nightRecallBlockKey);
+                formData.set("blockKey", finalReviewBlockKey);
                 formData.set("intent", "skip");
-                formData.set("note", "Skipped to protect sleep.");
+                formData.set("note", "Skipped the final review to protect sleep.");
                 await updateBlockAction(formData);
               })
             }

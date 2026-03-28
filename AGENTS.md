@@ -20,7 +20,7 @@ The product goal is still one quiet, supportive companion for one aspirant acros
 
 - Product spec: `specs/beside-you-prd.md`
 - Draft architecture: `specs/beside-you-technical-architecture.md`
-- Schedule workbook: `resources/neet_pg_2026_100_day_schedule.xlsx`
+- Schedule workbook: `resources/NEET_PG_FINAL_SCHEDULE.xlsx`
 - Quotes CSV: `resources/quotes.csv`
 - Generated app data: `src/lib/generated/schedule-data.ts`, `src/lib/generated/quotes-data.ts`
 - Inspiration: `inspiration/*`
@@ -121,7 +121,6 @@ Defaults:
 - `src/app/(app)/settings/page.tsx`: setup, theme, export, dev tools
 - `src/app/api/*`: export and dev-only helper routes
 - `src/app/icons/*.png/route.ts`: generated PWA icon routes
-- `src/app/api/docs/schedule-workbook/route.ts`: direct schedule-workbook download route
 - `proxy.ts`: request-time auth routing and Supabase session refresh
 
 ### Domain And Data
@@ -190,13 +189,9 @@ Defaults:
 
 The generated schedule bundle includes:
 
-- `trackableBlockOrder`
-- `blockTemplates`
-- `workbookReadme`
-- `days`
-- `phases`
-- `gtPlan`
-- `subjects`
+- `daywisePlan`
+- `subjectStrategy`
+- `gtTestPlan`
 
 ### Docs And Ops
 
@@ -262,14 +257,14 @@ The generated schedule bundle includes:
 
 ### Yellow
 
-- Visible: `morning_revision`, `block_a`, `block_b`, `mcq`, `night_recall`
-- Hidden to backlog: `consolidation`, `pyq_image`
+- Visible: `morning_revision`, `block_a`, `block_b`, `mcq_practice`, `wrap_up_log`
+- Hidden to backlog: `block_c`, `final_review`
 - Hidden blocks stay inline as neutral `Rescheduled` cards and create `yellow_day` backlog items.
 
 ### Red
 
-- Visible: `morning_revision`, `block_a`, `mcq`
-- Hidden to backlog: everything else
+- Visible: `morning_revision`, `block_a`, `mcq_practice`, `wrap_up_log`
+- Hidden to backlog: `block_b`, `block_c`, `final_review`
 - UI copy should frame this as salvage mode, not failure
 - Today copy explicitly uses: `A salvage day, not a zero day.`
 - Same-day upgrades only restore the blocks that become visible again.
@@ -278,7 +273,7 @@ The generated schedule bundle includes:
 
 - Manual skip creates backlog entries for trackable study blocks except `morning_revision`.
 - Midnight auto-miss marks pending visible blocks as `missed`; `morning_revision` re-enters the revision system instead of the backlog queue.
-- Wind-down wrap-up and the 23:15 sweep move remaining visible study blocks into backlog as `missed`, excluding `morning_revision`.
+- Wind-down wrap-up and the 22:45 sweep move remaining visible study blocks into backlog as `missed`, excluding `morning_revision`.
 - Overrun-triggered recovery uses `overrun_cascade` as the source tag.
 - Backlog items now preserve `originalStart` and `originalEnd` so the queue can explain where the work came from.
 - The backlog queue defaults to `pending`, shows original mapped date plus queue age, supports manual and bulk reschedule, and keeps assigned recovery synchronized with the destination block lifecycle.
@@ -311,10 +306,10 @@ The generated schedule bundle includes:
 
 - Revisions are derived from actual completion when available.
 - If no completion exists yet, planned mapped date acts as the temporary anchor.
-- Revision sources are `block_a` and `block_b`, each with their own identity.
+- Revision sources are `block_a`, `block_b`, and `block_c` when Phase 1 items are marked revision-eligible.
 - Intervals: `D+1`, `D+3`, `D+7`, `D+14`, `D+28`
 - Morning queue shows up to 5 items.
-- Overflow spills to night recall first, then break micro-slots.
+- Overflow spills to `final_review` first, then break micro-slots.
 - `3-6` day misses become catch-up revision.
 - `7+` day misses become restudy flags.
 - Retroactive completion can move the anchor later; if that makes an earlier revision checkoff impossible, the old checkoff is removed during reconciliation.
@@ -334,7 +329,7 @@ The generated schedule bundle includes:
 
 ## GT Rules
 
-- GT schedule context comes from workbook `GT_Test_Plan` and shifts with the live mapped schedule.
+- GT schedule context is derived from workbook `Daywise_Plan` GT days and shifts with the live mapped schedule.
 - GT number prefills from the mapped GT label, while workbook purpose text stays visible as context.
 - Attempt context is structured:
   - device: `Laptop`, `Mobile`, `Tablet`
@@ -393,13 +388,13 @@ Every feature should be runnable locally. Minimum manual pass:
 8. Edit a block time into the next visible block and confirm the overrun decision path appears.
 9. Edit a late block so it would breach `23:00` and confirm the forced backlog path appears.
 10. Mark revision items complete.
-11. Complete `block_a` or `block_b` on a later date and confirm the revision queue moves.
+11. Complete `block_a`, `block_b`, or `block_c` on a Phase 1 day with a later actual date and confirm the revision queue moves.
 12. Use dev time travel to trigger:
 
-- 22:30 wind-down prompt
-- 22:45 wrap-up reappearance after one dismiss
-- 23:00 night recall prompt
-- 23:15 late-night sweep
+- 21:45 wind-down prompt
+- 22:00 wrap-up reappearance after one dismiss
+- 22:15 final-review prompt
+- 22:45 late-night sweep
 - next-day midnight rollover
 
 13. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.

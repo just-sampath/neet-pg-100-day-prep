@@ -330,16 +330,17 @@ Steps:
    - `morning_revision`
    - `block_a`
    - `block_b`
-   - `mcq`
-   - `night_recall`
+   - `mcq_practice`
+   - `wrap_up_log`
 4. Confirm hidden blocks are exactly:
-   - `consolidation`
-   - `pyq_image`
+   - `block_c`
+   - `final_review`
 5. Switch to Red.
 6. Confirm visible blocks are exactly:
    - `morning_revision`
    - `block_a`
-   - `mcq`
+   - `mcq_practice`
+   - `wrap_up_log`
 7. Confirm Red copy reads exactly:
    - `A salvage day, not a zero day.`
 8. Switch back to Green on the same date.
@@ -529,7 +530,7 @@ Acceptance:
 
 - morning queue caps at five items
 - overflow appears separately instead of being hidden
-- overflow uses night recall first, then break micro-slots
+- overflow uses `final_review` first, then break micro-slots
 
 ### REV-03 Late Completion Moves Revision Anchors
 
@@ -608,12 +609,13 @@ Steps:
 
 1. Skip one content block.
 2. Inspect its suggested recovery slot.
-3. Repeat with MCQ, PYQ, consolidation, and night recall when practical.
+3. Repeat with MCQ practice and final review when practical.
 
 Acceptance:
 
-- content block suggestions favor same-subject or consolidation recovery
-- MCQ suggestions target the next MCQ slot
+- content block suggestions favor same-phase same-subject recovery
+- MCQ suggestions target the next `mcq_practice` slot
+- final review suggestions target the next same-phase `final_review` slot
 - suggestions never propose study before `06:30` or after `23:00`
 - if no compatible safe slot exists, the item stays pending with a neutral explanation
 

@@ -1,19 +1,6 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import { scheduleData } from "@/lib/generated/schedule-data";
-
-const daywisePlan = JSON.parse(
-  readFileSync(join(process.cwd(), "resources/manual-json/daywise-plan.json"), "utf8"),
-) as typeof scheduleData.daywisePlan;
-const subjectStrategy = JSON.parse(
-  readFileSync(join(process.cwd(), "resources/manual-json/subject-strategy.json"), "utf8"),
-) as typeof scheduleData.subjectStrategy;
-const gtTestPlan = JSON.parse(
-  readFileSync(join(process.cwd(), "resources/manual-json/gt-test-plan.json"), "utf8"),
-) as typeof scheduleData.gtTestPlan;
 
 function getDay(dayNumber: number) {
   return scheduleData.daywisePlan.days.find((day) => day.dayNumber === dayNumber)!;
@@ -24,112 +11,120 @@ function getBlock(dayNumber: number, semanticBlockKey: string) {
 }
 
 describe("generated schedule data", () => {
-  it("uses the manual JSON files as the only generated schedule source", () => {
-    expect(scheduleData.daywisePlan.source).toBe("manual-json");
-    expect(scheduleData.daywisePlan.sourceSheet).toBe(daywisePlan.sourceSheet);
-    expect(scheduleData.subjectStrategy.source).toBe("manual-json");
-    expect(scheduleData.gtTestPlan.source).toBe("manual-json");
+  it("uses the final workbook as the only generated schedule source", () => {
+    expect(scheduleData.daywisePlan.source).toBe("workbook");
+    expect(scheduleData.daywisePlan.sourceWorkbook).toBe("NEET_PG_FINAL_SCHEDULE.xlsx");
+    expect(scheduleData.daywisePlan.sourceSheet).toBe("Daywise_Plan");
+    expect(scheduleData.subjectStrategy.sourceSheet).toBe("Subject_Tiering");
+    expect(scheduleData.gtTestPlan.sourceSheet).toBe("Daywise_Plan");
 
     expect(scheduleData.daywisePlan.days).toHaveLength(100);
-    expect(scheduleData.daywisePlan.slotCatalog).toHaveLength(13);
+    expect(scheduleData.daywisePlan.slotCatalog).toHaveLength(12);
     expect(scheduleData.subjectStrategy.subjects).toHaveLength(19);
-    expect(scheduleData.gtTestPlan.tests).toHaveLength(gtTestPlan.tests.length);
+    expect(scheduleData.gtTestPlan.tests).toHaveLength(9);
   });
 
-  it("keeps every day and block aligned with the curated JSON source", () => {
-    expect(scheduleData.daywisePlan.phaseCatalog).toEqual(
-      daywisePlan.phaseCatalog.map((phase) => ({
-        ...phase,
-        description: expect.any(String),
-      })),
-    );
+  it("locks the new phase catalog to the 3 workbook spans", () => {
+    expect(scheduleData.daywisePlan.phaseCatalog).toEqual([
+      expect.objectContaining({
+        phaseId: "phase_1",
+        phaseName: "Phase 1 - First pass",
+        startDay: 1,
+        endDay: 63,
+      }),
+      expect.objectContaining({
+        phaseId: "phase_2",
+        phaseName: "Phase 2 - Revision 1 (Marrow + selective BTR)",
+        startDay: 64,
+        endDay: 82,
+      }),
+      expect.objectContaining({
+        phaseId: "phase_3",
+        phaseName: "Phase 3 - Revision 2 / Compression",
+        startDay: 83,
+        endDay: 100,
+      }),
+    ]);
+  });
 
-    scheduleData.daywisePlan.days.forEach((day, dayIndex) => {
-      const sourceDay = daywisePlan.days[dayIndex]!;
-      expect(day.dayNumber).toBe(sourceDay.dayNumber);
-      expect(day.phaseId).toBe(sourceDay.phaseId);
-      expect(day.phaseName).toBe(sourceDay.phaseName);
-      expect(day.primaryFocusRaw).toBe(sourceDay.primaryFocusRaw);
-      expect(day.resourceRaw).toBe(sourceDay.resourceRaw);
-      expect(day.deliverableRaw).toBe(sourceDay.deliverableRaw);
-      expect(day.blocks).toHaveLength(13);
+  it("keeps exact WOR timings in Phase 1 source blocks", () => {
+    const day1BlockA = getBlock(1, "block_a");
+    const day1BlockB = getBlock(1, "block_b");
+    const day1BlockC = getBlock(1, "block_c");
 
-      day.blocks.forEach((block, blockIndex) => {
-        const sourceBlock = sourceDay.blocks[blockIndex]!;
-        const slot = scheduleData.daywisePlan.slotCatalog[blockIndex]!;
+    expect(day1BlockA.blockIntent).toBe("core_study");
+    expect(day1BlockA.defaultRevisionEligible).toBe(true);
+    expect(day1BlockA.items.map((item) => [item.label, item.plannedMinutes, item.revisionEligible])).toEqual([
+      ["Introduction to Pathology Revision", 33, true],
+      ["Haematology: WBC Disorders and Leukemias", 104, true],
+    ]);
+    expect(day1BlockB.items.map((item) => item.plannedMinutes)).toEqual([98]);
+    expect(day1BlockC.items.map((item) => item.plannedMinutes)).toEqual([123]);
+    expect(day1BlockB.items.every((item) => item.revisionEligible)).toBe(true);
+    expect(day1BlockC.items.every((item) => item.revisionEligible)).toBe(true);
+  });
 
-        expect(block.timeSlotKey).toBe(sourceBlock.timeSlotKey);
-        expect(block.timeSlotKey).toBe(slot.timeSlotKey);
-        expect(block.rawText).toBe(sourceBlock.rawText);
-        expect(block.displayLabel).toBe(sourceBlock.displayLabel);
-        expect(block.semanticBlockKey).toBe(sourceBlock.semanticBlockKey);
+  it("equal-splits later phases across the new stable block model", () => {
+    const day64BlockA = getBlock(64, "block_a");
+    const day64BlockB = getBlock(64, "block_b");
+    const day64BlockC = getBlock(64, "block_c");
 
-        const itemMinutes = block.items.reduce((total, item) => total + item.plannedMinutes, 0);
-        expect(itemMinutes).toBe(block.trackable ? slot.durationMinutes : 0);
-      });
+    expect(day64BlockA.blockIntent).toBe("revision");
+    expect(day64BlockA.defaultRevisionEligible).toBe(false);
+    expect(day64BlockA.items.map((item) => item.plannedMinutes)).toEqual([60, 60, 60]);
+    expect(day64BlockB.items.map((item) => item.plannedMinutes)).toEqual([60, 60, 60]);
+    expect(day64BlockC.items.map((item) => item.plannedMinutes)).toEqual([83, 82]);
+    expect(day64BlockA.items.some((item) => item.revisionEligible)).toBe(false);
+  });
+
+  it("emits the new traffic-light and rescheduling semantics", () => {
+    const morning = getBlock(2, "morning_revision");
+    const blockB = getBlock(2, "block_b");
+    const blockC = getBlock(2, "block_c");
+    const finalReview = getBlock(2, "final_review");
+    const wrapUpLog = getBlock(2, "wrap_up_log");
+
+    expect(morning.reschedulable).toBe(false);
+    expect(morning.phaseFence).toBe("not_reschedulable");
+
+    expect(blockB.trafficLightPolicy).toEqual({
+      green: "visible",
+      yellow: "visible",
+      red: "hidden",
+      backlogWhenHidden: true,
     });
+    expect(blockC.trafficLightPolicy).toEqual({
+      green: "visible",
+      yellow: "hidden",
+      red: "hidden",
+      backlogWhenHidden: true,
+    });
+    expect(finalReview.trafficLightPolicy).toEqual({
+      green: "visible",
+      yellow: "hidden",
+      red: "hidden",
+      backlogWhenHidden: true,
+    });
+    expect(wrapUpLog.reschedulable).toBe(false);
+    expect(wrapUpLog.trafficLightPolicy.backlogWhenHidden).toBe(false);
   });
 
-  it("locks revision eligibility to first-pass core-study topics only", () => {
-    const revisionEligibleItems = scheduleData.daywisePlan.days.flatMap((day) =>
-      day.blocks.flatMap((block) =>
-        block.items
-          .filter((item) => item.revisionEligible)
-          .map((item) => ({ day, block, item })),
-      ),
-    );
+  it("derives GT context from workbook GT days only", () => {
+    expect(scheduleData.gtTestPlan.tests.map((test) => [test.dayNumber, test.testType, test.gtPlanRef])).toEqual([
+      [66, "Full GT", "gt_1"],
+      [72, "Full GT", "gt_2"],
+      [78, "Full GT", "gt_3"],
+      [82, "Full GT", "gt_4"],
+      [86, "Full GT", "gt_5"],
+      [90, "Full GT", "gt_6"],
+      [93, "Full GT", "gt_7"],
+      [95, "120Q half-sim", "half_sim_120q"],
+      [96, "Full GT", "gt_8"],
+    ]);
 
-    expect(revisionEligibleItems.length).toBeGreaterThan(0);
-    expect(
-      revisionEligibleItems.every(
-        ({ day, block }) => day.phaseId === "first_pass" && block.blockIntent === "core_study",
-      ),
-    ).toBe(true);
-  });
-
-  it("captures the representative phase semantics needed by the new runtime", () => {
-    const day1Diagnostic = getBlock(1, "diagnostic_block");
-    expect(day1Diagnostic.blockIntent).toBe("assessment");
-    expect(day1Diagnostic.reschedulable).toBe(false);
-    expect(day1Diagnostic.defaultRevisionEligible).toBe(false);
-
-    const day2StudyBlock1 = getBlock(2, "study_block_1");
-    expect(day2StudyBlock1.blockIntent).toBe("core_study");
-    expect(day2StudyBlock1.defaultRevisionEligible).toBe(true);
-    expect(day2StudyBlock1.phaseFence).toBe("same_phase_only");
-    expect(day2StudyBlock1.items.every((item) => item.revisionEligible)).toBe(true);
-
-    const day41GtBlock1 = getBlock(41, "gt_block_1");
-    expect(day41GtBlock1.blockIntent).toBe("assessment");
-    expect(day41GtBlock1.recoveryLane).toBe("assessment_recovery");
-    expect(day41GtBlock1.reschedulable).toBe(false);
-
-    const day42RevisionBlock1 = getBlock(42, "revision_block_1");
-    expect(day42RevisionBlock1.blockIntent).toBe("revision");
-    expect(day42RevisionBlock1.defaultRevisionEligible).toBe(false);
-
-    const day84Rescue = getBlock(84, "revision_block_1");
-    expect(day84Rescue.phaseFence).toBe("same_phase_only");
-    expect(day84Rescue.reschedulable).toBe(true);
-
-    const day95CalmRecall = getBlock(95, "calm_recall_block");
-    expect(day95CalmRecall.blockIntent).toBe("recall");
-    expect(day95CalmRecall.reschedulable).toBe(false);
-    expect(day95CalmRecall.phaseFence).toBe("not_reschedulable");
-
-    const day100Midday = getBlock(100, "pre_exam_midday");
-    expect(day100Midday.blockIntent).toBe("logistics");
-    expect(day100Midday.reschedulable).toBe(false);
-    expect(day100Midday.trafficLightPolicy.red).toBe("visible");
-  });
-
-  it("keeps subject strategy and GT plan aligned with generated references", () => {
-    expect(scheduleData.subjectStrategy.subjects).toEqual(subjectStrategy.subjects);
-    expect(scheduleData.gtTestPlan.tests).toEqual(gtTestPlan.tests);
-
-    const gtRefs = new Map(scheduleData.gtTestPlan.tests.map((test) => [test.dayNumber, test.gtPlanRef]));
     for (const day of scheduleData.daywisePlan.days) {
-      expect(day.gtPlanRef).toBe(gtRefs.get(day.dayNumber) ?? null);
+      const matchingGt = scheduleData.gtTestPlan.tests.find((test) => test.dayNumber === day.dayNumber);
+      expect(day.gtPlanRef).toBe(matchingGt?.gtPlanRef ?? null);
     }
   });
 });

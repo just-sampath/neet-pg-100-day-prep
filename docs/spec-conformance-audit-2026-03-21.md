@@ -2,6 +2,10 @@
 
 Date: `2026-03-21`
 
+Status note:
+- This audit predates the `2026-03-28` schedule-doc rewrite that replaced the retired architecture draft with `specs/beside-you-technical-architecture.md`.
+- Treat architecture-drift findings here as historical context for that earlier repo state.
+
 Scope:
 - `specs/beside-you-prd.md`
 - `specs/beside-you-technical-architecture.md`

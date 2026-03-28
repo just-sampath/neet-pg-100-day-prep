@@ -410,7 +410,7 @@ export async function wrapUpDayAction(formData: FormData) {
   await mutateStore((store) => {
     const userState = store.userState[user.id];
     moveVisibleBlocksToBacklog(userState, dayNumber, trafficLight, {
-      excludeNightRecall: true,
+      excludeFinalReview: true,
       note: "Moved to backlog by wind-down prompt.",
     });
   });

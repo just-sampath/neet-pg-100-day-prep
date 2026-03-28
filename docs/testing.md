@@ -24,10 +24,10 @@ npm run build:webpack
 - Today-view branch coverage for:
   - chronological timeline ordering with inline break/meal separators
   - collapsed hidden-block placement inside the main rail
-  - 22:30 wrap-up prompt
-  - 22:45 one-time reappearance
-  - 23:00 night recall handling
-  - 23:15 safety-net auto-move states
+  - 21:45 wrap-up prompt
+  - 22:00 one-time reappearance
+  - 22:15 final-review handling
+  - 22:45 safety-net auto-move states
 - Backlog/traffic-light branch coverage for:
   - exact yellow and red visible sets
   - same-day traffic-light restoration
@@ -35,7 +35,7 @@ npm run build:webpack
   - midnight miss creation with morning-revision exclusion
   - wind-down backlog creation with morning-revision exclusion
   - overrun preview and forced-sleep backlog branches
-  - PRD backlog suggestion precedence for content, MCQ, PYQ/weekend, consolidation, and night recall
+  - phase-aware backlog suggestion precedence for study blocks, MCQ practice, and final review
   - queue ordering, original mapped-date metadata, bulk reschedule, and assigned-recovery destination sync
 - schedule-shift branch coverage for:
   - last-7-day shift eligibility detection
@@ -143,12 +143,12 @@ Then verify:
 
 ## Time-Based Manual Pass
 
-1. Set simulated time to `22:30`.
+1. Set simulated time to `21:45`.
 2. Confirm wind-down prompt appears.
-3. Dismiss with `I'm almost done` and confirm the wrap-up prompt reappears once at `22:45`.
-4. Set simulated time to `23:00`.
-5. Confirm the night recall prompt appears.
-6. Set simulated time to `23:15`.
+3. Dismiss with `I'm almost done` and confirm the wrap-up prompt reappears once at `22:00`.
+4. Set simulated time to `22:15`.
+5. Confirm the final-review prompt appears.
+6. Set simulated time to `22:45`.
 7. Confirm remaining work is swept to backlog and the safety-net message appears.
 8. Confirm `morning_revision` does not enter the backlog queue from the wind-down or midnight path.
 9. Trigger `/api/dev/midnight` or set next day `00:01`.
@@ -210,8 +210,9 @@ In Supabase mode, with `CRON_SECRET` configured:
 
 ## Static Data Regression Expectations
 
-- `Block_Hours` must remain the source of truth for trackable block timing.
+- `NEET_PG_FINAL_SCHEDULE.xlsx` must remain the only schedule workbook source.
 - `Daywise_Plan` must remain exactly 100 mapped days.
-- `GT_Test_Plan` day references must match GT-tagged days in `Daywise_Plan`.
-- Revision tests should fail if `block_a` and `block_b` stop producing independent revision identities.
+- `WOR_Topic_Map` must stay aligned to Phase 1 topic timing.
+- GT entries must be derivable from GT-tagged `Daywise_Plan` rows.
+- Revision tests should fail if Phase 1 `block_a`, `block_b`, and `block_c` stop producing independent revision identities.
 - If any of these assumptions break, `npm run generate:data` or `vitest` should fail loudly.

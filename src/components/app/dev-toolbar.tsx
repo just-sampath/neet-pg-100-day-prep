@@ -106,7 +106,7 @@ export function DevToolbar({ simulatedNow }: { simulatedNow: string | null }) {
         </div>
       </div>
       <p className="mt-3 text-sm text-(--text-secondary)">
-        Set `22:30`, `23:00`, `23:15`, jump ahead by a day, or move a week forward without waiting on the wall clock.
+        Set `21:45`, `22:15`, `22:45`, jump ahead by a day, or move a week forward without waiting on the wall clock.
       </p>
     </section>
   );

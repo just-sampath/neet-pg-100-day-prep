@@ -40,22 +40,22 @@ export type WindDownState =
     }
   | {
       kind: "wrap_up";
-      label: "22:30 Check" | "22:45 Check";
+      label: "21:45 Check" | "22:00 Check";
       message: string;
     }
   | {
-      kind: "night_recall";
-      label: "23:00 Check";
+      kind: "final_review";
+      label: "22:15 Check";
       message: string;
     }
   | {
       kind: "auto_move_due";
-      label: "23:15 Safety Net";
+      label: "22:45 Safety Net";
       message: string;
     }
   | {
       kind: "auto_move_done";
-      label: "23:15 Safety Net";
+      label: "22:45 Safety Net";
       message: string;
     };
 
@@ -100,7 +100,7 @@ export function buildTodayTimeline(
 type WindDownStateInput = {
   minutes: number;
   incompleteVisibleBlocks: BlockKey[];
-  nightRecallBlockKey: BlockKey | null;
+  finalReviewBlockKey: BlockKey | null;
   wrapUpDismissals: number;
   lateNightSweepProcessed: boolean;
 };
@@ -108,22 +108,22 @@ type WindDownStateInput = {
 export function getWindDownState({
   minutes,
   incompleteVisibleBlocks,
-  nightRecallBlockKey,
+  finalReviewBlockKey,
   wrapUpDismissals,
   lateNightSweepProcessed,
 }: WindDownStateInput): WindDownState {
-  const nightRecallPending = nightRecallBlockKey
-    ? incompleteVisibleBlocks.includes(nightRecallBlockKey)
+  const finalReviewPending = finalReviewBlockKey
+    ? incompleteVisibleBlocks.includes(finalReviewBlockKey)
     : false;
-  const otherPendingBlocks = nightRecallBlockKey
-    ? incompleteVisibleBlocks.filter((blockKey) => blockKey !== nightRecallBlockKey)
+  const otherPendingBlocks = finalReviewBlockKey
+    ? incompleteVisibleBlocks.filter((blockKey) => blockKey !== finalReviewBlockKey)
     : incompleteVisibleBlocks;
 
-  if (minutes >= 23 * 60 + 15) {
+  if (minutes >= 22 * 60 + 45) {
     if (lateNightSweepProcessed) {
       return {
         kind: "auto_move_done",
-        label: "23:15 Safety Net",
+        label: "22:45 Safety Net",
         message: "Moved to backlog. Sleep well.",
       };
     }
@@ -131,7 +131,7 @@ export function getWindDownState({
     if (incompleteVisibleBlocks.length > 0) {
       return {
         kind: "auto_move_due",
-        label: "23:15 Safety Net",
+        label: "22:45 Safety Net",
         message: "Moving remaining blocks to backlog so the day stops here and sleep stays protected.",
       };
     }
@@ -139,31 +139,31 @@ export function getWindDownState({
     return { kind: "none" };
   }
 
-  if (minutes >= 23 * 60) {
-    if (nightRecallPending) {
+  if (minutes >= 22 * 60 + 15) {
+    if (finalReviewPending) {
       return {
-        kind: "night_recall",
-        label: "23:00 Check",
-        message: "Time to rest. Do a quick 5-minute version, or skip tonight's recall?",
+        kind: "final_review",
+        label: "22:15 Check",
+        message: "Close the day with the essentials. Do a quick 5-minute version, or skip the final review and move to the log?",
       };
     }
 
     return { kind: "none" };
   }
 
-  if (minutes >= 22 * 60 + 30 && otherPendingBlocks.length > 0) {
+  if (minutes >= 21 * 60 + 45 && otherPendingBlocks.length > 0) {
     if (wrapUpDismissals === 0) {
       return {
         kind: "wrap_up",
-        label: "22:30 Check",
+        label: "21:45 Check",
         message: "It's getting late. Move remaining blocks to backlog and wind down?",
       };
     }
 
-    if (wrapUpDismissals === 1 && minutes >= 22 * 60 + 45) {
+    if (wrapUpDismissals === 1 && minutes >= 22 * 60) {
       return {
         kind: "wrap_up",
-        label: "22:45 Check",
+        label: "22:00 Check",
         message: "One more chance to close the day gently. Move the remaining blocks to backlog and wind down?",
       };
     }

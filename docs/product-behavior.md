@@ -16,11 +16,10 @@
 - Each backlog item preserves its original slot timing so the queue can show where it came from
 - The queue defaults to pending items and shows original mapped date plus days in backlog
 - Backlog suggestions depend on block type:
-  - content blocks: same-subject consolidation, then next-day consolidation, then next same-subject focus block
-  - MCQ blocks: next open MCQ block with merge guidance
-  - PYQ/Image blocks: next-day PYQ slot, then next weekend PYQ slot
-  - Consolidation blocks: next-day consolidation, then next same-subject afternoon consolidation
-  - Night recall: next open night recall slot
+  - study blocks: same-phase same-subject study slot first, then the next compatible same-phase recovery slot
+  - MCQ practice blocks: next open `mcq_practice` block with merge guidance
+  - final-review blocks: next open `final_review` block in the same phase
+  - `wrap_up_log`: never becomes backlog recovery work
 - Accepted or manually rescheduled backlog items render inside the destination block on Today and Schedule Day views
 - If that destination block is completed, the assigned backlog item completes with it
 - If that destination block is skipped or missed, the assigned backlog item returns to `pending`
@@ -50,10 +49,10 @@
 
 ## Revision Queue
 
-- Built from `block_a` and `block_b` anchors plus actual completion shifts
+- Built from Phase 1 `block_a`, `block_b`, and `block_c` anchors plus actual completion shifts
 - Actual completion date in IST wins; mapped planned date is fallback only
 - Max 5 morning items
-- Overflow goes to night recall then break micro-slots
+- Overflow goes to `final_review` then break micro-slots
 - 3+ consecutive overflow days surface the supportive overflow warning
 - `1-2` days missed stay in the morning queue
 - `3-6` days missed become catch-up items
@@ -62,11 +61,11 @@
 
 ## Wind-Down
 
-- `22:30`: offer wrap-up
-- `22:45`: if the `22:30` prompt was dismissed once, show one more wrap-up prompt
-- `23:00`: handle night recall explicitly
-- `23:15`: sweep remaining visible work to backlog
-- `23:15` and manual wrap-up exclude `morning_revision` from the backlog queue
+- `21:45`: offer wrap-up
+- `22:00`: if the `21:45` prompt was dismissed once, show one more wrap-up prompt
+- `22:15`: handle `final_review` explicitly
+- `22:45`: sweep remaining visible work to backlog
+- `22:45` and manual wrap-up exclude `morning_revision` from the backlog queue
 - midnight: mark pending blocks as missed
 
 ## Overrun Handling
@@ -135,7 +134,7 @@
 
 ## GT Tracker
 
-- GT schedule context is preloaded from workbook `GT_Test_Plan`.
+- GT schedule context is derived from GT-tagged rows in workbook `Daywise_Plan`.
 - GT days move with schedule shifts, so the suggested GT label and mapped day always follow the live calendar.
 - GT number prefills from the mapped label while workbook purpose text stays visible as context.
 - Attempt context is structured:

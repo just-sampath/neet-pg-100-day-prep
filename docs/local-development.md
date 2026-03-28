@@ -96,7 +96,7 @@ npm run verify
 npm run build:webpack
 ```
 
-`npm run generate:data` is intentionally strict. If workbook fields, sheet names, GT references, or block durations drift from the expected source format, generation fails immediately instead of silently producing bad schedule data.
+`npm run generate:data` is intentionally strict. If workbook sheets, phase spans, WOR topic timings, GT-tagged day rows, or required day fields drift from the expected source format, generation fails immediately instead of silently producing bad schedule data.
 
 ## Device Hardening Check
 
@@ -113,20 +113,20 @@ Use the dev toolbar on Today or Settings.
 
 Recommended timestamps to test:
 
-- `YYYY-MM-DDT22:30`
+- `YYYY-MM-DDT21:45`
+- `YYYY-MM-DDT22:00`
+- `YYYY-MM-DDT22:15`
 - `YYYY-MM-DDT22:45`
-- `YYYY-MM-DDT23:00`
-- `YYYY-MM-DDT23:15`
 - next day `T00:01`
 
-For the 23:15 safety-net path, set the simulated time directly to `23:15` rather than waiting from `22:30`, because the server-side sweep uses the stored simulated timestamp.
+For the `22:45` safety-net path, set the simulated time directly to `22:45` rather than waiting from `21:45`, because the server-side sweep uses the stored simulated timestamp.
 
 API equivalent:
 
 ```bash
 curl -X POST http://localhost:3000/api/dev/time-travel \
   -H "Content-Type: application/json" \
-  -d '{"simulatedNow":"2026-05-20T22:30:00.000Z"}'
+  -d '{"simulatedNow":"2026-05-20T21:45:00.000Z"}'
 ```
 
 Manual automation helpers:
@@ -189,11 +189,10 @@ npm run generate:data
 
 This now regenerates:
 
-- normalized `blockTemplates` from `Block_Hours`
-- validated day slots from `Daywise_Plan`
-- validated subject metadata from `Subject_Strategy`
-- validated GT plan entries from `GT_Test_Plan`
-- workbook readme metadata from `Readme`
+- validated day slots and GT-tagged rows from `Daywise_Plan`
+- exact Phase 1 topic timing from `WOR_Topic_Map`
+- validated subject metadata from `Subject_Tiering`
+- workbook morning guidance from `Revision_Map`
 
 ## Installability Check
 

@@ -108,7 +108,7 @@ export function MorningPlanPanel({
           </h3>
           {sessionPrimary && morningMinutesLabel ? (
             <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-              Equal split today: {morningMinutesLabel} across the 06:30-08:00 block.
+              Equal split today: {morningMinutesLabel} across the 06:30-07:45 block.
             </p>
           ) : null}
           <p className="mt-3 text-sm leading-7 text-(--text-secondary)">

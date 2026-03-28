@@ -5,7 +5,7 @@ This folder is the final production-readiness task list for Beside You.
 It is derived from:
 
 - `specs/beside-you-prd.md`
-- `specs/beside-you-technical-architecture-OLD.md` (current draft architecture file present in this repo)
+- `specs/beside-you-technical-architecture.md`
 
 ## How To Use This Folder
 
@@ -31,7 +31,7 @@ It is derived from:
   5. `## Acceptance Criteria`
   6. `## Implementation Notes`
 - `Spec Coverage` should cite the relevant PRD sections and the relevant architecture sections by number.
-- Architecture references should currently point to the draft file that exists in this repo: `specs/beside-you-technical-architecture-OLD.md`.
+- Architecture references should point to `specs/beside-you-technical-architecture.md`.
 
 Template:
 

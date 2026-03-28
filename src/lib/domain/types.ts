@@ -8,13 +8,12 @@ export type TopicItemId = string;
 export type RevisionType = "D+1" | "D+3" | "D+7" | "D+14" | "D+28";
 export type RevisionAssignedSlot =
   | "morning_revision"
-  | "night_recall"
-  | "break_08_00"
-  | "break_10_45"
-  | "break_16_45"
-  | "break_21_45"
-  | "consolidation"
-  | "pyq_image"
+  | "final_review"
+  | "break_07_45"
+  | "break_11_00"
+  | "break_17_45"
+  | "break_20_00"
+  | "block_c"
   | "next_revision_phase";
 
 export type GtTestType = "No" | "Diagnostic 100Q" | "Full GT" | "120Q half-sim";
@@ -396,7 +395,7 @@ export interface RevisionQueueItem {
 
 export interface OverflowRevisionItem {
   item: RevisionQueueItem;
-  assignedSlot: "night_recall" | "break_08_00" | "break_10_45" | "break_16_45" | "break_21_45";
+  assignedSlot: "final_review" | "break_07_45" | "break_11_00" | "break_17_45" | "break_20_00";
   label: string;
 }
 

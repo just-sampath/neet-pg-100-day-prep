@@ -131,10 +131,10 @@ describe("gt tracker and analytics", () => {
     userState.settings.shiftEvents = [
       {
         id: "shift-1",
-        anchorDayNumber: 41,
+        anchorDayNumber: 66,
         shiftDays: 1,
         appliedAt: "2026-07-01T00:00:00.000Z",
-        missedDays: [41, 42],
+        missedDays: [66, 67],
         bufferDayUsed: 84,
         compressedPairs: [],
       },
@@ -185,15 +185,14 @@ describe("gt tracker and analytics", () => {
       changeBeforeNextGt: "slow down",
     });
 
-    const mappedSchedule = getMappedGtSchedule(userState.settings, "2026-06-11");
-    expect(mappedSchedule.find((item) => item.dayNumber === 1)?.label).toBe("Diagnostic 100Q");
-    expect(mappedSchedule.find((item) => item.dayNumber === 41)).toMatchObject({
+    const mappedSchedule = getMappedGtSchedule(userState.settings, "2026-07-06");
+    expect(mappedSchedule.find((item) => item.dayNumber === 66)).toMatchObject({
       label: "GT-1",
-      mappedDate: "2026-06-11",
+      mappedDate: "2026-07-06",
       isToday: true,
     });
-    expect(mappedSchedule.find((item) => item.dayNumber === 93)?.label).toBe("120Q half-simulation");
-    expect(getSuggestedGtPlanItem(userState.settings, "2026-06-11")?.dayNumber).toBe(41);
+    expect(mappedSchedule.find((item) => item.dayNumber === 95)?.label).toBe("120Q half-simulation");
+    expect(getSuggestedGtPlanItem(userState.settings, "2026-07-06")?.dayNumber).toBe(66);
   });
 
   it("builds GT analytics for score trend, section patterns, comparison, wrapper trend, and weakness repetition", () => {
@@ -202,7 +201,7 @@ describe("gt tracker and analytics", () => {
         id: "gt-1",
         gtNumber: "GT-1",
         gtDate: "2026-06-10",
-        dayNumber: 41,
+        dayNumber: 66,
         score: 410,
         correct: 128,
         wrong: 52,
@@ -228,7 +227,7 @@ describe("gt tracker and analytics", () => {
         id: "gt-2",
         gtNumber: "GT-2",
         gtDate: "2026-06-17",
-        dayNumber: 48,
+        dayNumber: 72,
         score: 452,
         correct: 138,
         wrong: 42,
@@ -313,7 +312,7 @@ describe("gt tracker and analytics", () => {
         id: "gt-air-1",
         gtNumber: "GT-7",
         gtDate: "2026-07-01",
-        dayNumber: 78,
+        dayNumber: 93,
         score: 498,
         correct: 149,
         wrong: 31,
@@ -339,7 +338,7 @@ describe("gt tracker and analytics", () => {
         id: "gt-air-2",
         gtNumber: "GT-8",
         gtDate: "2026-07-08",
-        dayNumber: 82,
+        dayNumber: 96,
         score: 515,
         correct: 154,
         wrong: 26,
@@ -371,13 +370,13 @@ describe("gt tracker and analytics", () => {
 
   it("keeps the weekly summary GT payload aligned to the latest GT in the week", () => {
     const userState = createEmptyUserState();
-    userState.settings.dayOneDate = "2026-05-04";
+    userState.settings.dayOneDate = "2026-05-01";
 
     userState.gtLogs["gt-1"] = normalizeStoredGtLog({
       id: "gt-1",
       gtNumber: "GT-1",
-      gtDate: "2026-05-06",
-      dayNumber: 41,
+      gtDate: "2026-07-06",
+      dayNumber: 66,
       score: 410,
       correct: 128,
       wrong: 52,
@@ -397,13 +396,13 @@ describe("gt tracker and analytics", () => {
       knowledgeVsBehaviour: 58,
       unsureRightCount: 11,
       changeBeforeNextGt: "Slow the first pass.",
-      createdAt: "2026-05-06T10:00:00.000Z",
+      createdAt: "2026-07-06T10:00:00.000Z",
     });
     userState.gtLogs["gt-2"] = normalizeStoredGtLog({
       id: "gt-2",
       gtNumber: "GT-2",
-      gtDate: "2026-05-08",
-      dayNumber: 48,
+      gtDate: "2026-07-08",
+      dayNumber: 72,
       score: 452,
       correct: 138,
       wrong: 42,
@@ -423,10 +422,10 @@ describe("gt tracker and analytics", () => {
       knowledgeVsBehaviour: 66,
       unsureRightCount: 8,
       changeBeforeNextGt: "Trust first instinct when calm.",
-      createdAt: "2026-05-08T10:00:00.000Z",
+      createdAt: "2026-07-08T10:00:00.000Z",
     });
 
-    const summary = generateWeeklySummary(userState, userState.settings, "2026-05-04");
+    const summary = generateWeeklySummary(userState, userState.settings, "2026-07-06");
 
     expect(summary.gtNumber).toBe("GT-2");
     expect(summary.gtScore).toBe(452);

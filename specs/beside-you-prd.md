@@ -59,36 +59,34 @@
 
 ### 4.1 Data Source
 
-- SCHED-1: The 100-day study schedule is hardcoded into the app at build time, parsed from the provided Excel file (`neet_pg_2026_100_day_schedule.xlsx`). There is no upload/import flow in the UI.
-- SCHED-2: The Excel contains 5 sheets: `Readme`, `Daywise_Plan`, `Block_Hours`, `Subject_Strategy`, `GT_Test_Plan`. The primary data source is `Daywise_Plan` (100 rows, 20 columns).
+- SCHED-1: The 100-day study schedule is hardcoded into the app at build time, parsed from the provided Excel file (`NEET_PG_FINAL_SCHEDULE.xlsx`). There is no upload/import flow in the UI.
+- SCHED-2: The workbook contains 4 sheets: `Daywise_Plan`, `WOR_Topic_Map`, `Subject_Tiering`, `Revision_Map`. `Daywise_Plan` is the primary schedule source; `WOR_Topic_Map` is the authoritative source for Phase 1 topic timings.
 - SCHED-3: If the schedule ever needs updating, Sampath updates the source data and redeploys the app.
 
 ### 4.2 Schedule Structure Per Day
 
 Each day in the schedule contains:
 
-| Field | Column | Description |
-|-------|--------|-------------|
-| Day Number | Col 0 | 1 through 100 |
-| Phase | Col 1 | e.g., "First pass (concept rescue + notes marking)" |
-| Primary Focus | Col 2 | e.g., "Pathology FP-1" |
-| Resource | Col 3 | e.g., "Marrow WoR + Marrow notes + Marrow QBank" |
-| 06:30-08:00 | Col 4 | Morning revision queue (spaced revision items separated by " \| ") |
-| 08:00-08:15 | Col 5 | Break |
-| 08:15-10:45 | Col 6 | Study Block A |
-| 10:45-11:00 | Col 7 | Break |
-| 11:00-13:30 | Col 8 | Study Block B |
-| 13:30-14:15 | Col 9 | Lunch |
-| 14:15-16:45 | Col 10 | Note consolidation / revision block |
-| 16:45-17:00 | Col 11 | Break |
-| 17:00-19:30 | Col 12 | MCQ block |
-| 19:30-20:15 | Col 13 | Dinner |
-| 20:15-21:45 | Col 14 | PYQ / image / custom module block |
-| 21:45-22:00 | Col 15 | Break |
-| 22:00-23:00 | Col 16 | Wrong notebook + oral recall |
-| GT/Test | Col 17 | "Full GT", "Diagnostic 100Q", "120Q half-sim", or "No" |
-| Deliverable | Col 18 | Expected output for the day |
-| Planned Hours | Col 19 | Always 14 |
+| Field | Description |
+|-------|-------------|
+| Day Number | `1` through `100` |
+| Phase | one of the 3 macro phases |
+| Primary Focus | workbook primary-focus text |
+| Resource | workbook resource text |
+| `06:30-07:45` | morning revision / revision-cluster block |
+| `07:45-08:00` | break |
+| `08:00-11:00` | Block A |
+| `11:00-11:15` | break |
+| `11:15-14:15` | Block B |
+| `14:15-15:00` | meal |
+| `15:00-17:45` | Block C |
+| `17:45-18:00` | break |
+| `18:00-20:00` | MCQ practice block |
+| `20:00-20:30` | break / dinner |
+| `20:30-22:15` | final review / overflow / GT review block |
+| `22:15-22:45` | wrap-up log |
+| GT context | derived from GT-tagged `Daywise_Plan` rows |
+| Day metrics | workbook notes, source minutes, buffer minutes, and total study hours |
 
 ### 4.3 Study Blocks (Trackable)
 
@@ -96,15 +94,15 @@ There are **7 trackable study blocks** per day:
 
 | Block | Time | Typical Content |
 |-------|------|-----------------|
-| Morning Revision | 06:30-08:00 | Spaced revision queue (D+1, D+3, D+7, D+14, D+28 items) |
-| Block A | 08:15-10:45 | Primary study (WoR videos + notes) |
-| Block B | 11:00-13:30 | Primary study continued |
-| Consolidation | 14:15-16:45 | Note marking, revision, or MCQs depending on phase |
-| MCQ Block | 17:00-19:30 | Same-topic MCQs + explanation review |
-| PYQ/Image Block | 20:15-21:45 | PYQs, image questions, custom modules |
-| Night Recall | 22:00-23:00 | Wrong notebook review + active oral recall |
+| Morning Revision | 06:30-07:45 | Live revision queue in Phase 1, workbook-guided revision cluster in later phases |
+| Block A | 08:00-11:00 | Phase-dominant primary study / GT work |
+| Block B | 11:15-14:15 | Phase-dominant primary study / GT work |
+| Block C | 15:00-17:45 | Phase-dominant third study / repair / catch-up block |
+| MCQ Practice | 18:00-20:00 | MCQ/QBank practice and explanation review |
+| Final Review | 20:30-22:15 | overflow revision, GT review, or phase-specific final review work |
+| Wrap-Up Log | 22:15-22:45 | wrong-notebook/log/register update and quiet shutdown |
 
-Breaks and meal slots (08:00-08:15, 10:45-11:00, 13:30-14:15, 16:45-17:00, 19:30-20:15, 21:45-22:00) are displayed but not trackable.
+Breaks and meal slots are displayed inline but are not trackable study work.
 
 ### 4.4 Date Mapping
 
@@ -114,35 +112,25 @@ Breaks and meal slots (08:00-08:15, 10:45-11:00, 13:30-14:15, 16:45-17:00, 19:30
 
 ### 4.5 Morning Revision Queue (Dynamic Recalculation)
 
-- SCHED-7: The Excel's morning column contains static spaced revision items (e.g., "D+1: Pathology FP-1 | D+3: Pharmacology FP-1 | D+7: Diagnostic baseline"). These are the **original plan**.
+- SCHED-7: The workbook's morning guidance comes from `Revision_Map` and represents the **original plan**.
 - SCHED-8: Once the app is in use, the morning revision queue must be **dynamically recalculated** based on when topics were actually completed, not when they were originally planned. Example: if "Pathology FP-1" was planned on Day 2 but she actually completed it on Day 4, the D+1 revision moves from Day 3 to Day 5, D+3 from Day 5 to Day 7, etc.
-- SCHED-9: Each completed study block's primary topic generates revision entries at D+1, D+3, D+7, D+14, and D+28 from the actual completion date.
-- SCHED-10: Morning revision items are shown as individual checkboxes with equal time divided across the 1.5-hour morning block.
+- SCHED-9: Each completed Phase 1 topic in `Block A`, `Block B`, or `Block C` generates revision entries at D+1, D+3, D+7, D+14, and D+28 from the actual completion date.
+- SCHED-10: Morning revision items are shown as individual checkboxes with equal time divided across the `75`-minute morning block.
 - SCHED-11: Maximum 5 items shown in the morning block. Overflow logic:
-  - Items 6+ are distributed to: (a) night recall block (22:00-23:00), (b) break micro-slots (08:00-08:15, 10:45-11:00, 16:45-17:00, 21:45-22:00) as 2-minute quick recall prompts.
+  - Items 6+ are distributed to: (a) the `Final Review` block (`20:30-22:15`), then (b) break micro-slots (`07:45-08:00`, `11:00-11:15`, `17:45-18:00`, `20:00-20:30`) as quick recall prompts.
   - If overflow persists for 3+ consecutive days, the app surfaces a suggestion: "Your revision queue is growing. Consider deferring low-priority items to next revision phase."
 - SCHED-12: Overdue revision items (not completed on scheduled date):
   - 1-2 days overdue: added to next morning queue (still valuable)
-  - 3-6 days overdue: bundled into a "catch-up revision" mini-block, suggested during consolidation or PYQ time
+  - 3-6 days overdue: bundled into a "catch-up revision" mini-block, suggested during `Block C` or `Final Review`
   - 7+ days overdue: flagged for full re-study during next revision phase, removed from daily queue
 
 ### 4.6 Phases
 
-The schedule contains 13 distinct phases (parsed from the Phase column):
+The schedule contains 3 macro phases:
 
-1. Orientation + baseline (Day 1)
-2. First pass (concept rescue + notes marking) (Days 2-40)
-3. Grand test + analysis (GT days)
-4. Revision 1 (notes + QBank + PYQ)
-5. Revision 1 (mixed PYQ repair)
-6. Revision 2 (compression phase)
-7. Revision 2 (image-heavy)
-8. Revision 2 (PYQ day)
-9. Revision 2 (error elimination)
-10. Revision 2 (volatile list day)
-11. Revision 2 (buffer)
-12. Final assault
-13. Pre-exam day
+1. Phase 1 - First pass (Days `1-63`)
+2. Phase 2 - Revision 1 (Marrow + selective BTR) (Days `64-82`)
+3. Phase 3 - Revision 2 / Compression (Days `83-100`)
 
 The app shows the current phase name and a brief description on the Today View.
 
@@ -177,12 +165,12 @@ The most important screen. She opens the app and immediately knows what to do to
 - TODAY-9: Three-button toggle at top of the schedule section: **Green** / **Yellow** / **Red**. Defaults to Green each morning.
 - TODAY-10: **Green day** - Full schedule shown. All 7 study blocks visible and trackable.
 - TODAY-11: **Yellow day** - Schedule auto-reshapes:
-  - Shown: Morning revision queue, 2 content blocks (Block A and Block B), 40 MCQs (in MCQ block), wrong notebook (Night Recall block)
-  - Hidden/Shifted: Consolidation block, PYQ/Image block go to backlog
+  - Shown: `Morning Revision`, `Block A`, `Block B`, `MCQ Practice`, `Wrap-Up Log`
+  - Hidden/Shifted: `Block C` and `Final Review` go to backlog
   - Visual indication that it's a reduced day, no guilt messaging
 - TODAY-12: **Red day** - Salvage mode:
-  - Shown: Volatile notebook review (morning), 25 easy MCQs, one high-confidence subject review, early sleep
-  - Hidden/Shifted: Everything else goes to backlog
+  - Shown: `Morning Revision`, `Block A`, `MCQ Practice`, `Wrap-Up Log`
+  - Hidden/Shifted: `Block B`, `Block C`, and `Final Review` go to backlog
   - Message: "A salvage day, not a zero day."
 - TODAY-13: Changing the traffic light at any point in the day immediately reshapes the visible blocks. Blocks already marked complete stay complete.
 
@@ -221,11 +209,11 @@ The most important screen. She opens the app and immediately knows what to do to
 
 #### 5.10 Wind-Down Prompt
 
-- TODAY-29: **At 22:30**, if there are still uncompleted blocks visible (other than the Night Recall block which runs 22:00-23:00), the app shows a gentle in-app message: "It's getting late. Move remaining blocks to backlog and wind down?" with two options: "Yes, wrap up" (moves remaining to backlog) or "I'm almost done" (dismisses for 15 minutes, then re-appears once at 22:45).
-- TODAY-30: **At 23:00**, if the Night Recall block (22:00-23:00) is not marked complete, the app shows: "Time to rest. Do a quick 5-minute version, or skip tonight's recall?" with options: "Quick version" (marks block as partially complete with a note) or "Skip and sleep" (sends to backlog). No third prompt. No nagging.
-- TODAY-31: **At 23:15**, if the app is still open and any blocks are uncompleted, the app quietly auto-moves all remaining uncompleted blocks to backlog and shows: "Moved to backlog. Sleep well." This is the final safety net before the midnight cron.
+- TODAY-29: **At 21:45**, if there are still uncompleted visible blocks, the app shows a gentle in-app message: "It's getting late. Move remaining blocks to backlog and wind down?" with two options: "Yes, wrap up" (moves remaining work to backlog) or "I'm almost done" (dismisses once, then reappears at 22:00).
+- TODAY-30: **At 22:15**, if the `Final Review` block is still pending, the app shows: "Time to rest. Do a quick 5-minute version, or skip tonight's final review?" with options: "Quick version" or "Skip and sleep". No nagging beyond the defined flow.
+- TODAY-31: **At 22:45**, if the app is still open and any visible study blocks are uncompleted, the app quietly auto-moves the remaining work to backlog and shows: "Moved to backlog. Sleep well." This is the final safety net before the midnight cron.
 - TODAY-32: The wind-down prompt is **not a notification.** It only appears if she has the app open at that time. If the app is closed, the midnight cron handles everything silently. The wind-down exists to help her, not to pressure her.
-- TODAY-33: Wind-down times (22:30 / 23:00 / 23:15) are tied to the sleep protection boundary (23:00 hard limit). If she ever edits a block to extend past 23:00 and the app warns her (TODAY-25), the wind-down still fires at these times regardless.
+- TODAY-33: Wind-down times (`21:45` / `22:00` / `22:15` / `22:45`) are tied to the sleep protection boundary (`23:00` hard limit). If she ever edits a block to extend past `23:00` and the app warns her (TODAY-25), the wind-down still fires at these times regardless.
 
 ---
 
@@ -249,11 +237,10 @@ The most important screen. She opens the app and immediately knows what to do to
 
 - BACK-4: A single missed/skipped block goes to the Backlog Queue with metadata: original day, block type, topic/description, subject (parsed from primary focus), time slot.
 - BACK-5: The app suggests the next compatible slot for each backlog item based on block type:
-  - **Content blocks (Block A / Block B):** Suggest the next same-subject revision day, or the next day's Consolidation slot (14:15-16:45). If neither fits, suggest the next available day with the same subject in primary focus.
-  - **MCQ blocks:** Suggest merging with the next day's MCQ block (17:00-19:30). Display: "Add to tomorrow's MCQ block? Increase target from 45-70 to 60-80."
-  - **PYQ/Image blocks:** Suggest the next day's PYQ slot (20:15-21:45), or the next weekend day.
-  - **Consolidation blocks:** Suggest the next day's Consolidation slot, or merge into the next same-subject day's afternoon.
-  - **Night recall blocks:** Suggest the next night block (22:00-23:00). Since this is a light block, it stacks easily.
+  - **Study blocks (`Block A` / `Block B` / `Block C`):** Suggest the next compatible same-phase same-subject study block. If that is not available, suggest the next compatible same-phase recovery slot.
+  - **MCQ Practice blocks:** Suggest merging with the next same-phase `MCQ Practice` block.
+  - **Final Review blocks:** Suggest the next same-phase `Final Review` block.
+  - **Wrap-Up Log blocks:** Do not create backlog work; this block is not a recovery lane.
   - **Morning revision blocks:** Morning revision items that were not checked off are handled separately (see Section 4.5, SCHED-12). They do not go to the backlog queue; they re-enter the revision scheduling system.
 - BACK-6: Suggestions are **just suggestions**. She can: accept (block moves to the suggested slot), dismiss (block stays in backlog for later), or manually reschedule to any future day/slot she chooses.
 - BACK-7: **Sleep protection:** Backlog items cannot be auto-suggested into slots that would push any activity past 23:00 or start before 06:30. If the only available slot would violate this, the item stays in backlog with the message: "No compatible slot today without cutting into sleep. Keeping in backlog."
@@ -269,16 +256,16 @@ This uses the traffic light classification system from the 100-day plan.
 #### Yellow Day
 
 - BACK-9: When she sets Yellow, the day auto-reshapes to:
-  - **Kept:** Morning revision queue, Block A (08:15-10:45), Block B (11:00-13:30), MCQ block (17:00-19:30, reduced to 40 MCQs), Night Recall (22:00-23:00, wrong notebook update).
-  - **Moved to backlog:** Consolidation block (14:15-16:45), PYQ/Image block (20:15-21:45).
+  - **Kept:** `Morning Revision`, `Block A`, `Block B`, `MCQ Practice`, `Wrap-Up Log`.
+  - **Moved to backlog:** `Block C`, `Final Review`.
 - BACK-10: The moved blocks are added to the backlog queue with a "yellow_day" tag so they can be distinguished from genuinely missed blocks.
 - BACK-11: Visual: Hidden blocks are shown as collapsed/grayed with "Rescheduled" label. No guilt language like "Missed" or "Failed."
 
 #### Red Day (major stress / health / family episode)
 
 - BACK-12: When she sets Red, the day switches to **salvage mode**:
-  - **Kept:** Volatile notebook review (shown in morning slot), 25 easy MCQs (shown in one block), one high-confidence subject review (shown in one block), early sleep target.
-  - **Moved to backlog:** Everything else.
+  - **Kept:** `Morning Revision`, `Block A`, `MCQ Practice`, `Wrap-Up Log`.
+  - **Moved to backlog:** `Block B`, `Block C`, `Final Review`.
 - BACK-13: The app displays the message: "A salvage day, not a zero day." This exact phrasing comes from the 100-day plan.
 - BACK-14: The moved blocks are added to the backlog queue with a "red_day" tag.
 
@@ -291,10 +278,10 @@ This uses the traffic light classification system from the 100-day plan.
 
 ### 6.4 Scenario 3: A Block Takes Longer Than Planned
 
-- BACK-19: She can mark a block as "overrun" by editing the end time. Example: Block A was 08:15-10:45, she changes it to 08:15-12:00.
+- BACK-19: She can mark a block as "overrun" by editing the end time. Example: `Block A` was `08:00-11:00`, she changes it to end at `12:00`.
 - BACK-20: If the overrun causes the next block to be pushed, the app asks: "Block B now starts at 12:00 instead of 11:00. Shorten Block B, or move the overflow to backlog?"
 - BACK-21: The app tracks which subjects/blocks consistently overrun. This data surfaces in the weekly summary as: "Blocks that ran over this week: 3 (Medicine Block A x2, Pathology Block B x1)." This is analytics gold for adjusting the plan.
-- BACK-22: **Sleep protection still applies.** If overrun cascading would push any block past 23:00, the app forces the remaining blocks to backlog with the message: "Remaining blocks moved to backlog to protect sleep." The wind-down prompt (TODAY-29 through TODAY-33) also applies in overrun scenarios: even if blocks haven't technically cascaded past 23:00 yet, the 22:30 wind-down prompt still fires if uncompleted blocks exist.
+- BACK-22: **Sleep protection still applies.** If overrun cascading would push any block past `23:00`, the app forces the remaining blocks to backlog with the message: "Remaining blocks moved to backlog to protect sleep." The wind-down prompt (TODAY-29 through TODAY-33) also applies in overrun scenarios: even if blocks haven't technically cascaded past `23:00` yet, the `21:45` wind-down prompt still fires if uncompleted blocks exist.
 
 ### 6.5 Scenario 4: Schedule Shift (2+ Days Missed)
 
@@ -323,7 +310,7 @@ When she falls behind by 2 or more days, rather than accumulating a growing back
 This is handled in the schedule engine (SCHED-12) but summarized here for completeness:
 
 - BACK-29: **1-2 days overdue:** Added to the next morning's revision queue. Still highly valuable.
-- BACK-30: **3-6 days overdue:** Bundled into a "catch-up revision" mini-block, suggested during the Consolidation or PYQ time slot.
+- BACK-30: **3-6 days overdue:** Bundled into a "catch-up revision" mini-block, suggested during `Block C` or `Final Review`.
 - BACK-31: **7+ days overdue:** Flagged for full re-study during the next revision phase. Removed from the daily revision queue to prevent it from becoming a permanent guilt item.
 
 ### 6.7 Retroactive Completion
@@ -338,7 +325,7 @@ This is handled in the schedule engine (SCHED-12) but summarized here for comple
 - BACK-36: A dedicated, directly accessible view showing all pending backlog items.
 - BACK-37: Each item shows:
   - Original day number and date
-  - Block type (Block A, MCQ, PYQ, etc.)
+  - Block type (`Block A`, `Block B`, `Block C`, `MCQ Practice`, `Final Review`)
   - Topic/description (from the schedule)
   - Days in backlog (how long it's been pending)
   - Source tag: "missed", "skipped", "yellow_day", "red_day", "overrun_cascade"
@@ -395,18 +382,16 @@ This is handled in the schedule engine (SCHED-12) but summarized here for comple
 
 ### 8.1 GT Schedule
 
-- GT-1: The GT schedule is pre-loaded from the Excel's `GT_Test_Plan` sheet:
-  - Day 1: Diagnostic 100Q
-  - Day 41: GT-1 (end of first pass)
-  - Day 48: GT-2
-  - Day 58: GT-3
-  - Day 63: GT-4
-  - Day 66: GT-5
-  - Day 73: GT-6
-  - Day 78: GT-7
-  - Day 82: GT-8
-  - Day 87: GT-9
-  - Day 93: 120Q half-simulation
+- GT-1: The GT schedule is derived from GT-tagged rows in `Daywise_Plan`:
+  - Day 66: GT-1
+  - Day 72: GT-2
+  - Day 78: GT-3
+  - Day 82: GT-4
+  - Day 86: GT-5
+  - Day 90: GT-6
+  - Day 93: GT-7
+  - Day 95: 120Q half-simulation
+  - Day 96: GT-8
 - GT-2: GT days are highlighted in the schedule view. The Today View shows a special GT indicator on GT days.
 - GT-3: GT schedule adjusts if the overall schedule shifts.
 
