@@ -17,6 +17,7 @@ import type {
   LocalSession,
   LocalStore,
   LocalUser,
+  MorningRevisionAutoAddNotice,
   RevisionCompletion,
   ScheduleShiftEvent,
   TopicProgress,
@@ -66,6 +67,8 @@ export function createEmptyUserState(): UserState {
     gtLogs: {},
     weeklySummaries: {},
     morningRevisionSelections: {},
+    morningRevisionActualMinutes: {},
+    morningRevisionAutoAddNotice: {},
     processedDates: emptyProcessedDates(),
   };
 }
@@ -300,6 +303,90 @@ function normalizeMorningRevisionSelections(value: unknown): Record<string, stri
   return result;
 }
 
+function normalizeMorningRevisionActualMinutes(value: unknown): Record<string, Record<string, number>> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+  const result: Record<string, Record<string, number>> = {};
+  for (const [dateKey, entries] of Object.entries(value as Record<string, unknown>)) {
+    if (!entries || typeof entries !== "object") {
+      continue;
+    }
+    const normalized: Record<string, number> = {};
+    for (const [sourceItemId, actualMinutes] of Object.entries(entries as Record<string, unknown>)) {
+      const parsed = Number(actualMinutes);
+      if (Number.isFinite(parsed) && parsed > 0) {
+        normalized[sourceItemId] = Math.round(parsed);
+      }
+    }
+    if (Object.keys(normalized).length > 0) {
+      result[dateKey] = normalized;
+    }
+  }
+  return result;
+}
+
+function normalizeMorningRevisionAutoAddNotice(value: unknown): Record<string, MorningRevisionAutoAddNotice> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+  const result: Record<string, MorningRevisionAutoAddNotice> = {};
+  for (const [dateKey, notice] of Object.entries(value as Record<string, unknown>)) {
+    if (!notice || typeof notice !== "object") {
+      continue;
+    }
+    const candidate = notice as Partial<MorningRevisionAutoAddNotice>;
+    if (
+      typeof candidate.sourceItemId !== "string" ||
+      typeof candidate.sourceTopicLabel !== "string" ||
+      typeof candidate.actualMinutes !== "number" ||
+      !Number.isFinite(candidate.actualMinutes) ||
+      candidate.actualMinutes <= 0 ||
+      typeof candidate.savedMinutes !== "number" ||
+      !Number.isFinite(candidate.savedMinutes) ||
+      candidate.savedMinutes < 0 ||
+      typeof candidate.createdAt !== "string"
+    ) {
+      continue;
+    }
+
+    const addedSessions = Array.isArray(candidate.addedSessions)
+      ? candidate.addedSessions.flatMap((entry) => {
+        if (
+          !entry ||
+          typeof entry !== "object" ||
+          typeof entry.sourceItemId !== "string" ||
+          typeof entry.sourceTopicLabel !== "string" ||
+          typeof entry.allocatedMinutes !== "number" ||
+          !Number.isFinite(entry.allocatedMinutes) ||
+          entry.allocatedMinutes <= 0
+        ) {
+          return [];
+        }
+        return [{
+          sourceItemId: entry.sourceItemId,
+          sourceTopicLabel: entry.sourceTopicLabel,
+          allocatedMinutes: Math.round(entry.allocatedMinutes),
+        }];
+      })
+      : [];
+
+    if (addedSessions.length === 0) {
+      continue;
+    }
+
+    result[dateKey] = {
+      sourceItemId: candidate.sourceItemId,
+      sourceTopicLabel: candidate.sourceTopicLabel,
+      actualMinutes: Math.round(candidate.actualMinutes),
+      savedMinutes: Math.round(candidate.savedMinutes),
+      addedSessions,
+      createdAt: candidate.createdAt,
+    };
+  }
+  return result;
+}
+
 function normalizeBacklogItem(entry: BacklogItem, id: string): BacklogItem {
   const sourceItemId = entry.sourceItemId ?? id;
   const scheduleItem = getScheduleItemById(sourceItemId);
@@ -367,6 +454,8 @@ function normalizeUserState(userState: UserState | undefined): UserState {
     gtLogs: Object.fromEntries(Object.entries(base.gtLogs ?? {}).map(([id, log]) => [id, normalizeStoredGtLog(log)])),
     weeklySummaries,
     morningRevisionSelections: normalizeMorningRevisionSelections(base.morningRevisionSelections),
+    morningRevisionActualMinutes: normalizeMorningRevisionActualMinutes(base.morningRevisionActualMinutes),
+    morningRevisionAutoAddNotice: normalizeMorningRevisionAutoAddNotice(base.morningRevisionAutoAddNotice),
     processedDates: normalizeProcessedDates(base.processedDates),
   };
 }
@@ -608,6 +697,12 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     userState.quoteState = normalizeQuoteState(settingsResult.data.quote_state);
     userState.processedDates = normalizeProcessedDates(settingsResult.data.processed_dates);
     userState.morningRevisionSelections = normalizeMorningRevisionSelections(settingsResult.data.morning_revision_selections);
+    userState.morningRevisionActualMinutes = normalizeMorningRevisionActualMinutes(
+      settingsResult.data.morning_revision_actual_minutes,
+    );
+    userState.morningRevisionAutoAddNotice = normalizeMorningRevisionAutoAddNotice(
+      settingsResult.data.morning_revision_auto_add_notice,
+    );
     store.dev.simulatedNowIso = settingsResult.data.simulated_now_iso ?? null;
   }
 
@@ -854,6 +949,8 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
       quote_state: nextState.quoteState,
       processed_dates: nextState.processedDates,
       morning_revision_selections: nextState.morningRevisionSelections,
+      morning_revision_actual_minutes: nextState.morningRevisionActualMinutes,
+      morning_revision_auto_add_notice: nextState.morningRevisionAutoAddNotice,
       simulated_now_iso: nextStore.dev.simulatedNowIso,
     },
     {

@@ -185,6 +185,143 @@ describe("schedule engine", () => {
     expect(after.morningSessionRemaining).toBe(2);
   });
 
+  it("does not auto-refill without actual-time input, even when a smaller overflow session can fit", () => {
+    const userState = createConfiguredState();
+    const targetDate = "2026-05-02";
+    const sameCompletion = "2026-05-01T12:00:00.000Z";
+    const items = [
+      ...getBlock(1, "block_a").items,
+      ...getBlock(1, "block_b").items,
+      ...getBlock(1, "block_c").items,
+      getItem(2, "block_a"),
+      getItem(2, "block_b"),
+    ];
+
+    for (const item of items) {
+      const source = item.itemId.startsWith("d002") ? 2 : 1;
+      const blockKey = item.itemId.startsWith("d002-0800")
+        ? getBlock(2, "block_a").timeSlotKey
+        : item.itemId.startsWith("d002-1115")
+          ? getBlock(2, "block_b").timeSlotKey
+          : item.itemId.startsWith("d001-0800")
+            ? getBlock(1, "block_a").timeSlotKey
+            : item.itemId.startsWith("d001-1115")
+              ? getBlock(1, "block_b").timeSlotKey
+              : getBlock(1, "block_c").timeSlotKey;
+      completeTopicItem(userState, source, blockKey, item.itemId, sameCompletion);
+    }
+
+    const extraTopic = getItem(3, "block_a", 0);
+    const extraBlockKey = getBlock(3, "block_a").timeSlotKey;
+    completeTopicItem(userState, 3, extraBlockKey, extraTopic.itemId, "2026-04-18T12:00:00.000Z");
+    for (const revisionType of ["D+1", "D+3", "D+7"] as const) {
+      const revisionId = createRevisionId(extraTopic.itemId, revisionType);
+      userState.revisionCompletions[revisionId] = {
+        revisionId,
+        sourceItemId: extraTopic.itemId,
+        sourceDay: 3,
+        sourceBlockKey: extraBlockKey,
+        revisionType,
+        completedAt: "2026-04-30T07:00:00.000Z",
+      };
+    }
+
+    const before = buildDailyRevisionPlan(targetDate, userState, userState.settings);
+    expect(before.queueSessions).toHaveLength(3);
+    const smallOverflow = before.overflowSessions.find((session) => session.allocatedMinutes <= 20);
+    expect(smallOverflow).toBeDefined();
+
+    const completedSession = before.queueSessions.find((session) => session.allocatedMinutes === 25)!;
+    const overflowSourceItemId = smallOverflow!.sourceItemId;
+
+    completeRevisionSession(
+      userState,
+      completedSession.sourceItemId,
+      completedSession.sourceDay,
+      completedSession.sourceBlockKey,
+      completedSession.revisionIds,
+      "2026-05-10T07:00:00.000Z",
+      { targetDate },
+    );
+
+    const after = buildDailyRevisionPlan(targetDate, userState, userState.settings);
+    expect(after.queueSessions).toHaveLength(2);
+    expect(after.queueSessions.some((session) => session.sourceItemId === overflowSourceItemId)).toBe(false);
+    expect(userState.morningRevisionAutoAddNotice[targetDate]).toBeUndefined();
+  });
+
+  it("auto-refills one extra session when early completion frees enough minutes", () => {
+    const userState = createConfiguredState();
+    const targetDate = "2026-05-02";
+    const sameCompletion = "2026-05-01T12:00:00.000Z";
+    const items = [
+      ...getBlock(1, "block_a").items,
+      ...getBlock(1, "block_b").items,
+      ...getBlock(1, "block_c").items,
+      getItem(2, "block_a"),
+      getItem(2, "block_b"),
+    ];
+
+    for (const item of items) {
+      const source = item.itemId.startsWith("d002") ? 2 : 1;
+      const blockKey = item.itemId.startsWith("d002-0800")
+        ? getBlock(2, "block_a").timeSlotKey
+        : item.itemId.startsWith("d002-1115")
+          ? getBlock(2, "block_b").timeSlotKey
+          : item.itemId.startsWith("d001-0800")
+            ? getBlock(1, "block_a").timeSlotKey
+            : item.itemId.startsWith("d001-1115")
+              ? getBlock(1, "block_b").timeSlotKey
+              : getBlock(1, "block_c").timeSlotKey;
+      completeTopicItem(userState, source, blockKey, item.itemId, sameCompletion);
+    }
+
+    const extraTopic = getItem(3, "block_a", 0);
+    const extraBlockKey = getBlock(3, "block_a").timeSlotKey;
+    completeTopicItem(userState, 3, extraBlockKey, extraTopic.itemId, "2026-04-18T12:00:00.000Z");
+    for (const revisionType of ["D+1", "D+3", "D+7"] as const) {
+      const revisionId = createRevisionId(extraTopic.itemId, revisionType);
+      userState.revisionCompletions[revisionId] = {
+        revisionId,
+        sourceItemId: extraTopic.itemId,
+        sourceDay: 3,
+        sourceBlockKey: extraBlockKey,
+        revisionType,
+        completedAt: "2026-04-30T07:00:00.000Z",
+      };
+    }
+
+    const before = buildDailyRevisionPlan(targetDate, userState, userState.settings);
+    expect(before.queueSessions).toHaveLength(3);
+    const smallOverflow = before.overflowSessions.find((session) => session.allocatedMinutes <= 20);
+    expect(smallOverflow).toBeDefined();
+
+    const completedSession = before.queueSessions.find((session) => session.allocatedMinutes === 25)!;
+    const overflowSourceItemId = smallOverflow!.sourceItemId;
+
+    completeRevisionSession(
+      userState,
+      completedSession.sourceItemId,
+      completedSession.sourceDay,
+      completedSession.sourceBlockKey,
+      completedSession.revisionIds,
+      "2026-05-10T07:00:00.000Z",
+      { targetDate, actualMinutes: 5 },
+    );
+
+    const after = buildDailyRevisionPlan(targetDate, userState, userState.settings);
+    expect(after.queueSessions).toHaveLength(3);
+    expect(after.queueSessions.some((session) => session.sourceItemId === overflowSourceItemId)).toBe(true);
+    expect(userState.morningRevisionActualMinutes[targetDate]?.[completedSession.sourceItemId]).toBe(5);
+    expect(userState.morningRevisionAutoAddNotice[targetDate]).toMatchObject({
+      sourceItemId: completedSession.sourceItemId,
+      actualMinutes: 5,
+      savedMinutes: 20,
+      addedSessions: [{ sourceItemId: overflowSourceItemId }],
+    });
+    expect(after.morningAllocatedMinutes + 5).toBeLessThanOrEqual(75);
+  });
+
   it("keeps due and 1-2 day overdue topics visible across consecutive days", () => {
     const userState = createConfiguredState();
     const items = [

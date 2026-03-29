@@ -60,6 +60,19 @@ function isDateOnly(value: string | null) {
   return value === null || /^\d{4}-\d{2}-\d{2}$/u.test(value);
 }
 
+function asOptionalPositiveInt(value: string) {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return Math.round(parsed);
+}
+
 export async function loginAction(formData: FormData) {
   const result = await loginUser(asString(formData.get("email")), asString(formData.get("password")));
   if (!result.ok) {
@@ -287,6 +300,7 @@ export async function completeRevisionSessionAction(formData: FormData) {
   const sourceDay = Number(asString(formData.get("sourceDay")));
   const sourceBlockKey = asString(formData.get("sourceBlockKey")) as BlockKey;
   const revisionIds = formData.getAll("revisionId").filter((value): value is string => typeof value === "string");
+  const actualMinutes = asOptionalPositiveInt(asString(formData.get("actualMinutes")));
 
   if (!sourceItemId || !sourceDay || !sourceBlockKey || revisionIds.length === 0) {
     return;
@@ -294,7 +308,20 @@ export async function completeRevisionSessionAction(formData: FormData) {
 
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    completeRevisionSession(userState, sourceItemId, sourceDay, sourceBlockKey, revisionIds, getEffectiveNow(store).toISOString());
+    const now = getEffectiveNow(store);
+    const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+    completeRevisionSession(
+      userState,
+      sourceItemId,
+      sourceDay,
+      sourceBlockKey,
+      revisionIds,
+      now.toISOString(),
+      {
+        actualMinutes,
+        targetDate: todayDate,
+      },
+    );
   });
   refresh();
 }

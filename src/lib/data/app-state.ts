@@ -11,6 +11,7 @@ import {
   releaseAssignedRecoveryForTarget,
 } from "@/lib/domain/backlog-queue";
 import { getTrafficLightBacklogSourceTag, previewOverrunCascade, shouldCreateBacklogItem } from "@/lib/domain/backlog";
+import { MORNING_REVISION_SLOT_PLAN } from "@/lib/domain/constants";
 import {
   buildGtComparisonSummary,
   buildGtDashboardSummary,
@@ -53,6 +54,7 @@ import {
   getScheduleDay,
   getScheduleDays,
   getScheduleDayEditState,
+  getScheduleItemById,
   getScheduleHealth,
   getShiftHiddenDayLabel,
   getShiftPreview,
@@ -97,6 +99,141 @@ function timingKey(dayNumber: number, blockKey: BlockKey) {
 
 function topicKey(itemId: string) {
   return itemId;
+}
+
+const MORNING_REVISION_MAX_MINUTES = MORNING_REVISION_SLOT_PLAN.reduce((sum, slot) => sum + slot.durationMinutes, 0);
+
+function parseRevisionTypeFromRevisionId(revisionId: string): RevisionType | null {
+  const revisionType = revisionId.split(":").at(-1);
+  if (!revisionType || !["D+1", "D+3", "D+7", "D+14", "D+28"].includes(revisionType)) {
+    return null;
+  }
+  return revisionType as RevisionType;
+}
+
+function parseSourceItemIdFromRevisionId(revisionId: string, revisionType: RevisionType) {
+  const suffix = `:${revisionType}`;
+  return revisionId.endsWith(suffix) ? revisionId.slice(0, -suffix.length) : revisionId;
+}
+
+function getRevisionDurationMinutes(revisionType: RevisionType) {
+  return MORNING_REVISION_SLOT_PLAN.find((slot) => slot.revisionType === revisionType)?.durationMinutes ?? 0;
+}
+
+function getPlannedRevisionMinutesFromIds(revisionIds: string[]) {
+  return revisionIds.reduce((sum, revisionId) => {
+    const revisionType = parseRevisionTypeFromRevisionId(revisionId);
+    return revisionType ? sum + getRevisionDurationMinutes(revisionType) : sum;
+  }, 0);
+}
+
+function clearMorningRevisionAutoAddNoticeForDate(userState: UserState, targetDate: string) {
+  if (!userState.morningRevisionAutoAddNotice[targetDate]) {
+    return;
+  }
+  delete userState.morningRevisionAutoAddNotice[targetDate];
+}
+
+function getCompletedMorningSessionMinutesForDate(userState: UserState, targetDate: string) {
+  const selectedRevisionIds = userState.morningRevisionSelections[targetDate] ?? [];
+  if (selectedRevisionIds.length === 0) {
+    return 0;
+  }
+
+  const plannedMinutesBySource = new Map<string, number>();
+  for (const revisionId of selectedRevisionIds) {
+    const completion = userState.revisionCompletions[revisionId];
+    if (!completion) {
+      continue;
+    }
+
+    const revisionType = completion.revisionType ?? parseRevisionTypeFromRevisionId(revisionId);
+    if (!revisionType) {
+      continue;
+    }
+
+    const sourceItemId = completion.sourceItemId || parseSourceItemIdFromRevisionId(revisionId, revisionType);
+    const plannedMinutes = getRevisionDurationMinutes(revisionType);
+    plannedMinutesBySource.set(sourceItemId, (plannedMinutesBySource.get(sourceItemId) ?? 0) + plannedMinutes);
+  }
+
+  const actualMinutesBySource = userState.morningRevisionActualMinutes[targetDate] ?? {};
+  let totalMinutes = 0;
+  for (const [sourceItemId, plannedMinutes] of plannedMinutesBySource) {
+    const actualMinutes = actualMinutesBySource[sourceItemId];
+    totalMinutes += typeof actualMinutes === "number" && actualMinutes > 0
+      ? Math.min(actualMinutes, plannedMinutes)
+      : plannedMinutes;
+  }
+
+  return totalMinutes;
+}
+
+function maybeAutoAddMorningRevisionSession(
+  userState: UserState,
+  targetDate: string,
+  sourceItemId: string,
+  actualMinutes: number,
+  plannedSessionMinutes: number,
+  completedAt: string,
+) {
+  if (plannedSessionMinutes <= 0) {
+    return;
+  }
+
+  const normalizedActualMinutes = Math.max(1, Math.min(Math.round(actualMinutes), plannedSessionMinutes));
+  if (!userState.morningRevisionActualMinutes[targetDate]) {
+    userState.morningRevisionActualMinutes[targetDate] = {};
+  }
+  userState.morningRevisionActualMinutes[targetDate]![sourceItemId] = normalizedActualMinutes;
+
+  const savedMinutes = plannedSessionMinutes - normalizedActualMinutes;
+  if (savedMinutes <= 0) {
+    return;
+  }
+
+  const plan = buildDailyRevisionPlan(targetDate, userState, userState.settings);
+  const selectedRevisionIds = userState.morningRevisionSelections[targetDate] ?? [];
+  const selectedRevisionIdSet = new Set(selectedRevisionIds);
+
+  const completedMinutes = getCompletedMorningSessionMinutesForDate(userState, targetDate);
+  const remainingMinutes = MORNING_REVISION_MAX_MINUTES - (completedMinutes + plan.morningAllocatedMinutes);
+  if (remainingMinutes <= 0) {
+    return;
+  }
+
+  const candidateSessions = [...plan.overflowSessions, ...plan.catchUpSessions, ...plan.restudySessions];
+  const candidate = candidateSessions.find(
+    (session) =>
+      session.allocatedMinutes > 0 &&
+      session.allocatedMinutes <= remainingMinutes &&
+      session.revisionIds.every((revisionId) => !selectedRevisionIdSet.has(revisionId)),
+  );
+
+  if (!candidate) {
+    return;
+  }
+
+  for (const revisionId of candidate.revisionIds) {
+    selectedRevisionIds.push(revisionId);
+  }
+  userState.morningRevisionSelections[targetDate] = selectedRevisionIds;
+
+  const sourceTopicLabel = getScheduleItemById(sourceItemId)?.item.label ?? sourceItemId;
+  userState.morningRevisionAutoAddNotice[targetDate] = {
+    sourceItemId,
+    sourceTopicLabel,
+    actualMinutes: normalizedActualMinutes,
+    savedMinutes,
+    addedSessions: [
+      {
+        sourceItemId: candidate.sourceItemId,
+        sourceTopicLabel: candidate.sourceTopicLabel,
+        allocatedMinutes: candidate.allocatedMinutes,
+      },
+    ],
+    createdAt: completedAt,
+  };
 }
 
 function getBlockOrThrow(dayNumber: number, blockKey: BlockKey) {
@@ -239,22 +376,50 @@ export function completeRevisionSession(
   sourceBlockKey: BlockKey,
   revisionIds: string[],
   completedAt = new Date().toISOString(),
+  options?: {
+    actualMinutes?: number | null;
+    targetDate?: string | null;
+  },
 ) {
+  const validRevisionIds: string[] = [];
   for (const revisionId of revisionIds) {
-    const revisionType = revisionId.split(":").at(-1);
-    if (!revisionType || !["D+1", "D+3", "D+7", "D+14", "D+28"].includes(revisionType)) {
+    const revisionType = parseRevisionTypeFromRevisionId(revisionId);
+    if (!revisionType) {
       continue;
     }
 
+    validRevisionIds.push(revisionId);
     userState.revisionCompletions[revisionId] = {
       revisionId,
       sourceItemId,
       sourceDay,
       sourceBlockKey,
-      revisionType: revisionType as RevisionType,
+      revisionType,
       completedAt,
     };
   }
+
+  const targetDate = options?.targetDate ?? null;
+  if (!targetDate) {
+    return;
+  }
+
+  clearMorningRevisionAutoAddNoticeForDate(userState, targetDate);
+
+  const actualMinutes = options?.actualMinutes;
+  if (typeof actualMinutes !== "number" || !Number.isFinite(actualMinutes) || actualMinutes <= 0) {
+    return;
+  }
+
+  const plannedSessionMinutes = getPlannedRevisionMinutesFromIds(validRevisionIds);
+  maybeAutoAddMorningRevisionSession(
+    userState,
+    targetDate,
+    sourceItemId,
+    actualMinutes,
+    plannedSessionMinutes,
+    completedAt,
+  );
 }
 
 function markTopicForRecovery(
@@ -661,6 +826,16 @@ export function runMidnightRollover(userState: UserState, settings: AppSettings,
   for (const dateKey of Object.keys(userState.morningRevisionSelections)) {
     if (dateKey < todayDate) {
       delete userState.morningRevisionSelections[dateKey];
+    }
+  }
+  for (const dateKey of Object.keys(userState.morningRevisionActualMinutes)) {
+    if (dateKey < todayDate) {
+      delete userState.morningRevisionActualMinutes[dateKey];
+    }
+  }
+  for (const dateKey of Object.keys(userState.morningRevisionAutoAddNotice)) {
+    if (dateKey < todayDate) {
+      delete userState.morningRevisionAutoAddNotice[dateKey];
     }
   }
 

@@ -1135,6 +1135,7 @@ function buildRevisionPlanBase(
     morningSessionCompleted,
     morningSessionRemaining,
     morningAllocatedMinutes: queueSessions.reduce((sum, session) => sum + session.allocatedMinutes, 0),
+    autoAddNotice: userState.morningRevisionAutoAddNotice?.[targetDate] ?? null,
   };
 }
 

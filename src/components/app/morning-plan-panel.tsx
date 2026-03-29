@@ -65,6 +65,21 @@ function getProgressLabel(status: BlockProgress["status"]) {
   return "Pending";
 }
 
+function getActualMinuteOptions(allocatedMinutes: number) {
+  if (!Number.isFinite(allocatedMinutes) || allocatedMinutes <= 0) {
+    return [];
+  }
+
+  const options: number[] = [];
+  for (let minutes = 5; minutes <= allocatedMinutes; minutes += 5) {
+    options.push(minutes);
+  }
+  if (options.length === 0 || options[options.length - 1] !== allocatedMinutes) {
+    options.push(allocatedMinutes);
+  }
+  return options;
+}
+
 type MorningPlanPanelProps = {
   morningBlock: MorningBlockView;
   morningPlan: DailyRevisionPlan | null;
@@ -141,6 +156,19 @@ export function MorningPlanPanel({
                     {session.revisionIds.map((revisionId) => (
                       <input key={revisionId} type="hidden" name="revisionId" value={revisionId} />
                     ))}
+                    {session.allocatedMinutes > 0 ? (
+                      <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
+                        Actual mins
+                        <select className="field h-9 min-w-[6.5rem] text-sm" name="actualMinutes" defaultValue="">
+                          <option value="">Planned</option>
+                          {getActualMinuteOptions(session.allocatedMinutes).map((minutes) => (
+                            <option key={minutes} value={minutes}>
+                              {minutes} min
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
                     <button className="button-secondary" type="submit">
                       Mark revised
                     </button>
@@ -166,6 +194,19 @@ export function MorningPlanPanel({
           </div>
         )}
       </div>
+
+      {morningPlan?.autoAddNotice && morningPlan.autoAddNotice.addedSessions.length > 0 ? (
+        <div className="mt-5 grid gap-3">
+          <div className="note-card p-4">
+            <div className="eyebrow">Auto Refill</div>
+            <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
+              You wrapped <span className="font-medium">{morningPlan.autoAddNotice.sourceTopicLabel}</span> in{" "}
+              {morningPlan.autoAddNotice.actualMinutes} minutes, saving {morningPlan.autoAddNotice.savedMinutes} minutes.
+              Added: {morningPlan.autoAddNotice.addedSessions.map((session) => session.sourceTopicLabel).join(" · ")}.
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       {morningPlan?.overflowSuggestion ? (
         <div className="mt-5 grid gap-3">

@@ -359,6 +359,8 @@ export interface UserState {
   gtLogs: Record<string, GtLog>;
   weeklySummaries: Record<string, WeeklySummary>;
   morningRevisionSelections: Record<string, string[]>;
+  morningRevisionActualMinutes: Record<string, Record<string, number>>;
+  morningRevisionAutoAddNotice: Record<string, MorningRevisionAutoAddNotice>;
   processedDates: {
     lateNightSweepDates: string[];
     midnightDates: string[];
@@ -440,6 +442,21 @@ export interface RevisionSession {
   status: "pending" | "completed";
 }
 
+export interface MorningRevisionAutoAddSession {
+  sourceItemId: TopicItemId;
+  sourceTopicLabel: string;
+  allocatedMinutes: number;
+}
+
+export interface MorningRevisionAutoAddNotice {
+  sourceItemId: TopicItemId;
+  sourceTopicLabel: string;
+  actualMinutes: number;
+  savedMinutes: number;
+  addedSessions: MorningRevisionAutoAddSession[];
+  createdAt: string;
+}
+
 export interface DailyRevisionPlan {
   queue: RevisionQueueItem[];
   overflow: OverflowRevisionItem[];
@@ -455,6 +472,7 @@ export interface DailyRevisionPlan {
   morningSessionCompleted: number;
   morningSessionRemaining: number;
   morningAllocatedMinutes: number;
+  autoAddNotice: MorningRevisionAutoAddNotice | null;
   overflowStreakDays: number;
   overflowSuggestion: string | null;
 }

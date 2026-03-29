@@ -134,6 +134,26 @@ describe("backlog creation and traffic-light handling", () => {
   it("marks midnight misses correctly and keeps non-backlog blocks out of the recovery queue", () => {
     const userState = createEmptyUserState();
     userState.settings.dayOneDate = "2026-05-01";
+    userState.morningRevisionSelections["2026-05-01"] = ["stale"];
+    userState.morningRevisionActualMinutes["2026-05-01"] = { stale: 10 };
+    userState.morningRevisionAutoAddNotice["2026-05-01"] = {
+      sourceItemId: "stale",
+      sourceTopicLabel: "Stale topic",
+      actualMinutes: 10,
+      savedMinutes: 5,
+      addedSessions: [{ sourceItemId: "added", sourceTopicLabel: "Added topic", allocatedMinutes: 10 }],
+      createdAt: "2026-05-01T07:00:00.000Z",
+    };
+    userState.morningRevisionSelections["2026-05-03"] = ["keep"];
+    userState.morningRevisionActualMinutes["2026-05-03"] = { keep: 15 };
+    userState.morningRevisionAutoAddNotice["2026-05-03"] = {
+      sourceItemId: "keep",
+      sourceTopicLabel: "Keep topic",
+      actualMinutes: 15,
+      savedMinutes: 10,
+      addedSessions: [{ sourceItemId: "added-keep", sourceTopicLabel: "Added keep", allocatedMinutes: 10 }],
+      createdAt: "2026-05-03T07:00:00.000Z",
+    };
     const morningRevisionKey = getBlockKey(2, "morning_revision");
     const wrapUpLogKey = getBlockKey(2, "wrap_up_log");
     const backlogEligibleBlockKeys = [
@@ -153,6 +173,12 @@ describe("backlog creation and traffic-light handling", () => {
     expect(getBlockProgress(userState, 2, wrapUpLogKey).status).toBe("missed");
     expect(Object.values(userState.backlogItems).every((item) => item.originalBlockKey !== morningRevisionKey)).toBe(true);
     expect(Object.values(userState.backlogItems).every((item) => item.originalBlockKey !== wrapUpLogKey)).toBe(true);
+    expect(userState.morningRevisionSelections["2026-05-01"]).toBeUndefined();
+    expect(userState.morningRevisionActualMinutes["2026-05-01"]).toBeUndefined();
+    expect(userState.morningRevisionAutoAddNotice["2026-05-01"]).toBeUndefined();
+    expect(userState.morningRevisionSelections["2026-05-03"]).toEqual(["keep"]);
+    expect(userState.morningRevisionActualMinutes["2026-05-03"]).toEqual({ keep: 15 });
+    expect(userState.morningRevisionAutoAddNotice["2026-05-03"]?.sourceItemId).toBe("keep");
   });
 
   it("previews and persists a downstream overrun cascade instead of shifting only one adjacent block", () => {

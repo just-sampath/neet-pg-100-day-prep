@@ -65,6 +65,7 @@ describe("MorningPlanPanel", () => {
       morningSessionCompleted: 0,
       morningSessionRemaining: 1,
       morningAllocatedMinutes: 25,
+      autoAddNotice: null,
       overflowStreakDays: 0,
       overflowSuggestion: null,
     };
@@ -99,5 +100,76 @@ describe("MorningPlanPanel", () => {
     expect(html).toContain("25 minutes are in today&#x27;s 75-minute queue.");
     expect(html).not.toContain("General Pathology");
     expect(html).not.toContain("Queued For Later");
+  });
+
+  it("renders optional actual-time input and refill notice when available", () => {
+    const queueSession = createSession({
+      id: "due-1",
+      sourceItemId: "topic-1",
+      lane: "due_this_morning",
+      sourceTopicLabel: "Haematology",
+      allocatedMinutes: 25,
+    });
+
+    const morningPlan: DailyRevisionPlan = {
+      queue: [],
+      overflow: [],
+      catchUp: [],
+      restudyFlags: [],
+      queueSessions: [queueSession],
+      overflowSessions: [],
+      catchUpSessions: [],
+      restudySessions: [],
+      phaseMode: "session_primary",
+      blockStatusMode: "revision_sessions",
+      morningSessionPlanned: 1,
+      morningSessionCompleted: 0,
+      morningSessionRemaining: 1,
+      morningAllocatedMinutes: 25,
+      autoAddNotice: {
+        sourceItemId: "topic-1",
+        sourceTopicLabel: "Haematology",
+        actualMinutes: 15,
+        savedMinutes: 10,
+        addedSessions: [{
+          sourceItemId: "topic-2",
+          sourceTopicLabel: "General Pathology",
+          allocatedMinutes: 10,
+        }],
+        createdAt: "2026-05-02T07:00:00.000Z",
+      },
+      overflowStreakDays: 0,
+      overflowSuggestion: null,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MorningPlanPanel, {
+        morningBlock: {
+          blockKey: "0630-0745",
+          displayLabel: "Morning Revision",
+          displayDescription: "Revision queue",
+          progress: {
+            dayNumber: 2,
+            blockKey: "0630-0745",
+            status: "pending",
+            actualStart: null,
+            actualEnd: null,
+            completedAt: null,
+            sourceTag: null,
+            note: null,
+            completedItemCount: 0,
+            totalItemCount: 1,
+            unresolvedItemCount: 1,
+          },
+          items: [],
+        },
+        morningPlan,
+        canAdjustToday: true,
+      }),
+    );
+
+    expect(html).toContain("Actual mins");
+    expect(html).toContain("Auto Refill");
+    expect(html).toContain("General Pathology");
   });
 });
