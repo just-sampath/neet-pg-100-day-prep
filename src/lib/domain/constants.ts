@@ -12,6 +12,17 @@ export const REVISION_INTERVALS: Record<RevisionType, number> = {
   "D+28": 28,
 };
 
+export const MORNING_REVISION_SLOT_PLAN = [
+  { revisionType: "D+1", durationMinutes: 25 },
+  { revisionType: "D+3", durationMinutes: 15 },
+  { revisionType: "D+7", durationMinutes: 15 },
+  { revisionType: "D+14", durationMinutes: 10 },
+  { revisionType: "D+28", durationMinutes: 10 },
+] as const satisfies ReadonlyArray<{
+  revisionType: RevisionType;
+  durationMinutes: number;
+}>;
+
 export const BREAK_MICRO_SLOT_LABELS = [
   "07:45 quick recall",
   "11:00 quick recall",

@@ -159,7 +159,6 @@ export default async function TodayPage() {
     return progress.status !== "completed";
   });
   const revisionDue = data.todayRevisionPlan?.queueSessions.length ?? 0;
-  const overflowCount = data.todayRevisionPlan?.overflowSessions.length ?? 0;
   const plannedRecovery = data.plannedRecovery;
   const plannedRecoveryByBlock = plannedRecovery.reduce((map, item) => {
     const entries = map.get(item.targetBlockKey) ?? [];
@@ -188,7 +187,9 @@ export default async function TodayPage() {
       };
     });
   const trackableOrder = new Map(
-    todayScheduleDay.blocks.filter((block) => block.trackable).map((block, index) => [block.timeSlotKey, index + 1]),
+    todayScheduleDay.blocks
+      .filter((block) => block.trackable && block.semanticBlockKey !== "morning_revision")
+      .map((block, index) => [block.timeSlotKey, index + 1]),
   );
   const backlogIndicatorLabel = getBacklogIndicatorLabel(data.backlogCount);
   const practiceBlockKey =
@@ -214,11 +215,11 @@ export default async function TodayPage() {
     {
       label: "Revision Due",
       value: String(revisionDue),
-      note: overflowCount
-        ? `${overflowCount} extra review session(s) also suggested.`
-        : data.todayRevisionPlan?.morningMinutesPerSession
-          ? `~${data.todayRevisionPlan.morningMinutesPerSession} min per session this morning.`
-          : "No extra overflow pressure.",
+      note: data.todayRevisionPlan?.morningAllocatedMinutes
+        ? `${data.todayRevisionPlan.morningAllocatedMinutes} minutes are still queued this morning.`
+        : data.todayRevisionPlan?.morningSessionPlanned
+          ? "The morning revision queue is already cleared."
+          : "No morning revision is due today.",
     },
     {
       label: "Backlog Queue",
@@ -373,7 +374,6 @@ export default async function TodayPage() {
       <section className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
         {morningBlock ? (
           <MorningPlanPanel
-            dayNumber={todayScheduleDay.dayNumber}
             morningBlock={{
               blockKey: morningBlock.timeSlotKey,
               displayLabel: morningBlock.displayLabel,
@@ -445,8 +445,8 @@ export default async function TodayPage() {
             })) ?? [];
 
             if (entry.mode === "hidden") {
-              return (
-                <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
+            return (
+              <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
@@ -494,51 +494,7 @@ export default async function TodayPage() {
             }
 
             if (morningBlock && entry.blockKey === morningBlock.timeSlotKey) {
-              const morningSummary = data.todayRevisionPlan?.phaseMode === "session_primary"
-                ? data.todayRevisionPlan.morningSessionRemaining
-                  ? `${data.todayRevisionPlan.morningSessionRemaining} session(s) are still open in the morning panel above.`
-                  : data.todayRevisionPlan?.morningSessionPlanned
-                    ? "The live morning revision set is already closed from the panel above."
-                    : "No live revision sessions are due right now."
-                : "Use the morning panel above as the single place to complete or close this block.";
-
-              return (
-                <article
-                  key={entry.id}
-                  className="panel timeline-card reveal-rise p-5 md:p-6"
-                  data-complete={completed}
-                >
-                  <div className="pl-6">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
-                        Block {String(blockNumber).padStart(2, "0")}
-                      </span>
-                      <span className="text-sm text-(--text-secondary)">
-                        {entry.start} - {entry.end}
-                      </span>
-                      <span className="status-badge" data-tone={getProgressTone(entry.progress.status)}>
-                        {getProgressLabel(entry.progress.status)}
-                      </span>
-                    </div>
-                    <div className="mt-2 display text-2xl md:text-3xl">{entry.label}</div>
-                    <h3 className="mt-3 text-lg font-semibold leading-snug md:text-xl lg:text-2xl">{entry.displayDescription}</h3>
-                    <p className="mt-4 text-sm leading-7 text-(--text-secondary)">{morningSummary}</p>
-                    <div className="note-card mt-5 p-4 text-sm leading-7 text-(--text-secondary)">
-                      The morning block stays in the timeline for structure, but its real interaction now lives in the dedicated morning panel above.
-                    </div>
-                    <TimeEditor
-                      dayNumber={todayScheduleDay.dayNumber}
-                      blockKey={entry.blockKey}
-                      start={entry.start}
-                      end={entry.end}
-                      actualStart={entry.progress.actualStart}
-                      actualEnd={entry.progress.actualEnd}
-                      trafficLight={todayState.trafficLight}
-                      slots={timeEditorSlots}
-                    />
-                  </div>
-                </article>
-              );
+              return null;
             }
 
             return (

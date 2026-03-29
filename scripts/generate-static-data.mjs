@@ -205,14 +205,6 @@ const PHASE_CONFIG = {
   },
 };
 
-const REVISION_COLUMNS = [
-  ["D-1 due topics", "D+1"],
-  ["D-3 due topics", "D+3"],
-  ["D-7 due topics", "D+7"],
-  ["D-14 due topics", "D+14"],
-  ["D-28 due topics", "D+28"],
-];
-
 const GT_MEASURE_ITEMS = {
   "Full GT": [
     "score and accuracy drift",
@@ -663,56 +655,19 @@ function parseTaskLines(rawText) {
 function buildWorkbookMorningItems({
   dayNumber,
   rawText,
-  revisionRow,
-  phaseId,
   primaryFocusSubjectIds,
   subjectMatchers,
   slotKey,
 }) {
-  if (phaseId === "phase_1" && revisionRow) {
-    const revisionItems = REVISION_COLUMNS.flatMap(([column, revisionType]) =>
-      String(revisionRow[column] ?? "")
-        .split(";")
-        .map((item) => normalizeWhitespace(item))
-        .filter(Boolean)
-        .map((item) => ({
-          label: item,
-          revisionType,
-        })),
-    );
+  const label = normalizeWhitespace(rawText);
 
-    if (revisionItems.length > 0) {
-      const minutes = distributeMinutes(75, revisionItems.length);
-      return revisionItems.map((item, index) => ({
-        itemId: buildItemId(dayNumber, slotKey, index),
-        order: index + 1,
-        kind: "revision_ref",
-        label: item.label,
-        rawText: item.label,
-        plannedMinutes: minutes[index] ?? 0,
-        subjectIds: findSubjectIds(item.label, subjectMatchers, primaryFocusSubjectIds),
-        revisionEligible: false,
-        recoveryLane: "none",
-        phaseFence: "not_reschedulable",
-        notes: null,
-        revisionType: item.revisionType,
-        referenceLabel: item.label,
-        referenceDayNumber: null,
-      }));
-    }
-  }
-
-  const fallbackLines = parseTaskLines(rawText);
-  const labels = fallbackLines.length ? fallbackLines : [normalizeWhitespace(rawText)];
-  const minutes = distributeMinutes(75, labels.length);
-
-  return labels.map((label, index) => ({
-    itemId: buildItemId(dayNumber, slotKey, index),
-    order: index + 1,
+  return [{
+    itemId: buildItemId(dayNumber, slotKey, 0),
+    order: 1,
     kind: "task",
     label,
     rawText: label,
-    plannedMinutes: minutes[index] ?? 0,
+    plannedMinutes: 75,
     subjectIds: findSubjectIds(label, subjectMatchers, primaryFocusSubjectIds),
     revisionEligible: false,
     recoveryLane: "none",
@@ -721,7 +676,7 @@ function buildWorkbookMorningItems({
     revisionType: null,
     referenceLabel: null,
     referenceDayNumber: null,
-  }));
+  }];
 }
 
 function isGtLikeBlock(gtTestType, rawText) {

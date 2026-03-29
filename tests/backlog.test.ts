@@ -108,7 +108,7 @@ describe("backlog creation and traffic-light handling", () => {
     expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("skipped");
   });
 
-  it("moves only visible reschedulable study work during wind-down and keeps morning revision plus final review out when requested", () => {
+  it("moves only visible reschedulable study work during wind-down and leaves no-due morning revision closed", () => {
     const userState = createEmptyUserState();
     const morningRevisionKey = getBlockKey(2, "morning_revision");
     const finalReviewKey = getBlockKey(2, "final_review");
@@ -127,7 +127,7 @@ describe("backlog creation and traffic-light handling", () => {
         getBlockKey(2, "mcq_practice"),
       ]),
     );
-    expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("missed");
+    expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("pending");
     expect(getBlockProgress(userState, 2, finalReviewKey).status).toBe("pending");
   });
 
@@ -147,9 +147,9 @@ describe("backlog creation and traffic-light handling", () => {
     const result = runMidnightRollover(userState, userState.settings, "2026-05-03", 3);
     const expectedBacklogCreated = backlogEligibleBlockKeys.reduce((total, blockKey) => total + getBlockItems(2, blockKey).length, 0);
 
-    expect(result.missedBlocks).toBe(7);
+    expect(result.missedBlocks).toBe(6);
     expect(result.backlogCreated).toBe(expectedBacklogCreated);
-    expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("missed");
+    expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("completed");
     expect(getBlockProgress(userState, 2, wrapUpLogKey).status).toBe("missed");
     expect(Object.values(userState.backlogItems).every((item) => item.originalBlockKey !== morningRevisionKey)).toBe(true);
     expect(Object.values(userState.backlogItems).every((item) => item.originalBlockKey !== wrapUpLogKey)).toBe(true);

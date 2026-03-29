@@ -1,10 +1,9 @@
 import { scheduleData } from "@/lib/generated/schedule-data";
 import {
-  BREAK_MICRO_SLOT_LABELS,
-  BREAK_MICRO_SLOT_ORDER,
   BUFFER_DAY,
   EXAM_DATE,
   HARD_BOUNDARY_DATE,
+  MORNING_REVISION_SLOT_PLAN,
   REVISION_INTERVALS,
   SHIFT_COMPRESSION_PAIRS,
 } from "@/lib/domain/constants";
@@ -18,7 +17,6 @@ import type {
   DayState,
   MorningPhaseMode,
   MorningBlockStatusMode,
-  OverflowRevisionItem,
   RevisionCompletion,
   RevisionDisplayGroup,
   RevisionQueueItem,
@@ -96,14 +94,14 @@ function getAvailableShiftRecoveries(settings: AppSettings, anchorDayNumber: num
   const consumed = getConsumedShiftRecoveryKeys(settings);
   const recoveries: Array<
     | {
-        kind: "buffer";
-        hiddenDay: number;
-      }
+      kind: "buffer";
+      hiddenDay: number;
+    }
     | {
-        kind: "compression";
-        pair: [number, number];
-        hiddenDay: number;
-      }
+      kind: "compression";
+      pair: [number, number];
+      hiddenDay: number;
+    }
   > = [];
 
   if (anchorDayNumber <= BUFFER_DAY && !consumed.has(`buffer:${BUFFER_DAY}`)) {
@@ -226,17 +224,76 @@ type RevisionSessionBucket = {
   pendingItems: RevisionQueueItem[];
   completedItems: RevisionQueueItem[];
   earliestScheduledDate: string;
+  earliestPendingScheduledDate: string | null;
   maxOverdueBy: number;
+  maxPendingOverdueBy: number;
   subjectPriority: number;
 };
 
-function sortRevisionBuckets(left: RevisionSessionBucket, right: RevisionSessionBucket) {
-  if (left.earliestScheduledDate !== right.earliestScheduledDate) {
-    return left.earliestScheduledDate.localeCompare(right.earliestScheduledDate);
+function sortRevisionQueueItems(left: RevisionQueueItem, right: RevisionQueueItem) {
+  if (left.overdueBy !== right.overdueBy) {
+    return right.overdueBy - left.overdueBy;
   }
 
-  if (left.maxOverdueBy !== right.maxOverdueBy) {
-    return right.maxOverdueBy - left.maxOverdueBy;
+  if (left.scheduledDate !== right.scheduledDate) {
+    return left.scheduledDate.localeCompare(right.scheduledDate);
+  }
+
+  const subjectDelta = getSubjectPriorityForRevisionItem(left) - getSubjectPriorityForRevisionItem(right);
+  if (subjectDelta !== 0) {
+    return subjectDelta;
+  }
+
+  if (left.sourceDay !== right.sourceDay) {
+    return left.sourceDay - right.sourceDay;
+  }
+
+  const topicDelta = left.sourceTopicLabel.localeCompare(right.sourceTopicLabel);
+  if (topicDelta !== 0) {
+    return topicDelta;
+  }
+
+  const revisionDelta = getRevisionPriority(left.revisionType) - getRevisionPriority(right.revisionType);
+  if (revisionDelta !== 0) {
+    return revisionDelta;
+  }
+
+  return left.sourceItemId.localeCompare(right.sourceItemId);
+}
+
+function sortMorningQueueItems(left: RevisionQueueItem, right: RevisionQueueItem) {
+  const revisionDelta = getRevisionPriority(left.revisionType) - getRevisionPriority(right.revisionType);
+  if (revisionDelta !== 0) {
+    return revisionDelta;
+  }
+
+  if (left.overdueBy !== right.overdueBy) {
+    return right.overdueBy - left.overdueBy;
+  }
+
+  if (left.sourceDay !== right.sourceDay) {
+    return left.sourceDay - right.sourceDay;
+  }
+
+  const topicDelta = left.sourceTopicLabel.localeCompare(right.sourceTopicLabel);
+  if (topicDelta !== 0) {
+    return topicDelta;
+  }
+
+  return left.sourceItemId.localeCompare(right.sourceItemId);
+}
+
+function sortRevisionBuckets(left: RevisionSessionBucket, right: RevisionSessionBucket) {
+  const leftEarliestDate = left.earliestPendingScheduledDate ?? left.earliestScheduledDate;
+  const rightEarliestDate = right.earliestPendingScheduledDate ?? right.earliestScheduledDate;
+  if (leftEarliestDate !== rightEarliestDate) {
+    return leftEarliestDate.localeCompare(rightEarliestDate);
+  }
+
+  const leftMaxOverdue = left.earliestPendingScheduledDate ? left.maxPendingOverdueBy : left.maxOverdueBy;
+  const rightMaxOverdue = right.earliestPendingScheduledDate ? right.maxPendingOverdueBy : right.maxOverdueBy;
+  if (leftMaxOverdue !== rightMaxOverdue) {
+    return rightMaxOverdue - leftMaxOverdue;
   }
 
   if (left.subjectPriority !== right.subjectPriority) {
@@ -268,6 +325,14 @@ function createRevisionSessionBuckets(items: RevisionQueueItem[]) {
       if (item.overdueBy > existing.maxOverdueBy) {
         existing.maxOverdueBy = item.overdueBy;
       }
+      if (item.status !== "completed") {
+        if (!existing.earliestPendingScheduledDate || item.scheduledDate < existing.earliestPendingScheduledDate) {
+          existing.earliestPendingScheduledDate = item.scheduledDate;
+        }
+        if (item.overdueBy > existing.maxPendingOverdueBy) {
+          existing.maxPendingOverdueBy = item.overdueBy;
+        }
+      }
       continue;
     }
 
@@ -281,7 +346,9 @@ function createRevisionSessionBuckets(items: RevisionQueueItem[]) {
       pendingItems: item.status === "completed" ? [] : [item],
       completedItems: item.status === "completed" ? [item] : [],
       earliestScheduledDate: item.scheduledDate,
+      earliestPendingScheduledDate: item.status === "completed" ? null : item.scheduledDate,
       maxOverdueBy: item.overdueBy,
+      maxPendingOverdueBy: item.status === "completed" ? 0 : item.overdueBy,
       subjectPriority: getSubjectPriorityForRevisionItem(item),
     });
   }
@@ -300,6 +367,7 @@ function createRevisionSession(
   bucket: RevisionSessionBucket,
   lane: RevisionSessionLane,
   assignedSlot: RevisionSession["assignedSlot"],
+  allocatedMinutes = 0,
 ): RevisionSession {
   return {
     id: `${lane}:${bucket.sourceItemId}`,
@@ -321,8 +389,17 @@ function createRevisionSession(
     totalIntervals: bucket.allItems.length,
     completedIntervals: bucket.completedItems.length,
     remainingIntervals: bucket.pendingItems.length,
+    allocatedMinutes,
     status: bucket.pendingItems.length === 0 ? "completed" : "pending",
   };
+}
+
+function getRevisionDurationMinutes(revisionType: RevisionType) {
+  return MORNING_REVISION_SLOT_PLAN.find((slot) => slot.revisionType === revisionType)?.durationMinutes ?? 0;
+}
+
+function getBucketPendingMinutes(bucket: RevisionSessionBucket) {
+  return bucket.pendingItems.reduce((sum, item) => sum + getRevisionDurationMinutes(item.revisionType), 0);
 }
 
 function getBlock(day: ScheduleDayPlan, blockKey: BlockKey) {
@@ -782,17 +859,18 @@ function getRevisionCompletion(
 }
 
 function getRevisionEligibleItems() {
-  return ALL_DAYS.flatMap((day) =>
-    getTrackableBlocks(day).flatMap((block) =>
-      block.items
-        .filter((item) => item.revisionEligible)
-        .map((item) => ({
-          day,
-          block,
-          item,
-        })),
-    ),
-  );
+  return ALL_DAYS.filter((day) => getPhaseGroup(day) !== "phase_3")
+    .flatMap((day) =>
+      getTrackableBlocks(day).flatMap((block) =>
+        block.items
+          .filter((item) => item.revisionEligible)
+          .map((item) => ({
+            day,
+            block,
+            item,
+          })),
+      ),
+    );
 }
 
 export function buildRevisionInventory(userState: UserState, settings: AppSettings): RevisionQueueItem[] {
@@ -829,6 +907,7 @@ export function buildRevisionInventory(userState: UserState, settings: AppSettin
         assignedSlot: "morning_revision",
         overdueBy: 0,
         status: completion ? "completed" : "due",
+        completedAt: completion?.completedAt ?? null,
       });
     }
   }
@@ -888,28 +967,94 @@ export function groupRevisionItemsForDisplay(items: RevisionQueueItem[]): Revisi
     });
 }
 
-function calculateMorningMinutesPerSession(sessionCount: number) {
-  if (sessionCount <= 0) {
-    return 0;
-  }
+function buildDueRevisionItems(targetDate: string, userState: UserState, settings: AppSettings) {
+  return buildRevisionInventory(userState, settings)
+    .filter((item) => diffDays(targetDate, item.scheduledDate) >= 0)
+    .map((candidate) => {
+      const overdueBy = diffDays(targetDate, candidate.scheduledDate);
 
-  return Math.floor(75 / Math.min(sessionCount, 5));
+      return {
+        ...candidate,
+        overdueBy,
+        status:
+          candidate.status === "completed"
+            ? "completed"
+            : overdueBy === 0
+              ? "due"
+              : overdueBy <= 2
+                ? "overdue_1_2"
+                : overdueBy <= 6
+                  ? "overdue_3_6"
+                  : "overdue_7_plus",
+      } satisfies RevisionQueueItem;
+    })
+    .sort(sortRevisionQueueItems);
 }
 
-function getMorningPhaseMode(day: ScheduleDayPlan | undefined, morningSessionPlanned: number): MorningPhaseMode {
-  if (!day) {
-    return "workbook_only";
+function isQueuedRevisionItemCandidate(item: RevisionQueueItem, targetDate: string) {
+  if (item.status !== "completed") {
+    return true;
   }
 
-  if (getPhaseGroup(day) === "phase_1" && morningSessionPlanned > 0) {
-    return "session_primary";
+  return item.completedAt !== null && toDateOnlyInTimeZone(item.completedAt) === targetDate;
+}
+
+function selectMorningQueueItems(items: RevisionQueueItem[]) {
+  let remainingMinutes = MORNING_REVISION_SLOT_PLAN.reduce((sum, slot) => sum + slot.durationMinutes, 0);
+  const pool = [...items].sort(sortMorningQueueItems);
+  const selected: RevisionQueueItem[] = [];
+  const usedIndices = new Set<number>();
+
+  function pickFromPool(predicate?: (item: RevisionQueueItem) => boolean): RevisionQueueItem | null {
+    for (let i = 0; i < pool.length; i++) {
+      if (usedIndices.has(i)) continue;
+      const candidate = pool[i]!;
+      const duration = getRevisionDurationMinutes(candidate.revisionType);
+      if (duration > remainingMinutes) continue;
+      if (predicate && !predicate(candidate)) continue;
+      usedIndices.add(i);
+      remainingMinutes -= duration;
+      return candidate;
+    }
+    return null;
   }
 
-  if (getPhaseGroup(day) === "phase_1") {
-    return "workbook_only";
+  // Phase 1: Walk each slot type in order (D+1, D+3, D+7, D+14, D+28).
+  // Pick one item of the matching type first; fall back to any available item.
+  for (const { revisionType } of MORNING_REVISION_SLOT_PLAN) {
+    if (remainingMinutes <= 0) break;
+    const picked =
+      pickFromPool((item) => item.revisionType === revisionType) ??
+      pickFromPool();
+    if (picked) {
+      selected.push(picked);
+    }
   }
 
-  return "workbook_blend";
+  // Phase 2: Fill remaining budget from any available items.
+  while (remainingMinutes > 0) {
+    const picked = pickFromPool();
+    if (!picked) break;
+    selected.push(picked);
+  }
+
+  return selected;
+}
+
+function getMorningPhaseMode(day: ScheduleDayPlan | undefined): MorningPhaseMode {
+  return day ? "session_primary" : "workbook_only";
+}
+
+function getSecondaryLaneForBucket(bucket: RevisionSessionBucket): Exclude<RevisionSessionLane, "due_this_morning"> {
+  if (bucket.maxPendingOverdueBy >= 7) {
+    return "needs_restudy";
+  }
+
+  if (bucket.maxPendingOverdueBy >= 3) {
+    return "revision_recovery";
+  }
+
+  return "also_review_today";
 }
 
 function buildRevisionPlanBase(
@@ -917,91 +1062,63 @@ function buildRevisionPlanBase(
   userState: UserState,
   settings: AppSettings,
 ): Omit<DailyRevisionPlan, "overflowStreakDays" | "overflowSuggestion"> {
-  const inventory = buildRevisionInventory(userState, settings);
-  const dueCandidates = inventory.filter((item) => diffDays(targetDate, item.scheduledDate) >= 0);
+  const dueItems = buildDueRevisionItems(targetDate, userState, settings);
+  const candidates = dueItems.filter((item) => isQueuedRevisionItemCandidate(item, targetDate));
 
-  const mainDue: RevisionQueueItem[] = [];
-  const catchUpDue: RevisionQueueItem[] = [];
-  const restudyDue: RevisionQueueItem[] = [];
+  const storedSelection = userState.morningRevisionSelections?.[targetDate];
+  let morningQueueItems: RevisionQueueItem[];
 
-  for (const candidate of dueCandidates) {
-    const overdueBy = diffDays(targetDate, candidate.scheduledDate);
-    const item = { ...candidate, overdueBy };
-
-    if (overdueBy <= 2) {
-      mainDue.push({
-        ...item,
-        assignedSlot: "morning_revision",
-        status:
-          candidate.status === "completed"
-            ? "completed"
-            : overdueBy === 0
-              ? "due"
-              : "overdue_1_2",
-      });
-      continue;
+  if (storedSelection && storedSelection.length > 0) {
+    const storedSet = new Set(storedSelection);
+    morningQueueItems = candidates.filter((item) => storedSet.has(item.id));
+  } else {
+    morningQueueItems = selectMorningQueueItems(candidates);
+    if (morningQueueItems.length > 0) {
+      if (!userState.morningRevisionSelections) {
+        userState.morningRevisionSelections = {};
+      }
+      userState.morningRevisionSelections[targetDate] = morningQueueItems.map((item) => item.id);
     }
-
-    if (overdueBy <= 6) {
-      catchUpDue.push({
-        ...item,
-        assignedSlot: "block_c",
-        status: candidate.status === "completed" ? "completed" : "overdue_3_6",
-      });
-      continue;
-    }
-
-    restudyDue.push({
-      ...item,
-      assignedSlot: "next_revision_phase",
-      status: candidate.status === "completed" ? "completed" : "overdue_7_plus",
-    });
   }
 
-  const morningBuckets = createRevisionSessionBuckets(mainDue);
-  const primaryMorningBuckets = morningBuckets.slice(0, 5);
-  const overflowMorningBuckets = morningBuckets.slice(5);
-  const queueSessions = primaryMorningBuckets
-    .map((bucket) => createRevisionSession(bucket, "due_this_morning", "morning_revision"))
-    .filter((session) => session.status === "pending");
-  const overflowSessions = overflowMorningBuckets
-    .map((bucket, index) => {
-      const assignedSlot = index === 0 ? "final_review" : BREAK_MICRO_SLOT_ORDER[(index - 1) % BREAK_MICRO_SLOT_ORDER.length];
-      return createRevisionSession(bucket, "also_review_today", assignedSlot);
-    })
-    .filter((session) => session.status === "pending");
+  const queuedRevisionIds = new Set(morningQueueItems.map((item) => item.id));
 
-  const catchUpSessions = createRevisionSessionBuckets(catchUpDue)
-    .map((bucket, index) => createRevisionSession(bucket, "revision_recovery", index % 2 === 0 ? "block_c" : "final_review"))
-    .filter((session) => session.status === "pending");
+  const morningSessionsAll = createRevisionSessionBuckets(morningQueueItems).map((bucket) =>
+    createRevisionSession(
+      bucket,
+      "due_this_morning",
+      "morning_revision",
+      getBucketPendingMinutes(bucket),
+    ),
+  );
+  const queueSessions = morningSessionsAll.filter((session) => session.status === "pending");
 
-  const restudySessions = createRevisionSessionBuckets(restudyDue)
-    .map((bucket) => createRevisionSession(bucket, "needs_restudy", "next_revision_phase"))
-    .filter((session) => session.status === "pending");
+  const secondaryBuckets = createRevisionSessionBuckets(
+    dueItems.filter((item) => item.status !== "completed" && !queuedRevisionIds.has(item.id)),
+  ).filter((bucket) => bucket.pendingItems.length > 0);
+
+  const overflowSessions = secondaryBuckets
+    .filter((bucket) => getSecondaryLaneForBucket(bucket) === "also_review_today")
+    .map((bucket) => createRevisionSession(bucket, "also_review_today", "morning_revision", getBucketPendingMinutes(bucket)));
+  const catchUpSessions = secondaryBuckets
+    .filter((bucket) => getSecondaryLaneForBucket(bucket) === "revision_recovery")
+    .map((bucket) => createRevisionSession(bucket, "revision_recovery", "morning_revision", getBucketPendingMinutes(bucket)));
+  const restudySessions = secondaryBuckets
+    .filter((bucket) => getSecondaryLaneForBucket(bucket) === "needs_restudy")
+    .map((bucket) => createRevisionSession(bucket, "needs_restudy", "morning_revision", getBucketPendingMinutes(bucket)));
 
   const queue = queueSessions.flatMap((session) => session.items);
-  const overflow: OverflowRevisionItem[] = overflowSessions.flatMap((session) => {
-    const label =
-      session.assignedSlot === "final_review"
-        ? "20:30 final review"
-        : BREAK_MICRO_SLOT_LABELS[BREAK_MICRO_SLOT_ORDER.indexOf(session.assignedSlot as typeof BREAK_MICRO_SLOT_ORDER[number])];
-
-    return session.items.map((item) => ({
-      item,
-      assignedSlot: session.assignedSlot as OverflowRevisionItem["assignedSlot"],
-      label,
-    }));
-  });
+  const overflow = overflowSessions.flatMap((session) => session.items).map((item) => ({ item }));
   const catchUp = catchUpSessions.flatMap((session) => session.items);
   const restudyFlags = restudySessions.flatMap((session) => session.items);
 
   const dayNumber = getCurrentDayNumber(settings, targetDate);
   const day = getScheduleDay(dayNumber);
-  const morningSessionPlanned = primaryMorningBuckets.length;
-  const morningSessionCompleted = primaryMorningBuckets.filter((bucket) => bucket.pendingItems.length === 0).length;
+  const morningSessionPlanned = morningSessionsAll.length;
+  const morningSessionCompleted = morningSessionsAll.filter((session) => session.status === "completed").length;
   const morningSessionRemaining = morningSessionPlanned - morningSessionCompleted;
-  const phaseMode = getMorningPhaseMode(day, morningSessionPlanned);
-  const blockStatusMode: MorningBlockStatusMode = phaseMode === "session_primary" ? "revision_sessions" : "workbook_block";
+  const phaseMode = getMorningPhaseMode(day);
+  const blockStatusMode: MorningBlockStatusMode = day ? "revision_sessions" : "workbook_block";
 
   return {
     queue,
@@ -1017,7 +1134,7 @@ function buildRevisionPlanBase(
     morningSessionPlanned,
     morningSessionCompleted,
     morningSessionRemaining,
-    morningMinutesPerSession: calculateMorningMinutesPerSession(primaryMorningBuckets.length),
+    morningAllocatedMinutes: queueSessions.reduce((sum, session) => sum + session.allocatedMinutes, 0),
   };
 }
 
@@ -1040,7 +1157,7 @@ function getOverflowStreakDays(targetDate: string, userState: UserState, setting
   return streak;
 }
 
-export function getRevisionAssignedSlotLabel(slot: OverflowRevisionItem["assignedSlot"] | RevisionQueueItem["assignedSlot"]) {
+export function getRevisionAssignedSlotLabel(slot: RevisionQueueItem["assignedSlot"]) {
   switch (slot) {
     case "final_review":
       return "20:30 final review";
@@ -1064,7 +1181,7 @@ export function getRevisionAssignedSlotLabel(slot: OverflowRevisionItem["assigne
 export function getRevisionSessionLaneLabel(lane: RevisionSessionLane) {
   switch (lane) {
     case "also_review_today":
-      return "Also Review Today";
+      return "Also Due Today";
     case "revision_recovery":
       return "Revision Recovery";
     case "needs_restudy":
@@ -1087,7 +1204,7 @@ export function buildDailyRevisionPlan(
     overflowStreakDays,
     overflowSuggestion:
       overflowStreakDays >= 3
-        ? "Your revision queue is growing. Consider deferring low-priority items to the next revision phase."
+        ? "The revision queue is spilling past the 75-minute morning window. Clear one extra topic when possible."
         : null,
   };
 }
@@ -1097,15 +1214,11 @@ export function getMorningRevisionStatsForDate(
   userState: UserState,
   settings: AppSettings,
 ) {
-  const inventory = buildRevisionInventory(userState, settings);
-  const dueSoon = inventory.filter((item) => {
-    const overdueBy = diffDays(targetDate, item.scheduledDate);
-    return overdueBy >= 0 && overdueBy <= 2;
-  });
+  const plan = buildRevisionPlanBase(targetDate, userState, settings);
 
   return {
-    planned: dueSoon.length,
-    completed: dueSoon.filter((item) => item.status === "completed").length,
+    planned: plan.morningSessionPlanned,
+    completed: plan.morningSessionCompleted,
   };
 }
 

@@ -109,6 +109,18 @@ describe("generated schedule data", () => {
     expect(wrapUpLog.trafficLightPolicy.backlogWhenHidden).toBe(false);
   });
 
+  it("keeps morning revision as a single workbook guide item instead of surfaced revision refs", () => {
+    const morning = getBlock(2, "morning_revision");
+
+    expect(morning.items).toHaveLength(1);
+    expect(morning.items[0]).toMatchObject({
+      kind: "task",
+      plannedMinutes: 75,
+      revisionType: null,
+      revisionEligible: false,
+    });
+  });
+
   it("derives GT context from workbook GT days only", () => {
     expect(scheduleData.gtTestPlan.tests.map((test) => [test.dayNumber, test.testType, test.gtPlanRef])).toEqual([
       [66, "Full GT", "gt_1"],

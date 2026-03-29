@@ -358,6 +358,7 @@ export interface UserState {
   mcqItemLogs: Record<string, McqItemLog>;
   gtLogs: Record<string, GtLog>;
   weeklySummaries: Record<string, WeeklySummary>;
+  morningRevisionSelections: Record<string, string[]>;
   processedDates: {
     lateNightSweepDates: string[];
     midnightDates: string[];
@@ -391,12 +392,11 @@ export interface RevisionQueueItem {
   assignedSlot: RevisionAssignedSlot;
   overdueBy: number;
   status: "due" | "completed" | "overdue_1_2" | "overdue_3_6" | "overdue_7_plus";
+  completedAt: string | null;
 }
 
 export interface OverflowRevisionItem {
   item: RevisionQueueItem;
-  assignedSlot: "final_review" | "break_07_45" | "break_11_00" | "break_17_45" | "break_20_00";
-  label: string;
 }
 
 export interface RevisionDisplayGroup {
@@ -436,6 +436,7 @@ export interface RevisionSession {
   totalIntervals: number;
   completedIntervals: number;
   remainingIntervals: number;
+  allocatedMinutes: number;
   status: "pending" | "completed";
 }
 
@@ -453,7 +454,7 @@ export interface DailyRevisionPlan {
   morningSessionPlanned: number;
   morningSessionCompleted: number;
   morningSessionRemaining: number;
-  morningMinutesPerSession: number;
+  morningAllocatedMinutes: number;
   overflowStreakDays: number;
   overflowSuggestion: string | null;
 }

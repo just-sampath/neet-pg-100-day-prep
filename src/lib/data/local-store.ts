@@ -65,6 +65,7 @@ export function createEmptyUserState(): UserState {
     mcqItemLogs: {},
     gtLogs: {},
     weeklySummaries: {},
+    morningRevisionSelections: {},
     processedDates: emptyProcessedDates(),
   };
 }
@@ -172,13 +173,13 @@ function normalizeShiftEvents(value: unknown): ScheduleShiftEvent[] {
               : null,
           compressedPairs: Array.isArray(candidate.compressedPairs)
             ? candidate.compressedPairs.flatMap((pair) =>
-                Array.isArray(pair) &&
+              Array.isArray(pair) &&
                 pair.length === 2 &&
                 typeof pair[0] === "number" &&
                 typeof pair[1] === "number"
-                  ? [[pair[0], pair[1]] as [number, number]]
-                  : [],
-              )
+                ? [[pair[0], pair[1]] as [number, number]]
+                : [],
+            )
             : [],
         } satisfies ScheduleShiftEvent,
       ];
@@ -286,6 +287,19 @@ function normalizeRevisionCompletions(value: unknown): UserState["revisionComple
   );
 }
 
+function normalizeMorningRevisionSelections(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+  const result: Record<string, string[]> = {};
+  for (const [dateKey, ids] of Object.entries(value as Record<string, unknown>)) {
+    if (Array.isArray(ids) && ids.every((id) => typeof id === "string")) {
+      result[dateKey] = ids as string[];
+    }
+  }
+  return result;
+}
+
 function normalizeBacklogItem(entry: BacklogItem, id: string): BacklogItem {
   const sourceItemId = entry.sourceItemId ?? id;
   const scheduleItem = getScheduleItemById(sourceItemId);
@@ -352,6 +366,7 @@ function normalizeUserState(userState: UserState | undefined): UserState {
     ),
     gtLogs: Object.fromEntries(Object.entries(base.gtLogs ?? {}).map(([id, log]) => [id, normalizeStoredGtLog(log)])),
     weeklySummaries,
+    morningRevisionSelections: normalizeMorningRevisionSelections(base.morningRevisionSelections),
     processedDates: normalizeProcessedDates(base.processedDates),
   };
 }
@@ -592,6 +607,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     });
     userState.quoteState = normalizeQuoteState(settingsResult.data.quote_state);
     userState.processedDates = normalizeProcessedDates(settingsResult.data.processed_dates);
+    userState.morningRevisionSelections = normalizeMorningRevisionSelections(settingsResult.data.morning_revision_selections);
     store.dev.simulatedNowIso = settingsResult.data.simulated_now_iso ?? null;
   }
 
@@ -837,6 +853,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
       shift_events: nextState.settings.shiftEvents,
       quote_state: nextState.quoteState,
       processed_dates: nextState.processedDates,
+      morning_revision_selections: nextState.morningRevisionSelections,
       simulated_now_iso: nextStore.dev.simulatedNowIso,
     },
     {

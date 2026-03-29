@@ -36,6 +36,8 @@ import {
 import { getTodayQuoteSelection } from "@/lib/domain/quotes";
 import {
   buildDailyRevisionPlan,
+  buildRevisionInventory,
+  groupRevisionItemsForDisplay,
   getBacklogCount,
   getBlockProgress,
   getCurrentDayNumber,
@@ -472,6 +474,12 @@ export function moveVisibleBlocksToBacklog(
     }
 
     if (block.semanticBlockKey === "morning_revision") {
+      const mappedDate = getMappedDate(dayNumber, userState.settings);
+      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings) : null;
+      if (!revisionPlan || revisionPlan.morningSessionPlanned === 0) {
+        continue;
+      }
+
       for (const item of getUnresolvedItems(userState, dayNumber, blockKey)) {
         markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, "missed", "missed", options?.note ?? null);
       }
@@ -646,6 +654,13 @@ export function runMidnightRollover(userState: UserState, settings: AppSettings,
       const afterCount = Object.values(userState.backlogItems).filter((item) => item.status === "pending").length;
       backlogCreated += Math.max(0, afterCount - beforeCount);
       missedBlocks += visibleBlocks.filter((blockKey) => getBlockProgress(userState, previousDayNumber, blockKey).status === "missed").length;
+    }
+  }
+
+  // Clean up stale morningRevisionSelections for dates before today.
+  for (const dateKey of Object.keys(userState.morningRevisionSelections)) {
+    if (dateKey < todayDate) {
+      delete userState.morningRevisionSelections[dateKey];
     }
   }
 
@@ -1011,18 +1026,18 @@ export function getHomeData(store: LocalStore, userId: string) {
   const quoteSelection =
     todayScheduleDay && todayState
       ? getTodayQuoteSelection(userState.quoteState, {
-          dateKey: todayDate,
-          userKey: userId,
-          trafficLight: todayState.trafficLight,
-          dayComplete,
-        })
+        dateKey: todayDate,
+        userKey: userId,
+        trafficLight: todayState.trafficLight,
+        dayComplete,
+      })
       : {
-          lineCategory: null,
-          lineQuote: null,
-          dailyQuote: null,
-          toughQuote: null,
-          celebrationQuote: null,
-        };
+        lineCategory: null,
+        lineQuote: null,
+        dailyQuote: null,
+        toughQuote: null,
+        celebrationQuote: null,
+      };
 
   const shiftHealth = getScheduleHealth(userState, settings, todayDayNumber);
   const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays) : null;
@@ -1049,6 +1064,24 @@ export function getHomeData(store: LocalStore, userId: string) {
   };
 }
 
+function buildRevisionOverview(userState: UserState, settings: AppSettings, todayDate: string) {
+  const allItems = buildRevisionInventory(userState, settings);
+  const pendingItems = allItems.filter((item) => item.status !== "completed" && item.scheduledDate <= todayDate);
+  const completedItems = allItems.filter((item) => item.status === "completed");
+  const overdueItems = pendingItems.filter((item) => item.scheduledDate < todayDate);
+  const dueToday = pendingItems.filter((item) => item.scheduledDate === todayDate);
+  const upcoming = allItems.filter((item) => item.status !== "completed" && item.scheduledDate > todayDate);
+  const groups = groupRevisionItemsForDisplay(pendingItems);
+  return {
+    totalPending: pendingItems.length,
+    totalCompleted: completedItems.length,
+    overdueCount: overdueItems.length,
+    dueTodayCount: dueToday.length,
+    upcomingCount: upcoming.length,
+    groups,
+  };
+}
+
 export function getBacklogPageData(
   store: LocalStore,
   userId: string,
@@ -1070,6 +1103,7 @@ export function getBacklogPageData(
     summary: getBacklogSummary(userState),
     counts: getBacklogStatusCounts(userState),
     items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort),
+    revision: buildRevisionOverview(userState, userState.settings, todayDate),
   };
 }
 

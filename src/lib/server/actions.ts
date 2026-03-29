@@ -52,8 +52,8 @@ function asString(value: FormDataEntryValue | null) {
   return typeof value === "string" ? value : "";
 }
 
-function completionIsoForDateOnly(dateOnly: string | null) {
-  return dateOnly ? `${dateOnly}T12:00:00.000Z` : new Date().toISOString();
+function completionIsoForDateOnly(dateOnly: string | null, fallbackNow = new Date()) {
+  return dateOnly ? `${dateOnly}T12:00:00.000Z` : fallbackNow.toISOString();
 }
 
 function isDateOnly(value: string | null) {
@@ -150,7 +150,8 @@ export async function updateBlockAction(formData: FormData) {
 
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
+    const effectiveNow = getEffectiveNow(store);
+    const todayDate = toDateOnlyInTimeZone(effectiveNow, IST_TIME_ZONE);
     const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
     const isRetroactiveCompletion = intent === "complete" && editState.canRetroactivelyComplete;
     const canMutateToday = editState.canAdjustToday;
@@ -177,14 +178,21 @@ export async function updateBlockAction(formData: FormData) {
     }
 
     if (intent === "complete") {
-      completeBlockItems(userState, dayNumber, blockKey, completionIsoForDateOnly(resolvedCompletionDate), note);
+      completeBlockItems(userState, dayNumber, blockKey, completionIsoForDateOnly(resolvedCompletionDate, effectiveNow), note);
     } else if (intent === "partial" || intent === "quick_finish") {
       const block = getScheduleDay(dayNumber)?.blocks.find((entry) => entry.timeSlotKey === blockKey);
       const nextItem = block?.items.find((item) => userState.topicProgress[item.itemId]?.status !== "completed");
       if (!nextItem) {
         return;
       }
-      completeTopicItem(userState, dayNumber, blockKey, nextItem.itemId, completionIsoForDateOnly(completionDate), note ?? "Quick version.");
+      completeTopicItem(
+        userState,
+        dayNumber,
+        blockKey,
+        nextItem.itemId,
+        completionIsoForDateOnly(completionDate, effectiveNow),
+        note ?? "Quick version.",
+      );
     } else if (intent === "skip") {
       moveBlockToBacklog(userState, dayNumber, blockKey, "skipped", "skipped", note);
     } else if (intent === "time") {
@@ -238,7 +246,8 @@ export async function updateTopicAction(formData: FormData) {
 
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
+    const effectiveNow = getEffectiveNow(store);
+    const todayDate = toDateOnlyInTimeZone(effectiveNow, IST_TIME_ZONE);
     const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
     const isRetroactiveCompletion = intent === "complete" && editState.canRetroactivelyComplete;
 
@@ -262,7 +271,7 @@ export async function updateTopicAction(formData: FormData) {
     }
 
     if (intent === "complete") {
-      completeTopicItem(userState, dayNumber, blockKey, itemId, completionIsoForDateOnly(resolvedCompletionDate), note);
+      completeTopicItem(userState, dayNumber, blockKey, itemId, completionIsoForDateOnly(resolvedCompletionDate, effectiveNow), note);
       return;
     }
 
@@ -285,7 +294,7 @@ export async function completeRevisionSessionAction(formData: FormData) {
 
   await mutateStore((store) => {
     const userState = store.userState[user.id];
-    completeRevisionSession(userState, sourceItemId, sourceDay, sourceBlockKey, revisionIds);
+    completeRevisionSession(userState, sourceItemId, sourceDay, sourceBlockKey, revisionIds, getEffectiveNow(store).toISOString());
   });
   refresh();
 }
@@ -308,7 +317,7 @@ export async function completeRevisionAction(formData: FormData) {
       sourceDay,
       sourceBlockKey,
       revisionType,
-      completedAt: new Date().toISOString(),
+      completedAt: getEffectiveNow(store).toISOString(),
     };
   });
   refresh();
@@ -334,7 +343,7 @@ export async function updateBacklogAction(formData: FormData) {
     }
 
     if (intent === "complete") {
-      const completedAt = completionIsoForDateOnly(completionDate);
+      const completedAt = completionIsoForDateOnly(completionDate, getEffectiveNow(store));
       completeTopicItem(userState, item.originalDay, item.originalBlockKey, item.sourceItemId, completedAt);
       item.status = "completed";
       item.completedAt = completedAt;

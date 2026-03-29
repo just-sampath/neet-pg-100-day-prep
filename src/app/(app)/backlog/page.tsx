@@ -112,6 +112,80 @@ export default async function BacklogPage({
         </div>
       </section>
 
+      {data.revision.totalPending > 0 || data.revision.totalCompleted > 0 ? (
+        <section className="panel reveal-rise p-5 md:p-6">
+          <div className="grid gap-5">
+            <div>
+              <div className="eyebrow">Revision Queue</div>
+              <h2 className="display mt-3 text-2xl md:text-3xl">Spaced repetition checkpoints</h2>
+              <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
+                Each completed Phase 1–2 topic generates five revision checkpoints at D+1, D+3, D+7, D+14, and D+28.
+              </p>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-4">
+              <article className="metric-slab">
+                <div className="metric-label">Due Today</div>
+                <div className="metric-value">{data.revision.dueTodayCount}</div>
+                <p className="metric-note">Checkpoints scheduled for today.</p>
+              </article>
+              <article className="metric-slab">
+                <div className="metric-label">Overdue</div>
+                <div className="metric-value">{data.revision.overdueCount}</div>
+                <p className="metric-note">Past-due checkpoints still pending.</p>
+              </article>
+              <article className="metric-slab">
+                <div className="metric-label">Upcoming</div>
+                <div className="metric-value">{data.revision.upcomingCount}</div>
+                <p className="metric-note">Checkpoints scheduled for future days.</p>
+              </article>
+              <article className="metric-slab">
+                <div className="metric-label">Completed</div>
+                <div className="metric-value">{data.revision.totalCompleted}</div>
+                <p className="metric-note">Revision checkpoints already marked off.</p>
+              </article>
+            </div>
+
+            {data.revision.groups.length > 0 ? (
+              <div className="grid gap-3">
+                <div className="eyebrow">Pending Topics ({data.revision.totalPending} checkpoints across {data.revision.groups.length} topic{data.revision.groups.length === 1 ? "" : "s"})</div>
+                {data.revision.groups.map((group) => (
+                  <article key={group.id} className="note-card p-4">
+                    <div className="flex gap-4">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--border)] font-mono text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
+                        {String(group.sourceDay).padStart(2, "0")}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-mono text-[0.72rem] uppercase tracking-[0.18em] text-[var(--muted)]">
+                          {group.revisionTypes.join(" · ")} / {group.subject}
+                        </div>
+                        <div className="mt-2 text-base font-semibold leading-7">{group.sourceTopicLabel}</div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {group.items.map((item) => (
+                            <span
+                              key={item.id}
+                              className="status-badge"
+                              data-tone={item.status === "completed" ? "green" : item.status === "overdue_3_6" || item.status === "overdue_7_plus" ? "red" : item.status === "overdue_1_2" ? "yellow" : "neutral"}
+                            >
+                              {item.revisionType}
+                              {item.status === "completed" ? " ✓" : item.overdueBy > 0 ? ` +${item.overdueBy}d` : ""}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="note-card p-5 text-sm leading-7 text-(--text-secondary)">
+                No pending revision checkpoints. Future checkpoints will appear here as you complete study topics.
+              </div>
+            )}
+          </div>
+        </section>
+      ) : null}
+
       <section className="panel reveal-rise p-5 md:p-6">
         <div className="grid gap-4 xl:grid-cols-[1fr_auto] xl:items-end">
           <div className="grid gap-3">
@@ -125,14 +199,14 @@ export default async function BacklogPage({
               {FILTERS.map((item) => (
                 <Link
                   key={item.value}
-                className={filter === item.value ? "button-primary" : "button-secondary"}
-                href={{ pathname: "/backlog", query: { status: item.value, sort } }}
-              >
-                {item.label}
-                {` (${countForFilter(item.value)})`}
-              </Link>
-            ))}
-          </div>
+                  className={filter === item.value ? "button-primary" : "button-secondary"}
+                  href={{ pathname: "/backlog", query: { status: item.value, sort } }}
+                >
+                  {item.label}
+                  {` (${countForFilter(item.value)})`}
+                </Link>
+              ))}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2 xl:justify-end">

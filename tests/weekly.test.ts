@@ -144,7 +144,7 @@ describe("weekly summary and review", () => {
       gtWrapperSummary: "Review trauma images.",
     });
     expect(summary.blocksCompleted).toBeLessThan(summary.blocksPlanned);
-    expect(summary.morningRevisionCompleted).toBe(1);
+    expect(summary.morningRevisionCompleted).toBe(0);
     expect(summary.backlogCount).toBeGreaterThan(0);
     expect(summary.backlogSummary.totalPending).toBe(summary.backlogCount);
     expect(summary.subjectsStudied).toContain("Pathology");

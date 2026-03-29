@@ -122,7 +122,6 @@ export default async function ScheduleDayPage({
 
       {morningBlock ? (
         <MorningPlanPanel
-          dayNumber={detail.day.dayNumber}
           morningBlock={{
             blockKey: morningBlock.timeSlotKey,
             displayLabel: morningBlock.displayLabel,
@@ -149,39 +148,7 @@ export default async function ScheduleDayPage({
             : detail.mappedDate ?? detail.originalPlannedDate ?? detail.todayDate;
 
           if (morningBlock && block.timeSlotKey === morningBlock.timeSlotKey) {
-            const morningSummary = detail.revisionPlan?.phaseMode === "session_primary"
-              ? detail.revisionPlan.morningSessionRemaining
-                ? `${detail.revisionPlan.morningSessionRemaining} session(s) are still open in the dedicated morning panel above.`
-                : detail.revisionPlan?.morningSessionPlanned
-                  ? "The live morning revision set is already closed from the panel above."
-                  : "No live revision sessions are due on this mapped date."
-              : "The dedicated morning panel above is the single place to complete or review this block.";
-
-            return (
-              <article key={block.timeSlotKey} className="panel p-5">
-                <div className="eyebrow">{block.displayLabel}</div>
-                <h2 className="mt-2 text-xl font-semibold">{block.displayDescription}</h2>
-                <p className="mt-1 text-sm text-[var(--muted)]">
-                  {block.start} – {block.end} · {block.progress.status}
-                </p>
-                <p className="mt-4 text-sm leading-7 text-(--text-secondary)">{morningSummary}</p>
-                <div className="note-card mt-4 p-4 text-sm leading-7 text-(--text-secondary)">
-                  The schedule block remains visible here for auditability, but its real interaction now lives in the shared morning panel above.
-                </div>
-                {detail.editState.canAdjustToday ? (
-                  <TimeEditor
-                    dayNumber={detail.day.dayNumber}
-                    blockKey={block.timeSlotKey as BlockKey}
-                    start={block.start}
-                    end={block.end}
-                    actualStart={block.progress.actualStart}
-                    actualEnd={block.progress.actualEnd}
-                    trafficLight={detail.state.trafficLight}
-                    slots={timeEditorSlots}
-                  />
-                ) : null}
-              </article>
-            );
+            return null;
           }
 
           return (
