@@ -1257,6 +1257,31 @@ function buildRevisionOverview(userState: UserState, settings: AppSettings, toda
   };
 }
 
+export function getRevisionQueuePageData(store: LocalStore, userId: string) {
+  applyAutomations(store, userId);
+
+  const userState = store.userState[userId];
+  const now = getEffectiveNow(store);
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+  const settings = userState.settings;
+  const todayDayNumber = getCurrentDayNumber(settings, todayDate);
+  const todayScheduleDay = getScheduleDay(todayDayNumber);
+  const revisionPlan = settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings) : null;
+  const waitingSessions = revisionPlan
+    ? [...revisionPlan.overflowSessions, ...revisionPlan.catchUpSessions, ...revisionPlan.restudySessions]
+    : [];
+
+  return {
+    todayDate,
+    todayDayNumber,
+    dayCountLabel: getSafeDayCountLabel(todayDayNumber),
+    todayScheduleDay,
+    revisionPlan,
+    waitingSessions,
+    revision: buildRevisionOverview(userState, settings, todayDate),
+  };
+}
+
 export function getBacklogPageData(
   store: LocalStore,
   userId: string,

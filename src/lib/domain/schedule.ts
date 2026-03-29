@@ -891,6 +891,8 @@ export function buildRevisionInventory(userState: UserState, settings: AppSettin
     for (const [revisionType, offset] of Object.entries(REVISION_INTERVALS) as Array<[RevisionType, number]>) {
       const scheduledDate = addDaysToDateOnly(anchorDate, offset);
       const completion = getRevisionCompletion(userState.revisionCompletions, entry.item.itemId, revisionType);
+      const completionDate = completion ? toDateOnlyInTimeZone(completion.completedAt) : null;
+      const isCompletionValid = completionDate !== null && completionDate >= scheduledDate;
       items.push({
         id: createRevisionId(entry.item.itemId, revisionType),
         sourceItemId: entry.item.itemId,
@@ -906,8 +908,8 @@ export function buildRevisionInventory(userState: UserState, settings: AppSettin
         anchorMode: "actual",
         assignedSlot: "morning_revision",
         overdueBy: 0,
-        status: completion ? "completed" : "due",
-        completedAt: completion?.completedAt ?? null,
+        status: isCompletionValid ? "completed" : "due",
+        completedAt: isCompletionValid ? completion?.completedAt ?? null : null,
       });
     }
   }
@@ -1071,6 +1073,13 @@ function buildRevisionPlanBase(
   if (storedSelection && storedSelection.length > 0) {
     const storedSet = new Set(storedSelection);
     morningQueueItems = candidates.filter((item) => storedSet.has(item.id));
+
+    // Re-select when the stored selection no longer matches any current candidates
+    // (e.g., after reconciliation moved anchors or IDs became stale).
+    if (morningQueueItems.length === 0 && candidates.length > 0) {
+      morningQueueItems = selectMorningQueueItems(candidates);
+      userState.morningRevisionSelections[targetDate] = morningQueueItems.map((item) => item.id);
+    }
   } else {
     morningQueueItems = selectMorningQueueItems(candidates);
     if (morningQueueItems.length > 0) {

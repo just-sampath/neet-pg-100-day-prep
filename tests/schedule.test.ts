@@ -656,6 +656,34 @@ describe("schedule engine", () => {
     expect(userState.revisionCompletions[revisionId]).toBeUndefined();
   });
 
+  it("treats impossible early revision checkoffs as still due when building inventory", () => {
+    const userState = createConfiguredState();
+    const topic = getItem(1, "block_a");
+    const blockKey = getBlock(1, "block_a").timeSlotKey;
+    const revisionId = createRevisionId(topic.itemId, "D+3");
+
+    completeTopicItem(userState, 1, blockKey, topic.itemId, "2026-05-01T12:00:00.000Z");
+
+    userState.revisionCompletions[revisionId] = {
+      revisionId,
+      sourceItemId: topic.itemId,
+      sourceDay: 1,
+      sourceBlockKey: blockKey,
+      revisionType: "D+3",
+      completedAt: "2026-05-02T06:30:00.000Z",
+    };
+
+    const inventory = buildRevisionInventory(userState, userState.settings);
+    const d3Item = inventory.find((item) => item.id === revisionId);
+
+    expect(d3Item).toMatchObject({
+      revisionType: "D+3",
+      scheduledDate: "2026-05-04",
+      status: "due",
+      completedAt: null,
+    });
+  });
+
   it("groups revision display items by source topic and sorts revision types", () => {
     const sourceItemId = getItem(1, "block_a").itemId;
     const groups = groupRevisionItemsForDisplay([

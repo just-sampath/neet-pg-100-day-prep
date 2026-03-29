@@ -924,6 +924,30 @@ async function syncUserRows(
   }
 }
 
+async function syncRevisionCompletionRows(
+  userId: string,
+  rows: Record<string, unknown>[],
+  supabase: SupabaseClient,
+) {
+  const { error: deleteError } = await supabase.from("revision_completions").delete().eq("user_id", userId);
+  if (deleteError) {
+    throw new Error(`revision_completions: ${deleteError.message}`);
+  }
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  const { error: upsertError } = await supabase.from("revision_completions").upsert(rows, {
+    onConflict: "user_id,revision_id",
+    ignoreDuplicates: false,
+  });
+
+  if (upsertError) {
+    throw new Error(`revision_completions: ${upsertError.message}`);
+  }
+}
+
 async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalStore) {
   const userId = Object.keys(nextStore.userState)[0];
   if (!userId) {
@@ -967,6 +991,15 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
     ...buildTopicProgressRows(userId, nextState.topicProgress),
     ...buildBlockTimingRows(userId, nextState.blockTiming),
   ];
+  const revisionCompletionRows = Object.values(nextState.revisionCompletions).map((entry) => ({
+    user_id: userId,
+    revision_id: entry.revisionId,
+    source_item_id: entry.sourceItemId,
+    source_day: entry.sourceDay,
+    source_block_key: entry.sourceBlockKey,
+    revision_type: entry.revisionType,
+    completed_at: entry.completedAt,
+  }));
   const previousBlockProgressCount =
     Object.keys(previousState.topicProgress).length + Object.keys(previousState.blockTiming).length;
 
@@ -996,24 +1029,7 @@ async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalS
       },
       supabase,
     ),
-    syncUserRows(
-      {
-        table: "revision_completions",
-        userId,
-        onConflict: "user_id,revision_id",
-        previousCount: Object.keys(previousState.revisionCompletions).length,
-        rows: Object.values(nextState.revisionCompletions).map((entry) => ({
-          user_id: userId,
-          revision_id: entry.revisionId,
-          source_item_id: entry.sourceItemId,
-          source_day: entry.sourceDay,
-          source_block_key: entry.sourceBlockKey,
-          revision_type: entry.revisionType,
-          completed_at: entry.completedAt,
-        })),
-      },
-      supabase,
-    ),
+    syncRevisionCompletionRows(userId, revisionCompletionRows, supabase),
     syncUserRows(
       {
         table: "backlog_items",
