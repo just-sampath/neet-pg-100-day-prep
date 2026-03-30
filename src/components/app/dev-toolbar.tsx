@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 import {
   clearSimulatedNowAction,
   generateWeeklySummaryAction,
+  runRepackAction,
   setSimulatedNowAction,
 } from "@/lib/server/actions";
 
@@ -102,6 +103,18 @@ export function DevToolbar({ simulatedNow }: { simulatedNow: string | null }) {
             }
           >
             Generate weekly summary
+          </button>
+          <button
+            className="button-secondary"
+            type="button"
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                await runRepackAction();
+              })
+            }
+          >
+            Run Repack
           </button>
         </div>
       </div>

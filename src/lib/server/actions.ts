@@ -26,6 +26,7 @@ import {
   moveVisibleBlocksToBacklog,
   runBlockOverrunCutoff,
   runEndOfDaySweep,
+  runMidnightRepack,
   skipTopicItem,
   upsertWeeklySummary,
 } from "@/lib/data/app-state";
@@ -656,6 +657,20 @@ export async function generateWeeklySummaryAction() {
     upsertWeeklySummary(userState, userState.settings, week.start, today, store.referenceData);
   });
   refresh();
+}
+
+export async function runRepackAction() {
+  const user = await requireCurrentUser();
+  let result: ReturnType<typeof runMidnightRepack> | null = null;
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    const now = getEffectiveNow(store);
+    const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, store.referenceData);
+  });
+  refresh();
+  return result;
 }
 
 export async function setSimulatedNowAction(formData: FormData) {

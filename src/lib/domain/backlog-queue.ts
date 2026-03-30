@@ -29,6 +29,7 @@ const SOURCE_LABELS: Record<BacklogItem["sourceTag"], string> = {
   traffic_light: "Day off",
   end_of_day_sweep: "End of day",
   block_overrun_2245: "Overrun",
+  repack_overflow: "Repack overflow",
 } as const;
 
 const STATUS_ORDER: Record<BacklogStatus, number> = {

@@ -69,6 +69,7 @@ function emptyProcessedDates(): UserState["processedDates"] {
     midnightDates: [],
     weeklySummaryDates: [],
     endOfDaySweepDates: [],
+    repackDates: [],
   };
 }
 
@@ -279,6 +280,7 @@ function normalizeProcessedDates(value: unknown): UserState["processedDates"] {
     midnightDates: Array.isArray(candidate.midnightDates) ? candidate.midnightDates : [],
     weeklySummaryDates: Array.isArray(candidate.weeklySummaryDates) ? candidate.weeklySummaryDates : [],
     endOfDaySweepDates: Array.isArray(candidate.endOfDaySweepDates) ? candidate.endOfDaySweepDates : [],
+    repackDates: Array.isArray(candidate.repackDates) ? candidate.repackDates : [],
   };
 }
 

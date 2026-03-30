@@ -2,7 +2,7 @@ import "server-only";
 
 import { getCurrentDayNumber, getScheduleHealth } from "@/lib/domain/schedule";
 import { createRemoteUser, persistSupabaseStoreForUser, readSupabaseStoreForUser } from "@/lib/data/local-store";
-import { runMidnightRollover, runWeeklySummaryAutomation } from "@/lib/data/app-state";
+import { runMidnightRollover, runMidnightRepack, runWeeklySummaryAutomation } from "@/lib/data/app-state";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getWeekdayInTimeZone, IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
@@ -131,6 +131,7 @@ export async function runMidnightCronJob(runAt = new Date()): Promise<JobResult>
       const userState = store.userState[userId];
       const todayDayNumber = getCurrentDayNumber(userState, scheduledDate);
       const midnight = runMidnightRollover(userState, userState.settings, scheduledDate, todayDayNumber, store.referenceData);
+      const repack = runMidnightRepack(userState, userState.settings, scheduledDate, todayDayNumber, store.referenceData);
       const shiftHealth = getScheduleHealth(userState, userState.settings, todayDayNumber, store.referenceData);
 
       if (JSON.stringify(store) !== JSON.stringify(previous)) {
@@ -146,6 +147,10 @@ export async function runMidnightCronJob(runAt = new Date()): Promise<JobResult>
         revisionRollover: midnight.revisionRollover,
         shiftSuggested: shiftHealth.suggestShift,
         shiftPressureDays: shiftHealth.missedDays.length,
+        repackSkipped: repack.skipped,
+        repackPlaced: repack.placed,
+        repackOverflow: repack.overflowBacklog + repack.overflowTopics,
+        repackBacklogRescheduled: repack.backlogRescheduled,
       });
     }
 

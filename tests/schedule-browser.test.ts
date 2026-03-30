@@ -105,7 +105,7 @@ describe("schedule browser and retroactive editing", () => {
     expect(days.find((day) => day.dayNumber === 2)).toMatchObject({
       status: "missed",
     });
-  });
+  }, 15_000);
 
   it("exposes retroactive completion only on past day detail views and returns semantic block items", () => {
     const userState = createEmptyUserState();

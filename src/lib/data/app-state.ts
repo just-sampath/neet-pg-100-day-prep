@@ -16,6 +16,7 @@ import {
 } from "@/lib/domain/backlog-queue";
 import { getTrafficLightBacklogSourceTag, previewOverrunCascade, resolvePhase, resolveSubjectTier, shouldCreateBacklogItem } from "@/lib/domain/backlog";
 import { MORNING_REVISION_SLOT_PLAN, NO_DUE_MORNING_REVISION_NOTE } from "@/lib/domain/constants";
+import { runRepackAlgorithm } from "@/lib/domain/repack";
 import {
   buildGtComparisonSummary,
   buildGtDashboardSummary,
@@ -1452,6 +1453,328 @@ export function runWeeklySummaryAutomation(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Midnight Repack Engine — Data Collection & Write Layer
+// ---------------------------------------------------------------------------
+
+export interface RepackResult {
+  skipped: boolean;
+  reason?: string;
+  date: string;
+  placed: number;
+  overflowBacklog: number;
+  overflowTopics: number;
+  backlogRescheduled: number;
+}
+
+/**
+ * Collect inputs for the repack algorithm from UserState.
+ *
+ * Resolves subject tiers for topic assignments (using referenceData) so the
+ * pure algorithm never needs reference data.
+ */
+function collectRepackInputs(
+  userState: UserState,
+  todayDayNumber: number,
+  phaseEndDay: number,
+  referenceData?: LocalStore["referenceData"],
+) {
+  const schedule = userState.schedule;
+
+  // --- Pinned topics ---
+  const pinnedTopics: import("@/lib/domain/repack").PinnedTopic[] = [];
+  for (const row of Object.values(schedule.topicAssignments)) {
+    if (
+      row.isPinned &&
+      row.dayNumber >= todayDayNumber &&
+      row.dayNumber <= phaseEndDay
+    ) {
+      pinnedTopics.push({
+        sourceItemId: row.sourceItemId,
+        dayNumber: row.dayNumber,
+        blockKey: row.blockKey,
+        plannedMinutes: row.plannedMinutes,
+        itemOrder: row.itemOrder,
+      });
+    }
+  }
+
+  // --- Pending backlog items (Source A) ---
+  const pendingBacklog: import("@/lib/domain/repack").UnifiedQueueItem[] = [];
+  for (const item of sortBacklogQueue(Object.values(userState.backlogItems).filter((b) => b.status === "pending"))) {
+    // Look up the topic assignment row to check existing recovery fields
+    const topicRow = schedule.topicAssignments[item.sourceItemId];
+    pendingBacklog.push({
+      sourceItemId: item.sourceItemId,
+      plannedMinutes: item.plannedMinutes,
+      subjectTier: item.subjectTier,
+      dateKey: item.originalDay,
+      isFromBacklog: true,
+      existingIsRecovery: topicRow?.isRecovery ?? false,
+      existingOriginalDayNumber: topicRow?.originalDayNumber ?? null,
+      existingOriginalBlockKey: topicRow?.originalBlockKey ?? null,
+      backlogOriginalDay: item.originalDay,
+      backlogOriginalBlockKey: item.originalBlockKey,
+    });
+  }
+
+  // --- Uncompleted future topic assignments (Source B) ---
+  // CRITICAL: Only status='pending'. Topics with 'missed', 'skipped',
+  // 'completed', 'rescheduled' are excluded — they've been handled elsewhere.
+  const futureTopicRows: Array<{ row: typeof schedule.topicAssignments[string]; tier: SubjectTier | null }> = [];
+  for (const row of Object.values(schedule.topicAssignments)) {
+    if (
+      row.dayNumber >= todayDayNumber &&
+      row.dayNumber <= phaseEndDay &&
+      row.status === "pending" &&
+      !row.isPinned
+    ) {
+      const { subjectTier } = resolveSubjectTier(row.subjectIds, referenceData);
+      futureTopicRows.push({ row, tier: subjectTier });
+    }
+  }
+
+  // Sort by tier ASC, dayNumber ASC, itemOrder ASC
+  futureTopicRows.sort((a, b) => {
+    const tDelta = tierRankLocal(a.tier) - tierRankLocal(b.tier);
+    if (tDelta !== 0) return tDelta;
+    if (a.row.dayNumber !== b.row.dayNumber) return a.row.dayNumber - b.row.dayNumber;
+    return a.row.itemOrder - b.row.itemOrder;
+  });
+
+  const futureTopics: import("@/lib/domain/repack").UnifiedQueueItem[] = futureTopicRows.map(({ row, tier }) => ({
+    sourceItemId: row.sourceItemId,
+    plannedMinutes: row.plannedMinutes,
+    subjectTier: tier,
+    dateKey: row.dayNumber,
+    isFromBacklog: false,
+    existingIsRecovery: row.isRecovery,
+    existingOriginalDayNumber: row.originalDayNumber,
+    existingOriginalBlockKey: row.originalBlockKey,
+    backlogOriginalDay: null,
+    backlogOriginalBlockKey: null,
+  }));
+
+  // --- Block capacities ---
+  // Only core_study and consolidation blocks participate
+  const REPACK_INTENTS = new Set(["core_study", "consolidation"]);
+  const rawCapacities: import("@/lib/domain/repack").BlockCapacity[] = [];
+  for (const blockRow of Object.values(schedule.blocks)) {
+    if (
+      blockRow.dayNumber >= todayDayNumber &&
+      blockRow.dayNumber <= phaseEndDay &&
+      REPACK_INTENTS.has(blockRow.blockIntent)
+    ) {
+      rawCapacities.push({
+        dayNumber: blockRow.dayNumber,
+        blockKey: blockRow.blockKey,
+        durationMinutes: blockRow.durationMinutes,
+        slotOrder: blockRow.slotOrder,
+      });
+    }
+  }
+  // Order: dayNumber ASC, slotOrder ASC (gives block_a → block_b → block_c)
+  rawCapacities.sort((a, b) => {
+    if (a.dayNumber !== b.dayNumber) return a.dayNumber - b.dayNumber;
+    return a.slotOrder - b.slotOrder;
+  });
+
+  return { pinnedTopics, pendingBacklog, futureTopics, rawCapacities };
+}
+
+function tierRankLocal(tier: SubjectTier | null): number {
+  if (tier === "A") return 0;
+  if (tier === "B") return 1;
+  if (tier === "C") return 2;
+  return 3;
+}
+
+/**
+ * Apply the repack algorithm output back into UserState.
+ *
+ * For placed topics:
+ * - Update schedule_topic_assignments row (dayNumber, blockKey, itemOrder)
+ * - If from backlog: set recovery fields (write-once) and mark backlog 'rescheduled'
+ * - If already recovery: preserve existing recovery origin fields
+ *
+ * For overflow original topics:
+ * - Mark topic assignment status='missed', sourceTag='repack_overflow'
+ * - Create/update backlog item with source_tag='repack_overflow'
+ *
+ * For overflow backlog items:
+ * - Left as-is (status='pending' in backlogItems)
+ */
+function applyRepackResult(
+  userState: UserState,
+  output: import("@/lib/domain/repack").RepackOutput,
+  referenceData?: LocalStore["referenceData"],
+) {
+  const now = new Date().toISOString();
+  const schedule = userState.schedule;
+  let backlogRescheduled = 0;
+
+  // --- Apply placements ---
+  for (const placement of output.placements) {
+    const row = schedule.topicAssignments[placement.sourceItemId];
+    if (!row) continue;
+
+    const dayChanged = row.dayNumber !== placement.dayNumber || row.blockKey !== placement.blockKey;
+
+    row.dayNumber = placement.dayNumber;
+    row.blockKey = placement.blockKey;
+    row.itemOrder = placement.itemOrder;
+    row.status = "pending";
+    row.updatedAt = now;
+
+    // Recovery fields are write-once: only set if not already set
+    if (placement.isRecovery && !row.isRecovery) {
+      row.isRecovery = true;
+      row.originalDayNumber = placement.originalDayNumber;
+      row.originalBlockKey = placement.originalBlockKey;
+    }
+
+    // If this topic had a pending backlog entry, mark it as rescheduled
+    const backlogItem = userState.backlogItems[placement.sourceItemId];
+    if (backlogItem && backlogItem.status === "pending") {
+      backlogItem.status = "rescheduled";
+      backlogItem.rescheduledToDay = placement.dayNumber;
+      backlogItem.rescheduledToBlockKey = placement.blockKey;
+      backlogItem.updatedAt = now;
+      backlogRescheduled++;
+    }
+
+    if (dayChanged) {
+      invalidateRuntimeScheduleIndex(userState);
+    }
+  }
+
+  // --- Handle overflow original topics ---
+  for (const sourceItemId of output.overflowTopicSourceItemIds) {
+    const row = schedule.topicAssignments[sourceItemId];
+    if (!row) continue;
+
+    // Mark the topic as missed with repack_overflow tag
+    row.status = "missed";
+    row.sourceTag = "repack_overflow";
+    row.updatedAt = now;
+
+    // Create or update a backlog item for this overflowed topic
+    const { subject: resolvedSubject, subjectTier } = resolveSubjectTier(row.subjectIds, referenceData);
+    const phase = resolvePhaseFromConfig(row.dayNumber, userState);
+
+    const existing = userState.backlogItems[sourceItemId];
+    userState.backlogItems[sourceItemId] = {
+      id: sourceItemId,
+      sourceItemId,
+      originalDay: existing?.originalDay ?? row.dayNumber,
+      originalBlockKey: existing?.originalBlockKey ?? row.blockKey,
+      originalStart: existing?.originalStart ?? null,
+      originalEnd: existing?.originalEnd ?? null,
+      priorityOrder: existing?.priorityOrder ?? getNextBacklogPriorityOrder(userState),
+      topicDescription: row.label,
+      subject: resolvedSubject,
+      subjectIds: [...row.subjectIds],
+      subjectTier,
+      plannedMinutes: row.plannedMinutes,
+      sourceTag: "repack_overflow",
+      recoveryLane: row.recoveryLane,
+      phaseFence: row.phaseFence,
+      phase,
+      manualSortOverride: existing?.manualSortOverride ?? null,
+      status: "pending",
+      suggestedDay: null,
+      suggestedBlockKey: null,
+      suggestedNote: null,
+      rescheduledToDay: null,
+      rescheduledToBlockKey: null,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      completedAt: null,
+      dismissedAt: null,
+    };
+  }
+
+  // Overflow backlog items: left as-is (status='pending')
+
+  return backlogRescheduled;
+}
+
+function resolvePhaseFromConfig(dayNumber: number, userState: UserState): number | null {
+  for (const phase of Object.values(userState.schedule.phaseConfig)) {
+    if (dayNumber >= phase.currentStartDay && dayNumber <= phase.currentEndDay) {
+      return phase.phaseNumber;
+    }
+  }
+  return null;
+}
+
+/**
+ * Full midnight repack orchestrator.
+ *
+ * Idempotent: if the repack has already run for the given date, it's a no-op.
+ * Run after midnight rollover (which creates backlog items) so the repack
+ * can redistribute them.
+ */
+export function runMidnightRepack(
+  userState: UserState,
+  settings: AppSettings,
+  todayDate: string,
+  todayDayNumber: number,
+  referenceData?: LocalStore["referenceData"],
+): RepackResult {
+  // --- Guard: nothing to do if schedule hasn't started ---
+  if (!settings.dayOneDate || todayDayNumber < 1) {
+    return { skipped: true, reason: "no_schedule", date: todayDate, placed: 0, overflowBacklog: 0, overflowTopics: 0, backlogRescheduled: 0 };
+  }
+
+  // --- Idempotency: already ran for this date? ---
+  if (userState.processedDates.repackDates.includes(todayDate)) {
+    return { skipped: true, reason: "already_processed", date: todayDate, placed: 0, overflowBacklog: 0, overflowTopics: 0, backlogRescheduled: 0 };
+  }
+
+  ensureUserScheduleSeeded(userState);
+
+  // --- Find current phase ---
+  let phaseEndDay: number | null = null;
+  for (const phase of Object.values(userState.schedule.phaseConfig)) {
+    if (todayDayNumber >= phase.currentStartDay && todayDayNumber <= phase.currentEndDay) {
+      phaseEndDay = phase.currentEndDay;
+      break;
+    }
+  }
+
+  if (phaseEndDay === null) {
+    // Today is not within any phase — no repack needed
+    return { skipped: true, reason: "no_phase", date: todayDate, placed: 0, overflowBacklog: 0, overflowTopics: 0, backlogRescheduled: 0 };
+  }
+
+  // --- Collect inputs ---
+  const { pinnedTopics, pendingBacklog, futureTopics, rawCapacities } = collectRepackInputs(
+    userState,
+    todayDayNumber,
+    phaseEndDay,
+    referenceData,
+  );
+
+  // --- Run pure algorithm ---
+  const output = runRepackAlgorithm(pendingBacklog, futureTopics, rawCapacities, pinnedTopics);
+
+  // --- Apply result ---
+  const backlogRescheduled = applyRepackResult(userState, output, referenceData);
+
+  // --- Record idempotency ---
+  userState.processedDates.repackDates.push(todayDate);
+
+  return {
+    skipped: false,
+    date: todayDate,
+    placed: output.stats.placed,
+    overflowBacklog: output.stats.overflowBacklog,
+    overflowTopics: output.stats.overflowTopics,
+    backlogRescheduled,
+  };
+}
+
 export function applyAutomations(store: LocalStore, userId: string) {
   const userState = store.userState[userId];
   ensureUserScheduleSeeded(userState);
@@ -1468,6 +1791,10 @@ export function applyAutomations(store: LocalStore, userId: string) {
     runMidnightRollover(userState, settings, todayDate, todayDayNumber, store.referenceData);
     runWeeklySummaryAutomation(userState, settings, now, store.referenceData);
   }
+
+  // Repack runs in both modes: scheduled via cron (Supabase) + catch-up on
+  // app load if midnight was missed. Idempotency prevents double-runs.
+  runMidnightRepack(userState, settings, todayDate, todayDayNumber, store.referenceData);
 
   refreshBacklogSuggestions(userState, settings, todayDayNumber, store.referenceData);
 }
