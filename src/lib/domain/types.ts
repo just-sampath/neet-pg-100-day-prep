@@ -36,7 +36,10 @@ export type BacklogSourceTag =
   | "skipped"
   | "yellow_day"
   | "red_day"
-  | "overrun_cascade";
+  | "overrun_cascade"
+  | "manual_skip"
+  | "manual_missed"
+  | "traffic_light";
 
 export type BacklogStatus = "pending" | "rescheduled" | "completed" | "dismissed";
 export type BacklogViewFilter = BacklogStatus | "all";
@@ -172,20 +175,20 @@ export interface ScheduleBlockRow {
   displayLabel: string;
   semanticBlockKey: string;
   blockIntent:
-    | "setup"
-    | "revision"
-    | "core_study"
-    | "consolidation"
-    | "practice"
-    | "pyq_image"
-    | "recall"
-    | "assessment"
-    | "analysis"
-    | "repair"
-    | "logistics"
-    | "shutdown"
-    | "break"
-    | "meal";
+  | "setup"
+  | "revision"
+  | "core_study"
+  | "consolidation"
+  | "practice"
+  | "pyq_image"
+  | "recall"
+  | "assessment"
+  | "analysis"
+  | "repair"
+  | "logistics"
+  | "shutdown"
+  | "break"
+  | "meal";
   trackable: boolean;
   rawText: string;
   recoveryLane: "none" | "core_recovery" | "soft_carry" | "assessment_recovery";
@@ -302,6 +305,8 @@ export interface RevisionCompletion {
   completedAt: string;
 }
 
+export type SubjectTier = "A" | "B" | "C";
+
 export interface BacklogItem {
   id: string;
   sourceItemId: TopicItemId;
@@ -313,10 +318,13 @@ export interface BacklogItem {
   topicDescription: string;
   subject: string;
   subjectIds: string[];
+  subjectTier: SubjectTier | null;
   plannedMinutes: number;
   sourceTag: BacklogSourceTag;
   recoveryLane: string;
   phaseFence: string;
+  phase: number | null;
+  manualSortOverride: number | null;
   status: BacklogStatus;
   suggestedDay: number | null;
   suggestedBlockKey: BlockKey | null;
@@ -324,6 +332,7 @@ export interface BacklogItem {
   rescheduledToDay: number | null;
   rescheduledToBlockKey: BlockKey | null;
   createdAt: string;
+  updatedAt: string;
   completedAt: string | null;
   dismissedAt: string | null;
 }

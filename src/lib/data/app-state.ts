@@ -11,7 +11,7 @@ import {
   refreshBacklogSuggestions,
   releaseAssignedRecoveryForTarget,
 } from "@/lib/domain/backlog-queue";
-import { getTrafficLightBacklogSourceTag, previewOverrunCascade, shouldCreateBacklogItem } from "@/lib/domain/backlog";
+import { getTrafficLightBacklogSourceTag, previewOverrunCascade, resolvePhase, resolveSubjectTier, shouldCreateBacklogItem } from "@/lib/domain/backlog";
 import { MORNING_REVISION_SLOT_PLAN, NO_DUE_MORNING_REVISION_NOTE } from "@/lib/domain/constants";
 import {
   buildGtComparisonSummary,
@@ -568,6 +568,9 @@ export function upsertBacklogItem(
 
   const existing = userState.backlogItems[itemId];
   const subject = item.subjectIds[0] ? item.subjectIds[0].replaceAll("_", " ") : getSubjectFromPrimaryFocus(day.primaryFocusRaw, referenceData);
+  const { subject: resolvedSubject, subjectTier } = resolveSubjectTier(item.subjectIds, referenceData);
+  const phase = resolvePhase(dayNumber, userState);
+  const now = new Date().toISOString();
 
   userState.backlogItems[itemId] = {
     id: itemId,
@@ -578,19 +581,23 @@ export function upsertBacklogItem(
     originalEnd: block.timeSlotKey.split("-")[1] ?? null,
     priorityOrder: existing?.priorityOrder ?? getNextBacklogPriorityOrder(userState),
     topicDescription: item.label,
-    subject,
+    subject: resolvedSubject !== "General" ? resolvedSubject : subject,
     subjectIds: [...item.subjectIds],
+    subjectTier,
     plannedMinutes: item.plannedMinutes,
     sourceTag,
     recoveryLane: item.recoveryLane,
     phaseFence: item.phaseFence,
+    phase,
+    manualSortOverride: existing?.manualSortOverride ?? null,
     status: "pending",
     suggestedDay: null,
     suggestedBlockKey: null,
     suggestedNote: null,
     rescheduledToDay: null,
     rescheduledToBlockKey: null,
-    createdAt: existing?.createdAt ?? new Date().toISOString(),
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
     completedAt: null,
     dismissedAt: null,
   };
@@ -640,10 +647,11 @@ function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, res
       item.originalDay === dayNumber &&
       restoredBlocks.has(item.originalBlockKey) &&
       item.status === "pending" &&
-      (item.sourceTag === "yellow_day" || item.sourceTag === "red_day")
+      (item.sourceTag === "yellow_day" || item.sourceTag === "red_day" || item.sourceTag === "traffic_light")
     ) {
       item.status = "dismissed";
       item.dismissedAt = new Date().toISOString();
+      item.updatedAt = new Date().toISOString();
       const progress = userState.schedule.topicAssignments[item.sourceItemId];
       if (progress && progress.status === "rescheduled") {
         progress.status = "pending";
@@ -672,7 +680,7 @@ function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, res
 
       if (
         progress.status === "rescheduled" &&
-        (progress.sourceTag === "yellow_day" || progress.sourceTag === "red_day")
+        (progress.sourceTag === "yellow_day" || progress.sourceTag === "red_day" || progress.sourceTag === "traffic_light")
       ) {
         progress.status = "pending";
         progress.sourceTag = null;

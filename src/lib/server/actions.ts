@@ -211,7 +211,7 @@ export async function updateBlockAction(formData: FormData) {
         store.referenceData,
       );
     } else if (intent === "skip") {
-      moveBlockToBacklog(userState, dayNumber, blockKey, "skipped", "skipped", note, store.referenceData);
+      moveBlockToBacklog(userState, dayNumber, blockKey, "manual_skip", "skipped", note, store.referenceData);
     } else if (intent === "time") {
       const progress = getOrCreateProgress(userState, dayNumber, blockKey);
       progress.actualStart = actualStart;
@@ -295,7 +295,7 @@ export async function updateTopicAction(formData: FormData) {
       return;
     }
 
-    skipTopicItem(userState, dayNumber, blockKey, itemId, "skipped", "skipped", note, store.referenceData);
+    skipTopicItem(userState, dayNumber, blockKey, itemId, "manual_skip", "skipped", note, store.referenceData);
   });
 
   refresh();

@@ -1,5 +1,5 @@
 import { getScheduleDay } from "@/lib/domain/schedule";
-import type { BacklogSourceTag, BlockKey, BlockStatus, RuntimeReferenceData, TrafficLight } from "@/lib/domain/types";
+import type { BacklogSourceTag, BlockKey, BlockStatus, RuntimeReferenceData, SubjectTier, TrafficLight, UserState } from "@/lib/domain/types";
 import { timeValue } from "@/lib/utils/date";
 
 export interface OverrunPreviewSlot {
@@ -46,6 +46,8 @@ function formatClock(totalMinutes: number) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
+const BACKLOG_QUALIFYING_INTENTS = new Set<string>(["core_study", "consolidation"]);
+
 export function shouldCreateBacklogItem(dayNumber: number, blockKey: BlockKey, sourceTag: BacklogSourceTag, referenceData?: RuntimeReferenceData) {
   const day = getScheduleDay(dayNumber, undefined, referenceData);
   const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey);
@@ -53,15 +55,64 @@ export function shouldCreateBacklogItem(dayNumber: number, blockKey: BlockKey, s
     return false;
   }
 
-  if (sourceTag === "yellow_day" || sourceTag === "red_day") {
+  if (!BACKLOG_QUALIFYING_INTENTS.has(block.blockIntent)) {
+    return false;
+  }
+
+  if (sourceTag === "yellow_day" || sourceTag === "red_day" || sourceTag === "traffic_light") {
     return block.trafficLightPolicy.backlogWhenHidden;
   }
 
   return true;
 }
 
-export function getTrafficLightBacklogSourceTag(trafficLight: Exclude<TrafficLight, "green">): BacklogSourceTag {
-  return trafficLight === "yellow" ? "yellow_day" : "red_day";
+export function getTrafficLightBacklogSourceTag(_trafficLight: Exclude<TrafficLight, "green">): BacklogSourceTag {
+  return "traffic_light";
+}
+
+export function resolveSubjectTier(
+  subjectIds: string[],
+  referenceData?: RuntimeReferenceData,
+): { subject: string; subjectTier: SubjectTier | null } {
+  if (!referenceData || subjectIds.length === 0) {
+    return { subject: "General", subjectTier: null };
+  }
+
+  const subjects = referenceData.scheduleData.subjectStrategy.subjects;
+  let bestRank = Infinity;
+  let bestName = "";
+  let bestTier: SubjectTier | null = null;
+
+  for (const sid of subjectIds) {
+    const entry = subjects.find((s) => s.subjectId === sid);
+    if (entry && entry.priorityRank < bestRank) {
+      bestRank = entry.priorityRank;
+      bestName = entry.subjectName;
+      bestTier = rankToTier(entry.priorityRank);
+    }
+  }
+
+  if (!bestTier) {
+    return { subject: subjectIds[0]?.replaceAll("_", " ") ?? "General", subjectTier: null };
+  }
+
+  return { subject: bestName, subjectTier: bestTier };
+}
+
+function rankToTier(rank: number): SubjectTier | null {
+  if (rank === 1) return "A";
+  if (rank === 2) return "B";
+  if (rank === 3) return "C";
+  return null;
+}
+
+export function resolvePhase(dayNumber: number, userState: UserState): number | null {
+  for (const phase of Object.values(userState.schedule.phaseConfig)) {
+    if (dayNumber >= phase.currentStartDay && dayNumber <= phase.currentEndDay) {
+      return phase.phaseNumber;
+    }
+  }
+  return null;
 }
 
 export function previewOverrunCascade({

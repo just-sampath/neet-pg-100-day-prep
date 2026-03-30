@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { getBacklogQueueItems, refreshBacklogSuggestions } from "@/lib/domain/backlog-queue";
-import { previewOverrunCascade } from "@/lib/domain/backlog";
+import { previewOverrunCascade, resolvePhase, resolveSubjectTier } from "@/lib/domain/backlog";
 import {
   applyOverrunCascadeBacklog,
   applyOverrunCascadeShift,
@@ -13,6 +13,8 @@ import {
   runMidnightRollover,
 } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
+import { getStaticReferenceData } from "@/lib/data/reference-data";
+import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getBlockProgress, getScheduleDay, getVisibleBlockKeys } from "@/lib/domain/schedule";
 import type { BlockKey } from "@/lib/domain/types";
 
@@ -58,11 +60,12 @@ describe("backlog creation and traffic-light handling", () => {
     completeBlockItems(userState, 2, blockCKey, "2026-05-02T12:00:00.000Z");
     applyTrafficLightToDay(userState, 2, "yellow", { allowRestore: true });
 
+    // block_c is completed — no backlog. final_review has recall intent — excluded by guard.
     const backlogBlocks = Object.values(userState.backlogItems).map((item) => item.originalBlockKey);
-    expect(new Set(backlogBlocks)).toEqual(new Set([finalReviewKey]));
-    expect(backlogBlocks).toHaveLength(getBlockItems(2, finalReviewKey).length);
+    expect(backlogBlocks).toHaveLength(0);
 
     expect(getBlockProgress(userState, 2, blockCKey).status).toBe("completed");
+    // Topics still marked rescheduled via markTopicForRecovery even without a backlog entry
     expect(getBlockProgress(userState, 2, finalReviewKey).status).toBe("rescheduled");
   });
 
@@ -70,7 +73,6 @@ describe("backlog creation and traffic-light handling", () => {
     const userState = createConfiguredUserState();
     const blockBKey = getBlockKey(2, "block_b");
     const blockCKey = getBlockKey(2, "block_c");
-    const finalReviewKey = getBlockKey(2, "final_review");
 
     applyTrafficLightToDay(userState, 2, "red", { allowRestore: true });
     applyTrafficLightToDay(userState, 2, "yellow", { allowRestore: true });
@@ -80,9 +82,11 @@ describe("backlog creation and traffic-light handling", () => {
     const restoredBacklog = Object.values(userState.backlogItems).filter((item) => item.originalBlockKey === blockBKey);
     expect(restoredBacklog.every((item) => item.status === "dismissed")).toBe(true);
 
+    // Only block_c creates backlog (core_study intent); final_review (recall) is excluded by guard
     const stillHiddenBacklog = Object.values(userState.backlogItems).filter(
-      (item) => item.originalBlockKey === blockCKey || item.originalBlockKey === finalReviewKey,
+      (item) => item.originalBlockKey === blockCKey,
     );
+    expect(stillHiddenBacklog.length).toBeGreaterThan(0);
     expect(stillHiddenBacklog.every((item) => item.status === "pending")).toBe(true);
   });
 
@@ -130,7 +134,6 @@ describe("backlog creation and traffic-light handling", () => {
         getBlockKey(2, "block_a"),
         getBlockKey(2, "block_b"),
         getBlockKey(2, "block_c"),
-        getBlockKey(2, "mcq_practice"),
       ]),
     );
     expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("pending");
@@ -166,8 +169,6 @@ describe("backlog creation and traffic-light handling", () => {
       getBlockKey(2, "block_a"),
       getBlockKey(2, "block_b"),
       getBlockKey(2, "block_c"),
-      getBlockKey(2, "mcq_practice"),
-      getBlockKey(2, "final_review"),
     ];
 
     const result = runMidnightRollover(userState, userState.settings, "2026-05-03", 3);
@@ -287,5 +288,127 @@ describe("backlog creation and traffic-light handling", () => {
           getScheduleDay(item.suggestedDay)!.phaseId === getScheduleDay(item.originalDay)!.phaseId,
       ),
     ).toBe(true);
+  });
+
+  it("uses traffic_light source tag for yellow and red days", () => {
+    const userState = createConfiguredUserState();
+    const blockCKey = getBlockKey(2, "block_c");
+
+    applyTrafficLightToDay(userState, 2, "yellow", { allowRestore: true });
+
+    const items = Object.values(userState.backlogItems).filter((item) => item.originalBlockKey === blockCKey);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((item) => item.sourceTag === "traffic_light")).toBe(true);
+  });
+
+  it("uses manual_skip source tag when a block is explicitly skipped", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+
+    moveBlockToBacklog(userState, 2, blockAKey, "manual_skip", "skipped", "User chose to skip.");
+
+    const items = Object.values(userState.backlogItems).filter((item) => item.originalBlockKey === blockAKey);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((item) => item.sourceTag === "manual_skip")).toBe(true);
+  });
+
+  it("populates subjectTier and phase on new backlog items", () => {
+    const userState = createConfiguredUserState();
+    ensureUserScheduleSeeded(userState);
+    const refData = getStaticReferenceData();
+    const blockAKey = getBlockKey(2, "block_a");
+
+    moveBlockToBacklog(userState, 2, blockAKey, "missed", "missed", null, refData);
+
+    const items = Object.values(userState.backlogItems).filter((item) => item.originalBlockKey === blockAKey);
+    expect(items.length).toBeGreaterThan(0);
+    // Day 2 subject is pathology (rank 1 → tier A), phase 1
+    expect(items[0]!.subjectTier).toBe("A");
+    expect(items[0]!.phase).toBe(1);
+    expect(items[0]!.updatedAt).toBeTruthy();
+  });
+
+  it("does not create backlog items for non-qualifying block intents (practice, recall)", () => {
+    const userState = createConfiguredUserState();
+    const mcqKey = getBlockKey(2, "mcq_practice");
+    const finalReviewKey = getBlockKey(2, "final_review");
+
+    moveBlockToBacklog(userState, 2, mcqKey, "missed", "missed", null);
+    moveBlockToBacklog(userState, 2, finalReviewKey, "missed", "missed", null);
+
+    // No backlog items created for practice/recall intents
+    expect(Object.values(userState.backlogItems)).toHaveLength(0);
+    // But topics are still marked as missed
+    expect(getBlockProgress(userState, 2, mcqKey).status).toBe("missed");
+    expect(getBlockProgress(userState, 2, finalReviewKey).status).toBe("missed");
+  });
+
+  it("resolves subject tier from reference data", () => {
+    const refData = getStaticReferenceData();
+
+    // Single rank-1 subject → tier A
+    expect(resolveSubjectTier(["pathology"], refData)).toEqual({ subject: "Pathology", subjectTier: "A" });
+
+    // Rank-2 subject → tier B
+    expect(resolveSubjectTier(["physiology"], refData)).toEqual({ subject: "Physiology", subjectTier: "B" });
+
+    // Rank-3 subject → tier C
+    expect(resolveSubjectTier(["ent"], refData)).toEqual({ subject: "ENT", subjectTier: "C" });
+
+    // Multi-subject: highest priority (lowest rank) wins
+    expect(resolveSubjectTier(["ent", "pathology"], refData)).toEqual({ subject: "Pathology", subjectTier: "A" });
+
+    // Unknown subject → fallback
+    expect(resolveSubjectTier(["unknown_subject"], refData)).toEqual({ subject: "unknown subject", subjectTier: null });
+
+    // Empty → General
+    expect(resolveSubjectTier([], refData)).toEqual({ subject: "General", subjectTier: null });
+  });
+
+  it("resolves phase from user state phase config", () => {
+    const userState = createConfiguredUserState();
+    ensureUserScheduleSeeded(userState);
+
+    // Day 2 → Phase 1 (days 1-63)
+    expect(resolvePhase(2, userState)).toBe(1);
+
+    // Day 63 → Phase 1 boundary
+    expect(resolvePhase(63, userState)).toBe(1);
+
+    // Day 64 → Phase 2 (days 64-82)
+    expect(resolvePhase(64, userState)).toBe(2);
+
+    // Day 83 → Phase 3 (days 83-100)
+    expect(resolvePhase(83, userState)).toBe(3);
+
+    // Day 101 → out of range
+    expect(resolvePhase(101, userState)).toBeNull();
+  });
+
+  it("cycles traffic_light backlog through green→yellow→green→yellow upsert", () => {
+    const userState = createConfiguredUserState();
+    const blockCKey = getBlockKey(2, "block_c");
+
+    // Green → Yellow: creates backlog
+    applyTrafficLightToDay(userState, 2, "yellow", { allowRestore: true });
+    const firstItems = Object.values(userState.backlogItems).filter(
+      (item) => item.originalBlockKey === blockCKey && item.status === "pending",
+    );
+    expect(firstItems.length).toBeGreaterThan(0);
+
+    // Yellow → Green with restore: dismisses backlog
+    applyTrafficLightToDay(userState, 2, "green", { allowRestore: true });
+    const dismissed = Object.values(userState.backlogItems).filter(
+      (item) => item.originalBlockKey === blockCKey && item.status === "dismissed",
+    );
+    expect(dismissed.length).toBe(firstItems.length);
+
+    // Green → Yellow again: re-upserts backlog as pending
+    applyTrafficLightToDay(userState, 2, "yellow", { allowRestore: true });
+    const reupserted = Object.values(userState.backlogItems).filter(
+      (item) => item.originalBlockKey === blockCKey && item.status === "pending",
+    );
+    expect(reupserted.length).toBe(firstItems.length);
+    expect(reupserted.every((item) => item.sourceTag === "traffic_light")).toBe(true);
   });
 });

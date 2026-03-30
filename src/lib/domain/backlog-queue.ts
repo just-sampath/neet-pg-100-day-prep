@@ -17,12 +17,15 @@ import type {
 } from "@/lib/domain/types";
 import { diffDays, parseDateOnly, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
-const SOURCE_LABELS = {
+const SOURCE_LABELS: Record<BacklogItem["sourceTag"], string> = {
   missed: "Missed day",
   skipped: "Manual skip",
   yellow_day: "Yellow day",
   red_day: "Red day",
   overrun_cascade: "Overrun cascade",
+  manual_skip: "Manual skip",
+  manual_missed: "Manual miss",
+  traffic_light: "Traffic light",
 } as const;
 
 const STATUS_ORDER: Record<BacklogStatus, number> = {
@@ -284,8 +287,8 @@ export function getBacklogSummary(userState: UserState): BacklogQueueSummary {
 
   return {
     totalPending: pendingItems.length,
-    fromMissed: pendingItems.filter((item) => item.sourceTag === "missed" || item.sourceTag === "skipped").length,
-    fromYellowRed: pendingItems.filter((item) => item.sourceTag === "yellow_day" || item.sourceTag === "red_day").length,
+    fromMissed: pendingItems.filter((item) => item.sourceTag === "missed" || item.sourceTag === "skipped" || item.sourceTag === "manual_skip" || item.sourceTag === "manual_missed").length,
+    fromYellowRed: pendingItems.filter((item) => item.sourceTag === "yellow_day" || item.sourceTag === "red_day" || item.sourceTag === "traffic_light").length,
     fromOverrun: pendingItems.filter((item) => item.sourceTag === "overrun_cascade").length,
   };
 }
@@ -492,9 +495,9 @@ export function moveBacklogItemPriority(userState: UserState, backlogId: string,
 function getScopeFilter(scope: BacklogBulkScope) {
   switch (scope) {
     case "missed_skipped":
-      return (item: BacklogItem) => item.status === "pending" && (item.sourceTag === "missed" || item.sourceTag === "skipped");
+      return (item: BacklogItem) => item.status === "pending" && (item.sourceTag === "missed" || item.sourceTag === "skipped" || item.sourceTag === "manual_skip" || item.sourceTag === "manual_missed");
     case "yellow_red":
-      return (item: BacklogItem) => item.status === "pending" && (item.sourceTag === "yellow_day" || item.sourceTag === "red_day");
+      return (item: BacklogItem) => item.status === "pending" && (item.sourceTag === "yellow_day" || item.sourceTag === "red_day" || item.sourceTag === "traffic_light");
     case "overrun":
       return (item: BacklogItem) => item.status === "pending" && item.sourceTag === "overrun_cascade";
     default:

@@ -484,9 +484,12 @@ function normalizeBacklogItem(entry: BacklogItem, id: string): BacklogItem {
     id,
     sourceItemId,
     subjectIds,
+    subjectTier: entry.subjectTier ?? null,
     plannedMinutes,
     recoveryLane,
     phaseFence,
+    phase: entry.phase ?? null,
+    manualSortOverride: entry.manualSortOverride ?? null,
     originalStart: entry.originalStart ?? null,
     originalEnd: entry.originalEnd ?? null,
     suggestedDay: entry.suggestedDay ?? null,
@@ -494,6 +497,8 @@ function normalizeBacklogItem(entry: BacklogItem, id: string): BacklogItem {
     suggestedNote: entry.suggestedNote ?? null,
     rescheduledToDay: entry.rescheduledToDay ?? null,
     rescheduledToBlockKey: entry.rescheduledToBlockKey ?? null,
+    createdAt: entry.createdAt ?? new Date().toISOString(),
+    updatedAt: entry.updatedAt ?? entry.createdAt ?? new Date().toISOString(),
     completedAt: entry.completedAt ?? null,
     dismissedAt: entry.dismissedAt ?? null,
   };
@@ -873,6 +878,7 @@ function buildBacklogRows(userId: string, userState: UserState) {
   return Object.values(userState.backlogItems).map((entry) => ({
     id: entry.id,
     user_id: userId,
+    source_item_id: entry.sourceItemId,
     original_day: entry.originalDay,
     original_block_key: entry.originalBlockKey,
     original_start: entry.originalStart,
@@ -880,7 +886,14 @@ function buildBacklogRows(userId: string, userState: UserState) {
     priority_order: entry.priorityOrder,
     topic_description: entry.topicDescription,
     subject: entry.subject,
+    subject_ids: entry.subjectIds,
+    subject_tier: entry.subjectTier,
+    planned_minutes: entry.plannedMinutes,
     source_tag: entry.sourceTag,
+    recovery_lane: entry.recoveryLane,
+    phase_fence: entry.phaseFence,
+    phase: entry.phase,
+    manual_sort_override: entry.manualSortOverride,
     status: entry.status,
     suggested_day: entry.suggestedDay,
     suggested_block_key: entry.suggestedBlockKey,
@@ -888,6 +901,7 @@ function buildBacklogRows(userId: string, userState: UserState) {
     rescheduled_to_day: entry.rescheduledToDay,
     rescheduled_to_block_key: entry.rescheduledToBlockKey,
     created_at: entry.createdAt,
+    updated_at: entry.updatedAt,
     completed_at: entry.completedAt,
     dismissed_at: entry.dismissedAt,
   }));
@@ -1163,9 +1177,11 @@ function applySupabaseRevisionCompletionRows(userState: UserState, rows: Array<R
 
 function applySupabaseBacklogItemRows(userState: UserState, rows: Array<Record<string, unknown>> | null | undefined) {
   for (const row of rows ?? []) {
-    const sourceItemId = row.id as string;
+    const sourceItemId = (row.source_item_id as string | null | undefined) ?? (row.id as string);
     const scheduleItem = getScheduleItemById(sourceItemId, userState);
-    const subjectIds = scheduleItem?.item.subjectIds ?? [];
+    const subjectIds = (row.subject_ids as string[] | null | undefined)?.length
+      ? (row.subject_ids as string[])
+      : scheduleItem?.item.subjectIds ?? [];
     userState.backlogItems[row.id as string] = normalizeBacklogItem(
       {
         id: row.id as string,
@@ -1178,10 +1194,13 @@ function applySupabaseBacklogItemRows(userState: UserState, rows: Array<Record<s
         topicDescription: (row.topic_description as string | null | undefined) ?? scheduleItem?.item.label ?? (row.original_block_key as string),
         subject: (row.subject as string | null | undefined) ?? (scheduleItem?.item.subjectIds[0] ?? "General"),
         subjectIds,
-        plannedMinutes: scheduleItem?.item.plannedMinutes ?? 0,
+        subjectTier: (row.subject_tier as string | null | undefined) as BacklogItem["subjectTier"] ?? null,
+        plannedMinutes: (row.planned_minutes as number | null | undefined) ?? scheduleItem?.item.plannedMinutes ?? 0,
         sourceTag: row.source_tag as BacklogItem["sourceTag"],
-        recoveryLane: scheduleItem?.item.recoveryLane ?? "none",
-        phaseFence: scheduleItem?.item.phaseFence ?? "not_reschedulable",
+        recoveryLane: (row.recovery_lane as string | null | undefined) ?? scheduleItem?.item.recoveryLane ?? "none",
+        phaseFence: (row.phase_fence as string | null | undefined) ?? scheduleItem?.item.phaseFence ?? "not_reschedulable",
+        phase: (row.phase as number | null | undefined) ?? null,
+        manualSortOverride: (row.manual_sort_override as number | null | undefined) ?? null,
         status: row.status as BacklogItem["status"],
         suggestedDay: (row.suggested_day as number | null | undefined) ?? null,
         suggestedBlockKey: (row.suggested_block_key as string | null | undefined) ?? null,
@@ -1189,6 +1208,7 @@ function applySupabaseBacklogItemRows(userState: UserState, rows: Array<Record<s
         rescheduledToDay: (row.rescheduled_to_day as number | null | undefined) ?? null,
         rescheduledToBlockKey: (row.rescheduled_to_block_key as string | null | undefined) ?? null,
         createdAt: row.created_at as string,
+        updatedAt: (row.updated_at as string | null | undefined) ?? (row.created_at as string),
         completedAt: (row.completed_at as string | null | undefined) ?? null,
         dismissedAt: (row.dismissed_at as string | null | undefined) ?? null,
       },
@@ -1441,9 +1461,11 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
   }
 
   for (const row of backlogItemsResult.data ?? []) {
-    const sourceItemId = row.id;
+    const sourceItemId = row.source_item_id ?? row.id;
     const scheduleItem = getScheduleItemById(sourceItemId);
-    const subjectIds = scheduleItem?.item.subjectIds ?? [];
+    const rowSubjectIds = (row.subject_ids as string[] | null | undefined)?.length
+      ? (row.subject_ids as string[])
+      : scheduleItem?.item.subjectIds ?? [];
     userState.backlogItems[row.id] = normalizeBacklogItem(
       {
         id: row.id,
@@ -1455,11 +1477,14 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
         priorityOrder: row.priority_order ?? 0,
         topicDescription: row.topic_description ?? scheduleItem?.item.label ?? row.original_block_key,
         subject: row.subject ?? (scheduleItem?.item.subjectIds[0] ?? "General"),
-        subjectIds,
-        plannedMinutes: scheduleItem?.item.plannedMinutes ?? 0,
+        subjectIds: rowSubjectIds,
+        subjectTier: (row.subject_tier as string | null | undefined) as BacklogItem["subjectTier"] ?? null,
+        plannedMinutes: (row.planned_minutes as number | null | undefined) ?? scheduleItem?.item.plannedMinutes ?? 0,
         sourceTag: row.source_tag,
-        recoveryLane: scheduleItem?.item.recoveryLane ?? "none",
-        phaseFence: scheduleItem?.item.phaseFence ?? "not_reschedulable",
+        recoveryLane: (row.recovery_lane as string | null | undefined) ?? scheduleItem?.item.recoveryLane ?? "none",
+        phaseFence: (row.phase_fence as string | null | undefined) ?? scheduleItem?.item.phaseFence ?? "not_reschedulable",
+        phase: (row.phase as number | null | undefined) ?? null,
+        manualSortOverride: (row.manual_sort_override as number | null | undefined) ?? null,
         status: row.status,
         suggestedDay: row.suggested_day,
         suggestedBlockKey: row.suggested_block_key,
@@ -1467,6 +1492,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
         rescheduledToDay: row.rescheduled_to_day,
         rescheduledToBlockKey: row.rescheduled_to_block_key,
         createdAt: row.created_at,
+        updatedAt: (row.updated_at as string | null | undefined) ?? row.created_at,
         completedAt: row.completed_at,
         dismissedAt: row.dismissed_at,
       },
@@ -1742,9 +1768,11 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
   }
 
   for (const row of backlogItemsResult.data ?? []) {
-    const sourceItemId = row.id;
+    const sourceItemId = row.source_item_id ?? row.id;
     const scheduleItem = getScheduleItemById(sourceItemId, userState);
-    const subjectIds = scheduleItem?.item.subjectIds ?? [];
+    const rowSubjectIds = (row.subject_ids as string[] | null | undefined)?.length
+      ? (row.subject_ids as string[])
+      : scheduleItem?.item.subjectIds ?? [];
     userState.backlogItems[row.id] = normalizeBacklogItem(
       {
         id: row.id,
@@ -1756,11 +1784,14 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
         priorityOrder: row.priority_order ?? 0,
         topicDescription: row.topic_description ?? scheduleItem?.item.label ?? row.original_block_key,
         subject: row.subject ?? (scheduleItem?.item.subjectIds[0] ?? "General"),
-        subjectIds,
-        plannedMinutes: scheduleItem?.item.plannedMinutes ?? 0,
+        subjectIds: rowSubjectIds,
+        subjectTier: (row.subject_tier as string | null | undefined) as BacklogItem["subjectTier"] ?? null,
+        plannedMinutes: (row.planned_minutes as number | null | undefined) ?? scheduleItem?.item.plannedMinutes ?? 0,
         sourceTag: row.source_tag,
-        recoveryLane: scheduleItem?.item.recoveryLane ?? "none",
-        phaseFence: scheduleItem?.item.phaseFence ?? "not_reschedulable",
+        recoveryLane: (row.recovery_lane as string | null | undefined) ?? scheduleItem?.item.recoveryLane ?? "none",
+        phaseFence: (row.phase_fence as string | null | undefined) ?? scheduleItem?.item.phaseFence ?? "not_reschedulable",
+        phase: (row.phase as number | null | undefined) ?? null,
+        manualSortOverride: (row.manual_sort_override as number | null | undefined) ?? null,
         status: row.status,
         suggestedDay: row.suggested_day,
         suggestedBlockKey: row.suggested_block_key,
@@ -1768,6 +1799,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
         rescheduledToDay: row.rescheduled_to_day,
         rescheduledToBlockKey: row.rescheduled_to_block_key,
         createdAt: row.created_at,
+        updatedAt: (row.updated_at as string | null | undefined) ?? row.created_at,
         completedAt: row.completed_at,
         dismissedAt: row.dismissed_at,
       },
