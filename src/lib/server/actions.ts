@@ -147,7 +147,7 @@ export async function setTrafficLightAction(formData: FormData) {
     const todayDayNumber = getCurrentDayNumber(userState, todayDate);
     applyTrafficLightToDay(userState, dayNumber, trafficLight, {
       allowRestore: dayNumber === todayDayNumber,
-    });
+    }, store.referenceData);
   });
   refresh();
 }
@@ -194,9 +194,9 @@ export async function updateBlockAction(formData: FormData) {
     }
 
     if (intent === "complete") {
-      completeBlockItems(userState, dayNumber, blockKey, completionIsoForDateOnly(resolvedCompletionDate, effectiveNow), note);
+      completeBlockItems(userState, dayNumber, blockKey, completionIsoForDateOnly(resolvedCompletionDate, effectiveNow), note, store.referenceData);
     } else if (intent === "partial" || intent === "quick_finish") {
-      const block = getScheduleDay(dayNumber, userState)?.blocks.find((entry) => entry.timeSlotKey === blockKey);
+      const block = getScheduleDay(dayNumber, userState, store.referenceData)?.blocks.find((entry) => entry.timeSlotKey === blockKey);
       const nextItem = block?.items.find((item) => userState.schedule.topicAssignments[item.itemId]?.status !== "completed");
       if (!nextItem) {
         return;
@@ -208,9 +208,10 @@ export async function updateBlockAction(formData: FormData) {
         nextItem.itemId,
         completionIsoForDateOnly(completionDate, effectiveNow),
         note ?? "Quick version.",
+        store.referenceData,
       );
     } else if (intent === "skip") {
-      moveBlockToBacklog(userState, dayNumber, blockKey, "skipped", "skipped", note);
+      moveBlockToBacklog(userState, dayNumber, blockKey, "skipped", "skipped", note, store.referenceData);
     } else if (intent === "time") {
       const progress = getOrCreateProgress(userState, dayNumber, blockKey);
       progress.actualStart = actualStart;
@@ -290,11 +291,11 @@ export async function updateTopicAction(formData: FormData) {
     }
 
     if (intent === "complete") {
-      completeTopicItem(userState, dayNumber, blockKey, itemId, completionIsoForDateOnly(resolvedCompletionDate, effectiveNow), note);
+      completeTopicItem(userState, dayNumber, blockKey, itemId, completionIsoForDateOnly(resolvedCompletionDate, effectiveNow), note, store.referenceData);
       return;
     }
 
-    skipTopicItem(userState, dayNumber, blockKey, itemId, "skipped", "skipped", note);
+    skipTopicItem(userState, dayNumber, blockKey, itemId, "skipped", "skipped", note, store.referenceData);
   });
 
   refresh();
@@ -370,7 +371,7 @@ export async function updateBacklogAction(formData: FormData) {
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
     const todayDayNumber = getCurrentDayNumber(userState, todayDate);
-    refreshBacklogSuggestions(userState, userState.settings, todayDayNumber);
+    refreshBacklogSuggestions(userState, userState.settings, todayDayNumber, store.referenceData);
     const item = userState.backlogItems[backlogId];
     if (!item) {
       return;
@@ -378,7 +379,7 @@ export async function updateBacklogAction(formData: FormData) {
 
     if (intent === "complete") {
       const completedAt = completionIsoForDateOnly(completionDate, getEffectiveNow(store));
-      completeTopicItem(userState, item.originalDay, item.originalBlockKey, item.sourceItemId, completedAt);
+      completeTopicItem(userState, item.originalDay, item.originalBlockKey, item.sourceItemId, completedAt, null, store.referenceData);
       item.status = "completed";
       item.completedAt = completedAt;
     } else if (intent === "dismiss") {
@@ -395,6 +396,7 @@ export async function updateBacklogAction(formData: FormData) {
           item.suggestedDay,
           item.suggestedBlockKey,
           item.id,
+          store.referenceData,
         )
       ) {
         item.status = "rescheduled";
@@ -407,7 +409,7 @@ export async function updateBacklogAction(formData: FormData) {
       if (
         targetDay &&
         targetBlockKey &&
-        isValidBacklogRescheduleTarget(userState, userState.settings, todayDayNumber, targetDay, targetBlockKey, item.id)
+        isValidBacklogRescheduleTarget(userState, userState.settings, todayDayNumber, targetDay, targetBlockKey, item.id, store.referenceData)
       ) {
         item.status = "rescheduled";
         item.rescheduledToDay = targetDay;
@@ -433,14 +435,14 @@ export async function bulkBacklogAction(formData: FormData) {
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
     const todayDayNumber = getCurrentDayNumber(userState, todayDate);
-    refreshBacklogSuggestions(userState, userState.settings, todayDayNumber);
+    refreshBacklogSuggestions(userState, userState.settings, todayDayNumber, store.referenceData);
 
     if (intent === "dismiss_scope") {
       dismissBacklogScope(userState, scope);
       return;
     }
 
-    rescheduleBacklogScopeToSuggestions(userState, userState.settings, todayDayNumber, scope);
+    rescheduleBacklogScopeToSuggestions(userState, userState.settings, todayDayNumber, scope, store.referenceData);
   });
 
   refresh();

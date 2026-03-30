@@ -219,7 +219,7 @@ function maybeAutoAddMorningRevisionSession(
   }
   userState.morningRevisionSelections[targetDate] = selectedRevisionIds;
 
-  const sourceTopicLabel = getScheduleItemById(sourceItemId, userState)?.item.label ?? sourceItemId;
+  const sourceTopicLabel = getScheduleItemById(sourceItemId, userState, referenceData)?.item.label ?? sourceItemId;
   userState.morningRevisionAutoAddNotice[targetDate] = {
     sourceItemId,
     sourceTopicLabel,
@@ -236,9 +236,9 @@ function maybeAutoAddMorningRevisionSession(
   };
 }
 
-function getBlockOrThrow(userState: UserState, dayNumber: number, blockKey: BlockKey) {
+function getBlockOrThrow(userState: UserState, dayNumber: number, blockKey: BlockKey, referenceData?: LocalStore["referenceData"]) {
   ensureUserScheduleSeeded(userState);
-  const day = getScheduleDay(dayNumber, userState);
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey);
   if (!day || !block) {
     throw new Error(`Missing schedule block ${dayNumber}:${blockKey}`);
@@ -247,12 +247,12 @@ function getBlockOrThrow(userState: UserState, dayNumber: number, blockKey: Bloc
   return { day, block };
 }
 
-function getBlockItems(userState: UserState, dayNumber: number, blockKey: BlockKey) {
-  return getBlockOrThrow(userState, dayNumber, blockKey).block.items;
+function getBlockItems(userState: UserState, dayNumber: number, blockKey: BlockKey, referenceData?: LocalStore["referenceData"]) {
+  return getBlockOrThrow(userState, dayNumber, blockKey, referenceData).block.items;
 }
 
-function getUnresolvedItems(userState: UserState, dayNumber: number, blockKey: BlockKey) {
-  return getBlockItems(userState, dayNumber, blockKey).filter((item) => {
+function getUnresolvedItems(userState: UserState, dayNumber: number, blockKey: BlockKey, referenceData?: LocalStore["referenceData"]) {
+  return getBlockItems(userState, dayNumber, blockKey, referenceData).filter((item) => {
     const progress = getTopicProgress(userState, item, dayNumber, blockKey);
     return progress.status !== "completed";
   });
@@ -264,8 +264,9 @@ function setTopicProgress(
   blockKey: BlockKey,
   itemId: string,
   updates: Partial<Omit<TopicProgress, "itemId" | "dayNumber" | "blockKey">>,
+  referenceData?: LocalStore["referenceData"],
 ) {
-  const item = getBlockItems(userState, dayNumber, blockKey).find((entry) => entry.itemId === itemId);
+  const item = getBlockItems(userState, dayNumber, blockKey, referenceData).find((entry) => entry.itemId === itemId);
   if (!item) {
     throw new Error(`Missing schedule item ${itemId} for ${dayNumber}:${blockKey}`);
   }
@@ -433,13 +434,14 @@ export function completeTopicItem(
   itemId: string,
   completedAt: string,
   note: string | null = null,
+  referenceData?: LocalStore["referenceData"],
 ) {
   const progress = setTopicProgress(userState, dayNumber, blockKey, itemId, {
     status: "completed",
     completedAt,
     sourceTag: null,
     note,
-  });
+  }, referenceData);
   reconcileRevisionCompletionsForSource(userState.revisionCompletions, itemId, completedAt);
   markBacklogCompletedBySourceItem(userState, itemId, completedAt);
   return progress;
@@ -451,10 +453,11 @@ export function completeBlockItems(
   blockKey: BlockKey,
   completedAt: string,
   note: string | null = null,
+  referenceData?: LocalStore["referenceData"],
 ) {
-  const unresolvedItems = getUnresolvedItems(userState, dayNumber, blockKey);
+  const unresolvedItems = getUnresolvedItems(userState, dayNumber, blockKey, referenceData);
   for (const item of unresolvedItems) {
-    completeTopicItem(userState, dayNumber, blockKey, item.itemId, completedAt, note);
+    completeTopicItem(userState, dayNumber, blockKey, item.itemId, completedAt, note, referenceData);
   }
 
   completeAssignedRecoveryForTarget(userState, dayNumber, blockKey, completedAt);
@@ -523,13 +526,14 @@ function markTopicForRecovery(
   sourceTag: BacklogSourceTag,
   status: TopicStatus,
   note: string | null,
+  referenceData?: LocalStore["referenceData"],
 ) {
   setTopicProgress(userState, dayNumber, blockKey, itemId, {
     status,
     completedAt: null,
     sourceTag,
     note,
-  });
+  }, referenceData);
 }
 
 export function skipTopicItem(
@@ -540,10 +544,11 @@ export function skipTopicItem(
   sourceTag: BacklogSourceTag,
   status: TopicStatus = "skipped",
   note: string | null = null,
+  referenceData?: LocalStore["referenceData"],
 ) {
-  markTopicForRecovery(userState, dayNumber, blockKey, itemId, sourceTag, status, note);
-  if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag)) {
-    upsertBacklogItem(userState, dayNumber, blockKey, itemId, sourceTag);
+  markTopicForRecovery(userState, dayNumber, blockKey, itemId, sourceTag, status, note, referenceData);
+  if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag, referenceData)) {
+    upsertBacklogItem(userState, dayNumber, blockKey, itemId, sourceTag, referenceData);
   }
 }
 
@@ -553,15 +558,16 @@ export function upsertBacklogItem(
   blockKey: BlockKey,
   itemId: string,
   sourceTag: BacklogSourceTag,
+  referenceData?: LocalStore["referenceData"],
 ) {
-  const { day, block } = getBlockOrThrow(userState, dayNumber, blockKey);
+  const { day, block } = getBlockOrThrow(userState, dayNumber, blockKey, referenceData);
   const item = block.items.find((entry) => entry.itemId === itemId);
   if (!item) {
     throw new Error(`Missing schedule item ${itemId}`);
   }
 
   const existing = userState.backlogItems[itemId];
-  const subject = item.subjectIds[0] ? item.subjectIds[0].replaceAll("_", " ") : getSubjectFromPrimaryFocus(day.primaryFocusRaw);
+  const subject = item.subjectIds[0] ? item.subjectIds[0].replaceAll("_", " ") : getSubjectFromPrimaryFocus(day.primaryFocusRaw, referenceData);
 
   userState.backlogItems[itemId] = {
     id: itemId,
@@ -599,8 +605,9 @@ export function moveBlockToBacklog(
   sourceTag: BacklogSourceTag,
   status: TopicStatus = "rescheduled",
   note: string | null = null,
+  referenceData?: LocalStore["referenceData"],
 ) {
-  const { block } = getBlockOrThrow(userState, dayNumber, blockKey);
+  const { block } = getBlockOrThrow(userState, dayNumber, blockKey, referenceData);
   const movedItemIds: string[] = [];
 
   releaseAssignedRecoveryForTarget(userState, dayNumber, blockKey);
@@ -611,9 +618,9 @@ export function moveBlockToBacklog(
       continue;
     }
 
-    markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, sourceTag, status, note);
-    if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag)) {
-      upsertBacklogItem(userState, dayNumber, blockKey, item.itemId, sourceTag);
+    markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, sourceTag, status, note, referenceData);
+    if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag, referenceData)) {
+      upsertBacklogItem(userState, dayNumber, blockKey, item.itemId, sourceTag, referenceData);
     }
     movedItemIds.push(item.itemId);
   }
@@ -625,8 +632,8 @@ export function moveBlockToBacklog(
   return movedItemIds;
 }
 
-function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, restoredBlocks: Set<BlockKey>) {
-  const day = getScheduleDay(dayNumber, userState);
+function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, restoredBlocks: Set<BlockKey>, referenceData?: LocalStore["referenceData"]) {
+  const day = getScheduleDay(dayNumber, userState, referenceData);
 
   for (const item of Object.values(userState.backlogItems)) {
     if (
@@ -676,8 +683,8 @@ function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, res
   }
 }
 
-function markNoDueMorningRevisionClosed(userState: UserState, dayNumber: number, closedAt: string) {
-  const day = getScheduleDay(dayNumber, userState);
+function markNoDueMorningRevisionClosed(userState: UserState, dayNumber: number, closedAt: string, referenceData?: LocalStore["referenceData"]) {
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   const blockKey = day?.blocks.find((entry) => entry.semanticBlockKey === "morning_revision")?.timeSlotKey;
   if (!blockKey) {
     return;
@@ -693,9 +700,10 @@ export function applyTrafficLightToDay(
   dayNumber: number,
   trafficLight: TrafficLight,
   options?: { allowRestore?: boolean },
+  referenceData?: LocalStore["referenceData"],
 ) {
   ensureUserScheduleSeeded(userState);
-  const day = getScheduleDay(dayNumber, userState);
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   if (!day) {
     return;
   }
@@ -720,13 +728,13 @@ export function applyTrafficLightToDay(
   if (options?.allowRestore) {
     const restoredBlocks = new Set([...nextVisible].filter((blockKey) => !previousVisible.has(blockKey)));
     if (restoredBlocks.size > 0) {
-      restoreTrafficLightBacklog(userState, dayNumber, restoredBlocks);
+      restoreTrafficLightBacklog(userState, dayNumber, restoredBlocks, referenceData);
     }
   }
 
   const hiddenBlocks = [...previousVisible].filter((blockKey) => !nextVisible.has(blockKey));
   for (const blockKey of hiddenBlocks) {
-    moveBlockToBacklog(userState, dayNumber, blockKey, hiddenSourceTag);
+    moveBlockToBacklog(userState, dayNumber, blockKey, hiddenSourceTag, "rescheduled", null, referenceData);
   }
 }
 
@@ -737,7 +745,7 @@ export function moveVisibleBlocksToBacklog(
   options?: { excludeFinalReview?: boolean; note?: string | null },
   referenceData?: LocalStore["referenceData"],
 ) {
-  const day = getScheduleDay(dayNumber, userState);
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   if (!day) {
     return;
   }
@@ -756,8 +764,8 @@ export function moveVisibleBlocksToBacklog(
         continue;
       }
 
-      for (const item of getUnresolvedItems(userState, dayNumber, blockKey)) {
-        markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, "missed", "missed", options?.note ?? null);
+      for (const item of getUnresolvedItems(userState, dayNumber, blockKey, referenceData)) {
+        markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, "missed", "missed", options?.note ?? null, referenceData);
       }
       continue;
     }
@@ -766,7 +774,7 @@ export function moveVisibleBlocksToBacklog(
       continue;
     }
 
-    moveBlockToBacklog(userState, dayNumber, blockKey, "missed", "missed", options?.note ?? null);
+    moveBlockToBacklog(userState, dayNumber, blockKey, "missed", "missed", options?.note ?? null, referenceData);
   }
 }
 
@@ -794,7 +802,7 @@ export function runLateNightSweep(
 }
 
 function buildOverrunSlots(userState: UserState, dayNumber: number, referenceData?: LocalStore["referenceData"]) {
-  const day = getScheduleDay(dayNumber, userState);
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   if (!day) {
     return [];
   }
@@ -841,6 +849,7 @@ export function applyOverrunCascadeBacklog(
       "overrun_cascade",
       "rescheduled",
       note ?? "Moved to recovery after an overrun.",
+      referenceData,
     );
     return { preview, movedBlockKeys: [preview.affectedBlockKey] };
   }
@@ -854,6 +863,7 @@ export function applyOverrunCascadeBacklog(
         "overrun_cascade",
         "rescheduled",
         note ?? "Moved to recovery to protect sleep.",
+        referenceData,
       );
     }
     return { preview, movedBlockKeys: [...preview.affectedBlockKeys] };
@@ -936,13 +946,13 @@ export function runMidnightRollover(
   ensureUserScheduleSeeded(userState);
 
   if (previousDayNumber >= 1 && previousDayNumber <= 105) {
-    const day = getScheduleDay(previousDayNumber, userState);
+    const day = getScheduleDay(previousDayNumber, userState, referenceData);
     if (day) {
       const trafficLight = getDayState(userState, previousDayNumber).trafficLight;
       const mappedDate = getMappedDate(previousDayNumber, userState);
       const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
       if (revisionPlan && revisionPlan.morningSessionPlanned === 0) {
-        markNoDueMorningRevisionClosed(userState, previousDayNumber, `${previousDate}T23:59:00.000Z`);
+        markNoDueMorningRevisionClosed(userState, previousDayNumber, `${previousDate}T23:59:00.000Z`, referenceData);
       }
       const visibleBlocks = getVisibleBlockKeys(trafficLight, day);
       const beforeCount = Object.values(userState.backlogItems).filter((item) => item.status === "pending").length;
@@ -1097,7 +1107,7 @@ export function generateWeeklySummary(
 ): WeeklySummary {
   const { start, end } = weekBounds(weekStartDate);
   const coveredThroughDate = clampWeeklyCoverage(start, options?.throughDate);
-  const summaryDays = getScheduleDays(userState).filter((day) => {
+  const summaryDays = getScheduleDays(userState, referenceData).filter((day) => {
     if (isCompressedHiddenDay(day.dayNumber, settings)) {
       return false;
     }
@@ -1150,13 +1160,13 @@ export function generateWeeklySummary(
 
       const [, slotEnd] = blockKey.split("-");
       if (progress.actualEnd && slotEnd && progress.actualEnd > slotEnd) {
-        const label = `${getSubjectFromPrimaryFocus(day.primaryFocusRaw)} · ${getBlockOrThrow(userState, day.dayNumber, blockKey).block.displayLabel}`;
+        const label = `${getSubjectFromPrimaryFocus(day.primaryFocusRaw, referenceData)} · ${getBlockOrThrow(userState, day.dayNumber, blockKey, referenceData).block.displayLabel}`;
         overrunMap.set(label, (overrunMap.get(label) ?? 0) + 1);
       }
     }
 
     if (getDayCompletionState(day, userState, state.trafficLight, referenceData)) {
-      subjectsStudied.add(getSubjectFromPrimaryFocus(day.primaryFocusRaw));
+      subjectsStudied.add(getSubjectFromPrimaryFocus(day.primaryFocusRaw, referenceData));
     }
   }
 
@@ -1331,7 +1341,7 @@ export function applyAutomations(store: LocalStore, userId: string) {
     runWeeklySummaryAutomation(userState, settings, now, store.referenceData);
   }
 
-  refreshBacklogSuggestions(userState, settings, todayDayNumber);
+  refreshBacklogSuggestions(userState, settings, todayDayNumber, store.referenceData);
 }
 
 export function getHomeData(store: LocalStore, userId: string) {
@@ -1342,7 +1352,7 @@ export function getHomeData(store: LocalStore, userId: string) {
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const settings = userState.settings;
   const todayDayNumber = getCurrentDayNumber(userState, todayDate);
-  const todayScheduleDay = getScheduleDay(todayDayNumber, userState);
+  const todayScheduleDay = getScheduleDay(todayDayNumber, userState, store.referenceData);
 
   const todayState = todayScheduleDay ? getDayState(userState, todayDayNumber) : null;
   const todayRevisionPlan =
@@ -1368,7 +1378,7 @@ export function getHomeData(store: LocalStore, userId: string) {
 
   const shiftHealth = getScheduleHealth(userState, settings, todayDayNumber, store.referenceData);
   const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays, store.referenceData) : null;
-  const plannedRecovery = getScheduledRecoveryForDay(userState, settings, todayDayNumber, todayDate);
+  const plannedRecovery = getScheduledRecoveryForDay(userState, settings, todayDayNumber, todayDate, store.referenceData);
 
   return {
     nowIso: now.toISOString(),
@@ -1431,7 +1441,7 @@ export function getRevisionQueuePageData(store: LocalStore, userId: string) {
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const settings = userState.settings;
   const todayDayNumber = getCurrentDayNumber(userState, todayDate);
-  const todayScheduleDay = getScheduleDay(todayDayNumber, userState);
+  const todayScheduleDay = getScheduleDay(todayDayNumber, userState, store.referenceData);
   const revisionPlan = settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings, store.referenceData) : null;
   const waitingSessions = revisionPlan
     ? [...revisionPlan.overflowSessions, ...revisionPlan.catchUpSessions, ...revisionPlan.restudySessions]
@@ -1468,7 +1478,7 @@ export function getBacklogPageData(
     todayDayNumber,
     summary: getBacklogSummary(userState),
     counts: getBacklogStatusCounts(userState),
-    items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort),
+    items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort, store.referenceData),
     revision: buildRevisionOverview(userState, userState.settings, todayDate, store.referenceData),
   };
 }
@@ -1574,7 +1584,7 @@ export function getScheduleListData(store: LocalStore, userId: string) {
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const todayDayNumber = getCurrentDayNumber(userState, todayDate);
 
-  return getScheduleDays(userState).map((day) => {
+  return getScheduleDays(userState, store.referenceData).map((day) => {
     const mappedDate = getMappedDate(day.dayNumber, userState);
     const originalPlannedDate = getOriginalPlannedDate(day.dayNumber, userState);
     const dayState = getDayState(userState, day.dayNumber);
@@ -1610,7 +1620,7 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const day = getScheduleDay(dayNumber, userState);
+  const day = getScheduleDay(dayNumber, userState, store.referenceData);
   if (!day) {
     return null;
   }
@@ -1623,7 +1633,7 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
     mappedDate && !editState.isFuture && !editState.isShiftHidden
       ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, store.referenceData)
       : null;
-  const plannedRecovery = getScheduledRecoveryForDay(userState, userState.settings, dayNumber, todayDate);
+  const plannedRecovery = getScheduledRecoveryForDay(userState, userState.settings, dayNumber, todayDate, store.referenceData);
 
   return {
     day,

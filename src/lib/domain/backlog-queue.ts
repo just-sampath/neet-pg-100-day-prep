@@ -11,6 +11,7 @@ import type {
   BacklogStatus,
   BacklogViewFilter,
   BlockKey,
+  RuntimeReferenceData,
   ScheduledRecoveryItem,
   UserState,
 } from "@/lib/domain/types";
@@ -49,12 +50,12 @@ function getSlotKey(dayNumber: number, blockKey: BlockKey) {
   return `${dayNumber}:${blockKey}`;
 }
 
-function getTrackableSlotLabel(dayNumber: number, blockKey: BlockKey) {
-  return getScheduleDay(dayNumber)?.blocks.find((slot) => slot.timeSlotKey === blockKey)?.displayLabel ?? blockKey;
+function getTrackableSlotLabel(dayNumber: number, blockKey: BlockKey, referenceData?: RuntimeReferenceData) {
+  return getScheduleDay(dayNumber, undefined, referenceData)?.blocks.find((slot) => slot.timeSlotKey === blockKey)?.displayLabel ?? blockKey;
 }
 
-function getTrackableSlotStart(dayNumber: number, blockKey: BlockKey) {
-  return getScheduleDay(dayNumber)?.blocks.find((slot) => slot.timeSlotKey === blockKey)?.timeSlotKey.split("-")[0] ?? "23:59";
+function getTrackableSlotStart(dayNumber: number, blockKey: BlockKey, referenceData?: RuntimeReferenceData) {
+  return getScheduleDay(dayNumber, undefined, referenceData)?.blocks.find((slot) => slot.timeSlotKey === blockKey)?.timeSlotKey.split("-")[0] ?? "23:59";
 }
 
 function isStudyBoundarySafe(dayNumber: number, settings: AppSettings, userState?: UserState) {
@@ -66,8 +67,8 @@ function isStudyBoundarySafe(dayNumber: number, settings: AppSettings, userState
   return parseDateOnly(mappedDate) < parseDateOnly(HARD_BOUNDARY_DATE);
 }
 
-function isSameSubject(targetDayNumber: number, item: BacklogItem) {
-  const targetDay = getScheduleDay(targetDayNumber);
+function isSameSubject(targetDayNumber: number, item: BacklogItem, referenceData?: RuntimeReferenceData) {
+  const targetDay = getScheduleDay(targetDayNumber, undefined, referenceData);
   if (!targetDay) {
     return false;
   }
@@ -83,6 +84,7 @@ function isTargetSlotAvailable(
   dayNumber: number,
   blockKey: BlockKey,
   occupiedSlots: Set<string>,
+  referenceData?: RuntimeReferenceData,
 ) {
   if (
     dayNumber < 1 ||
@@ -93,7 +95,7 @@ function isTargetSlotAvailable(
     return false;
   }
 
-  const day = getScheduleDay(dayNumber, userState);
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey && entry.trackable);
   if (!day || !block || !block.reschedulable) {
     return false;
@@ -136,16 +138,16 @@ function createSuggestion(dayNumber: number | null, blockKey: BlockKey | null, n
   };
 }
 
-function buildTargetLabel(dayNumber: number, blockKey: BlockKey, settings: AppSettings) {
+function buildTargetLabel(dayNumber: number, blockKey: BlockKey, settings: AppSettings, referenceData?: RuntimeReferenceData) {
   const mappedDate = getMappedDate(dayNumber, settings);
-  const slotLabel = getTrackableSlotLabel(dayNumber, blockKey);
+  const slotLabel = getTrackableSlotLabel(dayNumber, blockKey, referenceData);
   return mappedDate ? `Day ${dayNumber} · ${slotLabel} · ${mappedDate}` : `Day ${dayNumber} · ${slotLabel}`;
 }
 
-function getCompatibleFutureDays(item: BacklogItem, settings: AppSettings, startDay: number) {
-  const sourceDay = getScheduleDay(item.originalDay, undefined);
+function getCompatibleFutureDays(item: BacklogItem, settings: AppSettings, startDay: number, referenceData?: RuntimeReferenceData) {
+  const sourceDay = getScheduleDay(item.originalDay, undefined, referenceData);
   const sourcePhaseId = sourceDay?.phaseId ?? null;
-  const days = getScheduleDays().filter(
+  const days = getScheduleDays(undefined, referenceData).filter(
     (day) =>
       day.dayNumber >= startDay &&
       !isCompressedHiddenDay(day.dayNumber, settings) &&
@@ -164,8 +166,8 @@ function getCompatibleFutureDays(item: BacklogItem, settings: AppSettings, start
   return [];
 }
 
-function findBestTargetBlock(dayNumber: number, userState: UserState, settings: AppSettings, item: BacklogItem, occupiedSlots: Set<string>) {
-  const day = getScheduleDay(dayNumber);
+function findBestTargetBlock(dayNumber: number, userState: UserState, settings: AppSettings, item: BacklogItem, occupiedSlots: Set<string>, referenceData?: RuntimeReferenceData) {
+  const day = getScheduleDay(dayNumber, undefined, referenceData);
   if (!day) {
     return null;
   }
@@ -174,8 +176,8 @@ function findBestTargetBlock(dayNumber: number, userState: UserState, settings: 
     (block) => block.trackable && block.reschedulable && block.recoveryLane === item.recoveryLane,
   );
   const prioritized = candidates.toSorted((left, right) => {
-    const sameSubjectLeft = isSameSubject(dayNumber, item) ? (left.blockIntent === "core_study" || left.blockIntent === "revision" ? 0 : 1) : 1;
-    const sameSubjectRight = isSameSubject(dayNumber, item) ? (right.blockIntent === "core_study" || right.blockIntent === "revision" ? 0 : 1) : 1;
+    const sameSubjectLeft = isSameSubject(dayNumber, item, referenceData) ? (left.blockIntent === "core_study" || left.blockIntent === "revision" ? 0 : 1) : 1;
+    const sameSubjectRight = isSameSubject(dayNumber, item, referenceData) ? (right.blockIntent === "core_study" || right.blockIntent === "revision" ? 0 : 1) : 1;
     if (sameSubjectLeft !== sameSubjectRight) {
       return sameSubjectLeft - sameSubjectRight;
     }
@@ -183,7 +185,7 @@ function findBestTargetBlock(dayNumber: number, userState: UserState, settings: 
   });
 
   return (
-    prioritized.find((candidate) => isTargetSlotAvailable(userState, settings, item, dayNumber, candidate.timeSlotKey, occupiedSlots)) ??
+    prioritized.find((candidate) => isTargetSlotAvailable(userState, settings, item, dayNumber, candidate.timeSlotKey, occupiedSlots, referenceData)) ??
     null
   );
 }
@@ -194,6 +196,7 @@ function generateBacklogSuggestion(
   settings: AppSettings,
   todayDayNumber: number,
   occupiedSlots: Set<string>,
+  referenceData?: RuntimeReferenceData,
 ) {
   if (!settings.dayOneDate) {
     return createSuggestion(null, null, "Set your Day 1 start date in Settings to enable recovery suggestions.");
@@ -204,18 +207,18 @@ function generateBacklogSuggestion(
   }
 
   const searchStartDay = Math.max(todayDayNumber + 1, item.originalDay + 1, 1);
-  const futureDays = getCompatibleFutureDays(item, settings, searchStartDay);
+  const futureDays = getCompatibleFutureDays(item, settings, searchStartDay, referenceData);
   if (futureDays.length === 0) {
     return createSuggestion(null, null, "No compatible slot is available within the allowed phase window.");
   }
 
   for (const day of futureDays) {
-    const target = findBestTargetBlock(day.dayNumber, userState, settings, item, occupiedSlots);
+    const target = findBestTargetBlock(day.dayNumber, userState, settings, item, occupiedSlots, referenceData);
     if (!target) {
       continue;
     }
 
-    const sameSubject = isSameSubject(day.dayNumber, item);
+    const sameSubject = isSameSubject(day.dayNumber, item, referenceData);
     return createSuggestion(
       day.dayNumber,
       target.timeSlotKey,
@@ -252,12 +255,12 @@ export function getNextBacklogPriorityOrder(userState: UserState) {
   return (priorities.length ? Math.max(...priorities) : 0) + 1;
 }
 
-export function refreshBacklogSuggestions(userState: UserState, settings: AppSettings, todayDayNumber: number) {
+export function refreshBacklogSuggestions(userState: UserState, settings: AppSettings, todayDayNumber: number, referenceData?: RuntimeReferenceData) {
   normalizeBacklogPriorityOrder(userState);
   const occupiedSlots = buildOccupiedSlotSet(userState);
 
   for (const item of getPendingItems(userState)) {
-    const suggestion = generateBacklogSuggestion(item, userState, settings, todayDayNumber, occupiedSlots);
+    const suggestion = generateBacklogSuggestion(item, userState, settings, todayDayNumber, occupiedSlots, referenceData);
     item.suggestedDay = suggestion.suggestedDay;
     item.suggestedBlockKey = suggestion.suggestedBlockKey;
     item.suggestedNote = suggestion.suggestedNote;
@@ -345,6 +348,7 @@ export function getBacklogQueueItems(
   todayDate: string,
   filter: BacklogViewFilter,
   sort: BacklogSortMode,
+  referenceData?: RuntimeReferenceData,
 ): BacklogQueueViewItem[] {
   const allItems = Object.values(userState.backlogItems);
   const filtered = filter === "all" ? allItems : allItems.filter((item) => item.status === filter);
@@ -355,10 +359,10 @@ export function getBacklogQueueItems(
     sourceLabel: getBacklogSourceLabel(item.sourceTag),
     originalMappedDate: getMappedDate(item.originalDay, userState),
     suggestionLabel:
-      item.suggestedDay && item.suggestedBlockKey ? buildTargetLabel(item.suggestedDay, item.suggestedBlockKey, settings) : null,
+      item.suggestedDay && item.suggestedBlockKey ? buildTargetLabel(item.suggestedDay, item.suggestedBlockKey, settings, referenceData) : null,
     rescheduledLabel:
       item.rescheduledToDay && item.rescheduledToBlockKey
-        ? buildTargetLabel(item.rescheduledToDay, item.rescheduledToBlockKey, settings)
+        ? buildTargetLabel(item.rescheduledToDay, item.rescheduledToBlockKey, settings, referenceData)
         : null,
   }));
 }
@@ -368,12 +372,13 @@ export function getScheduledRecoveryForDay(
   settings: AppSettings,
   dayNumber: number,
   todayDate: string,
+  referenceData?: RuntimeReferenceData,
 ): ScheduledRecoveryItem[] {
   return Object.values(userState.backlogItems)
     .filter((item) => item.status === "rescheduled" && item.rescheduledToDay === dayNumber && item.rescheduledToBlockKey)
     .sort((left, right) => {
-      const leftStart = getTrackableSlotStart(dayNumber, left.rescheduledToBlockKey!);
-      const rightStart = getTrackableSlotStart(dayNumber, right.rescheduledToBlockKey!);
+      const leftStart = getTrackableSlotStart(dayNumber, left.rescheduledToBlockKey!, referenceData);
+      const rightStart = getTrackableSlotStart(dayNumber, right.rescheduledToBlockKey!, referenceData);
       if (leftStart !== rightStart) {
         return leftStart.localeCompare(rightStart);
       }
@@ -392,7 +397,7 @@ export function getScheduledRecoveryForDay(
       sourceTag: item.sourceTag,
       targetDay: dayNumber,
       targetBlockKey: item.rescheduledToBlockKey!,
-      targetBlockLabel: getTrackableSlotLabel(dayNumber, item.rescheduledToBlockKey!),
+      targetBlockLabel: getTrackableSlotLabel(dayNumber, item.rescheduledToBlockKey!, referenceData),
       daysInBacklog: getBacklogAgeDays(item.createdAt, todayDate),
       priorityOrder: item.priorityOrder,
     }));
@@ -447,6 +452,7 @@ export function isValidBacklogRescheduleTarget(
   targetDay: number,
   targetBlockKey: BlockKey,
   excludeBacklogId?: string,
+  referenceData?: RuntimeReferenceData,
 ) {
   if (!Number.isInteger(targetDay) || targetDay <= todayDayNumber) {
     return false;
@@ -458,7 +464,7 @@ export function isValidBacklogRescheduleTarget(
   }
 
   const occupiedSlots = buildOccupiedSlotSet(userState, excludeBacklogId);
-  return isTargetSlotAvailable(userState, settings, item, targetDay, targetBlockKey, occupiedSlots);
+  return isTargetSlotAvailable(userState, settings, item, targetDay, targetBlockKey, occupiedSlots, referenceData);
 }
 
 export function moveBacklogItemPriority(userState: UserState, backlogId: string, direction: BacklogMoveDirection) {
@@ -517,8 +523,9 @@ export function rescheduleBacklogScopeToSuggestions(
   settings: AppSettings,
   todayDayNumber: number,
   scope: BacklogBulkScope,
+  referenceData?: RuntimeReferenceData,
 ) {
-  refreshBacklogSuggestions(userState, settings, todayDayNumber);
+  refreshBacklogSuggestions(userState, settings, todayDayNumber, referenceData);
   const filter = getScopeFilter(scope);
 
   for (const item of Object.values(userState.backlogItems)) {
@@ -526,7 +533,7 @@ export function rescheduleBacklogScopeToSuggestions(
       continue;
     }
 
-    if (!isValidBacklogRescheduleTarget(userState, settings, todayDayNumber, item.suggestedDay, item.suggestedBlockKey, item.id)) {
+    if (!isValidBacklogRescheduleTarget(userState, settings, todayDayNumber, item.suggestedDay, item.suggestedBlockKey, item.id, referenceData)) {
       continue;
     }
 

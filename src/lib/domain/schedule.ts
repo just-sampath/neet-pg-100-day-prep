@@ -753,7 +753,7 @@ export function getBlockProgress(
   blockKey: BlockKey,
   referenceData?: RuntimeReferenceData,
 ): BlockProgress {
-  const day = getScheduleDay(dayNumber, userState);
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   const timing = getBlockTiming(userState, dayNumber, blockKey);
 
   if (!day) {
@@ -819,10 +819,10 @@ export function getBlockProgress(
               ? "completed"
               : "pending"
             : revisionPlan.morningSessionRemaining === 0
-            ? "completed"
-            : revisionPlan.morningSessionCompleted > 0
-              ? "partially_complete"
-              : "pending";
+              ? "completed"
+              : revisionPlan.morningSessionCompleted > 0
+                ? "partially_complete"
+                : "pending";
 
         return {
           dayNumber,
@@ -1754,14 +1754,14 @@ export function getScheduleHealth(
     };
   }
 
-  const visibleProjectedDays = getScheduleDays(userState)
+  const visibleProjectedDays = getScheduleDays(userState, referenceData)
     .map((day) => day.dayNumber)
     .filter((dayNumber) => !isCompressedHiddenDay(dayNumber, settings))
     .filter((dayNumber) => dayNumber <= todayDayNumber)
     .slice(-7);
 
   const missedDays = visibleProjectedDays.filter((dayNumber) => {
-    const day = getScheduleDay(dayNumber, userState);
+    const day = getScheduleDay(dayNumber, userState, referenceData);
     if (!day) {
       return false;
     }
@@ -1857,10 +1857,10 @@ function getMacroPhaseDayStatus(dayNumber: number, userState: UserState, referen
   );
 }
 
-export function getPhaseStatus(phaseId: string, userState: UserState, settings: AppSettings): BlockStatus {
+export function getPhaseStatus(phaseId: string, userState: UserState, settings: AppSettings, referenceData?: RuntimeReferenceData): BlockStatus {
   void settings;
-  const days = getScheduleDays(userState).filter((day) => getPhaseGroup(day) === phaseId);
-  const statuses = days.map((day) => getMacroPhaseDayStatus(day.dayNumber, userState));
+  const days = getScheduleDays(userState, referenceData).filter((day) => getPhaseGroup(day) === phaseId);
+  const statuses = days.map((day) => getMacroPhaseDayStatus(day.dayNumber, userState, referenceData));
 
   return getDerivedStatus(
     statuses.map((status) => {

@@ -1,5 +1,5 @@
 import { getScheduleDay } from "@/lib/domain/schedule";
-import type { BacklogSourceTag, BlockKey, BlockStatus, TrafficLight } from "@/lib/domain/types";
+import type { BacklogSourceTag, BlockKey, BlockStatus, RuntimeReferenceData, TrafficLight } from "@/lib/domain/types";
 import { timeValue } from "@/lib/utils/date";
 
 export interface OverrunPreviewSlot {
@@ -17,28 +17,28 @@ export interface OverrunPreviewSlot {
 export type OverrunCascadePreview =
   | { kind: "none" }
   | {
-      kind: "decision";
-      affectedBlockKey: BlockKey;
-      affectedLabel: string;
-      scheduledStart: string;
-      scheduledEnd: string;
+    kind: "decision";
+    affectedBlockKey: BlockKey;
+    affectedLabel: string;
+    scheduledStart: string;
+    scheduledEnd: string;
+    shiftedStart: string;
+    shiftedEnd: string;
+    shiftMinutes: number;
+    shiftedBlocks: Array<{
+      key: BlockKey;
+      label: string;
       shiftedStart: string;
       shiftedEnd: string;
-      shiftMinutes: number;
-      shiftedBlocks: Array<{
-        key: BlockKey;
-        label: string;
-        shiftedStart: string;
-        shiftedEnd: string;
-      }>;
-      message: string;
-    }
+    }>;
+    message: string;
+  }
   | {
-      kind: "force_to_backlog";
-      affectedBlockKeys: BlockKey[];
-      firstAffectedLabel: string;
-      message: string;
-    };
+    kind: "force_to_backlog";
+    affectedBlockKeys: BlockKey[];
+    firstAffectedLabel: string;
+    message: string;
+  };
 
 function formatClock(totalMinutes: number) {
   const hours = Math.floor(totalMinutes / 60);
@@ -46,8 +46,8 @@ function formatClock(totalMinutes: number) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-export function shouldCreateBacklogItem(dayNumber: number, blockKey: BlockKey, sourceTag: BacklogSourceTag) {
-  const day = getScheduleDay(dayNumber);
+export function shouldCreateBacklogItem(dayNumber: number, blockKey: BlockKey, sourceTag: BacklogSourceTag, referenceData?: RuntimeReferenceData) {
+  const day = getScheduleDay(dayNumber, undefined, referenceData);
   const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey);
   if (!block || !block.trackable || !block.reschedulable) {
     return false;
