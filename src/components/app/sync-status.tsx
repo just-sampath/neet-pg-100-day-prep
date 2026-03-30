@@ -8,8 +8,10 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const realtimeTables = [
   "app_settings",
-  "day_states",
-  "block_progress",
+  "schedule_days",
+  "schedule_blocks",
+  "schedule_topic_assignments",
+  "phase_config",
   "revision_completions",
   "backlog_items",
   "mcq_bulk_logs",

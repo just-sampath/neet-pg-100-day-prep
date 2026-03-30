@@ -241,10 +241,6 @@ function assert(condition, message) {
   }
 }
 
-function toArrayLiteral(value) {
-  return JSON.stringify(value, null, 2);
-}
-
 function normalizeWhitespace(value) {
   return String(value ?? "")
     .replace(/\r/gu, "\n")
@@ -527,6 +523,32 @@ function buildGtPlan(days) {
     });
 }
 
+function buildRevisionMap(revisionRows) {
+  return [...revisionRows]
+    .sort((left, right) => Number(left.Day) - Number(right.Day))
+    .map((row) => ({
+      dayNumber: Number(row.Day),
+      d1DueTopics: normalizeWhitespace(row["D-1 due topics"]) || null,
+      d3DueTopics: normalizeWhitespace(row["D-3 due topics"]) || null,
+      d7DueTopics: normalizeWhitespace(row["D-7 due topics"]) || null,
+      d14DueTopics: normalizeWhitespace(row["D-14 due topics"]) || null,
+      d28DueTopics: normalizeWhitespace(row["D-28 due topics"]) || null,
+      morningQueueRule: normalizeWhitespace(row["Morning queue rule"]),
+    }));
+}
+
+function buildPhaseConfigSeed(phaseCatalog) {
+  return phaseCatalog
+    .map((phase) => ({
+      phaseNumber: phase.phaseId === "phase_1" ? 1 : phase.phaseId === "phase_2" ? 2 : 3,
+      phaseId: phase.phaseId,
+      originalStartDay: phase.startDay,
+      originalEndDay: phase.endDay,
+      extensionBudget: phase.phaseId === "phase_1" ? 3 : 1,
+    }))
+    .sort((left, right) => left.phaseNumber - right.phaseNumber);
+}
+
 function buildPhaseCatalog(dayRows) {
   return Object.entries(
     dayRows.reduce((map, row) => {
@@ -794,7 +816,7 @@ function buildTrackableItems({
   }));
 }
 
-function buildDayPlan(dayRow, revisionRow, subjectMatchers, worTopicsByDayBlock) {
+function buildDayPlan(dayRow, subjectMatchers, worTopicsByDayBlock) {
   const dayNumber = Number(dayRow.Day);
   const phase = PHASE_CONFIG[normalizeWhitespace(dayRow.Phase)];
   assert(phase, `Unknown phase on day ${dayNumber}`);
@@ -840,8 +862,6 @@ function buildDayPlan(dayRow, revisionRow, subjectMatchers, worTopicsByDayBlock)
       items = buildWorkbookMorningItems({
         dayNumber,
         rawText,
-        revisionRow,
-        phaseId: phase.phaseId,
         primaryFocusSubjectIds,
         subjectMatchers,
         slotKey: slot.timeSlotKey,
@@ -957,16 +977,18 @@ function buildGeneratedScheduleData(dayRows, worRows, subjectRows, revisionRows)
   const subjectStrategy = buildSubjectStrategy(subjectRows, worRows);
   const subjectMatchers = buildSubjectMatchers(subjectStrategy);
   const worTopicsByDayBlock = buildWorTopicsByDayBlock(worRows);
-  const revisionRowByDay = new Map(revisionRows.map((row) => [Number(row.Day), row]));
   const phaseCatalog = buildPhaseCatalog(dayRows);
+  const revisionMap = buildRevisionMap(revisionRows);
+  const phaseConfig = buildPhaseConfigSeed(phaseCatalog);
   const days = [...dayRows]
     .sort((left, right) => Number(left.Day) - Number(right.Day))
-    .map((row) => buildDayPlan(row, revisionRowByDay.get(Number(row.Day)) ?? null, subjectMatchers, worTopicsByDayBlock));
+    .map((row) => buildDayPlan(row, subjectMatchers, worTopicsByDayBlock));
   const gtTestPlan = buildGtPlan(days);
 
   validateWorkbook(dayRows, worRows, subjectRows, revisionRows, phaseCatalog, days);
 
   return {
+    seedVersion: 1,
     examDate: "2026-08-30",
     hardBoundaryDate: "2026-08-20",
     daywisePlan: {
@@ -1000,6 +1022,20 @@ function buildGeneratedScheduleData(dayRows, worRows, subjectRows, revisionRows)
       sourceSheet: "Daywise_Plan",
       tests: gtTestPlan,
     },
+    revisionMap: {
+      version: 1,
+      source: "workbook",
+      sourceWorkbook: WORKBOOK_NAME,
+      sourceSheet: "Revision_Map",
+      days: revisionMap,
+    },
+    phaseConfig: {
+      version: 1,
+      source: "workbook",
+      sourceWorkbook: WORKBOOK_NAME,
+      sourceSheet: "Daywise_Plan",
+      phases: phaseConfig,
+    },
   };
 }
 
@@ -1013,19 +1049,20 @@ async function main() {
   const scheduleData = buildGeneratedScheduleData(dayRows, worRows, subjectRows, revisionRows);
 
   await mkdir(generatedDir, { recursive: true });
+  const scheduleSeed = {
+    seedVersion: scheduleData.seedVersion,
+    examDate: scheduleData.examDate,
+    hardBoundaryDate: scheduleData.hardBoundaryDate,
+    daywisePlan: scheduleData.daywisePlan,
+    gtTestPlan: scheduleData.gtTestPlan,
+    revisionMap: scheduleData.revisionMap,
+    phaseConfig: scheduleData.phaseConfig,
+  };
+  const tieringSeed = scheduleData.subjectStrategy;
 
-  const scheduleSource = `import type { ScheduleDataBundle } from "@/lib/domain/schedule-data-types";
-
-export const scheduleData: ScheduleDataBundle = ${toArrayLiteral(scheduleData)};
-`;
-
-  const quotesSource = `import type { GeneratedQuote } from "@/lib/domain/types";
-
-export const quotesData: GeneratedQuote[] = ${toArrayLiteral(quotes)};
-`;
-
-  await writeFile(resolve(generatedDir, "schedule-data.ts"), scheduleSource);
-  await writeFile(resolve(generatedDir, "quotes-data.ts"), quotesSource);
+  await writeFile(resolve(generatedDir, "schedule.json"), `${JSON.stringify(scheduleSeed, null, 2)}\n`);
+  await writeFile(resolve(generatedDir, "tiering.json"), `${JSON.stringify(tieringSeed, null, 2)}\n`);
+  await writeFile(resolve(generatedDir, "quotes.json"), `${JSON.stringify(quotes, null, 2)}\n`);
 
   const trackableCount = SLOT_CONFIG.filter((slot) => TRACKABLE_SEMANTIC_KEYS.has(slot.semanticBlockKey)).length;
   assert(trackableCount === 7, "expected exactly 7 trackable blocks");

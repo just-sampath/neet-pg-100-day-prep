@@ -1,4 +1,4 @@
-import { scheduleData } from "@/lib/generated/schedule-data";
+import { getStaticReferenceData } from "@/lib/data/reference-data";
 import type {
   McqBulkLog,
   McqCauseCode,
@@ -7,8 +7,10 @@ import type {
   McqPriority,
   McqResult,
   McqTag,
+  RuntimeReferenceData,
   UserState,
 } from "@/lib/domain/types";
+import { getRuntimeMode } from "@/lib/runtime/mode";
 import { toDateOnly } from "@/lib/utils/date";
 
 export const MCQ_RESULT_OPTIONS: Array<{ value: McqResult; label: string }> = [
@@ -60,17 +62,32 @@ export const MCQ_TAG_OPTIONS: McqTag[] = [
   "staging",
 ];
 
-const SUBJECT_OPTIONS = [...scheduleData.subjectStrategy.subjects]
-  .map((entry) => entry.subjectName.trim())
-  .filter(Boolean)
-  .toSorted((left, right) => left.localeCompare(right));
-
-const SUBJECT_LOOKUP = new Map(SUBJECT_OPTIONS.map((subject) => [subject.toLowerCase(), subject] as const));
 const CAUSE_LOOKUP = new Set<McqCauseCode>(MCQ_CAUSE_CODE_OPTIONS.map((option) => option.value));
 const PRIORITY_LOOKUP = new Set<McqPriority>(MCQ_PRIORITY_OPTIONS.map((option) => option.value));
 const FIX_LOOKUP = new Set<McqFixCode>(MCQ_FIX_CODE_OPTIONS.map((option) => option.value));
 const TAG_LOOKUP = new Set<McqTag>(MCQ_TAG_OPTIONS);
 const RESULT_LOOKUP = new Set<McqResult>(MCQ_RESULT_OPTIONS.map((option) => option.value));
+
+function getReferenceData(referenceData?: RuntimeReferenceData) {
+  if (referenceData) {
+    return referenceData;
+  }
+  if (getRuntimeMode() === "supabase") {
+    throw new Error("Runtime reference data is required in Supabase mode.");
+  }
+  return getStaticReferenceData();
+}
+
+function getSubjectOptions(referenceData?: RuntimeReferenceData) {
+  return [...getReferenceData(referenceData).scheduleData.subjectStrategy.subjects]
+    .map((entry) => entry.subjectName.trim())
+    .filter(Boolean)
+    .toSorted((left, right) => left.localeCompare(right));
+}
+
+function getSubjectLookup(referenceData?: RuntimeReferenceData) {
+  return new Map(getSubjectOptions(referenceData).map((subject) => [subject.toLowerCase(), subject] as const));
+}
 
 export type McqTrendPoint = {
   label: string;
@@ -150,8 +167,8 @@ export function normalizeStoredMcqItemLog(log: McqItemLog): McqItemLog {
   };
 }
 
-export function getMcqSubjectOptions() {
-  return SUBJECT_OPTIONS;
+export function getMcqSubjectOptions(referenceData?: RuntimeReferenceData) {
+  return getSubjectOptions(referenceData);
 }
 
 function asTrimmedString(value: string | null | undefined) {
@@ -200,13 +217,13 @@ function normalizeListValue<T extends string>(
   return [...picked];
 }
 
-export function normalizeMcqSubject(value: string | null | undefined) {
+export function normalizeMcqSubject(value: string | null | undefined, referenceData?: RuntimeReferenceData) {
   const trimmed = asTrimmedString(value);
   if (!trimmed) {
     return null;
   }
 
-  return SUBJECT_LOOKUP.get(trimmed.toLowerCase()) ?? null;
+  return getSubjectLookup(referenceData).get(trimmed.toLowerCase()) ?? null;
 }
 
 export function normalizeMcqResult(value: string | null | undefined) {

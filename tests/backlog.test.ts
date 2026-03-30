@@ -16,6 +16,12 @@ import { createEmptyUserState } from "@/lib/data/local-store";
 import { getBlockProgress, getScheduleDay, getVisibleBlockKeys } from "@/lib/domain/schedule";
 import type { BlockKey } from "@/lib/domain/types";
 
+function createConfiguredUserState() {
+  const userState = createEmptyUserState();
+  userState.settings.dayOneDate = "2026-05-01";
+  return userState;
+}
+
 function getBlockKey(dayNumber: number, semanticBlockKey: string): BlockKey {
   return getScheduleDay(dayNumber)!.blocks.find((block) => block.semanticBlockKey === semanticBlockKey)!.timeSlotKey;
 }
@@ -45,7 +51,7 @@ describe("backlog creation and traffic-light handling", () => {
   });
 
   it("moves only unresolved hidden work into recovery on a yellow day and preserves completed hidden blocks", () => {
-    const userState = createEmptyUserState();
+    const userState = createConfiguredUserState();
     const blockCKey = getBlockKey(2, "block_c");
     const finalReviewKey = getBlockKey(2, "final_review");
 
@@ -61,7 +67,7 @@ describe("backlog creation and traffic-light handling", () => {
   });
 
   it("restores same-day red-to-yellow work while keeping still-hidden blocks pending", () => {
-    const userState = createEmptyUserState();
+    const userState = createConfiguredUserState();
     const blockBKey = getBlockKey(2, "block_b");
     const blockCKey = getBlockKey(2, "block_c");
     const finalReviewKey = getBlockKey(2, "final_review");
@@ -81,7 +87,7 @@ describe("backlog creation and traffic-light handling", () => {
   });
 
   it("does not restore hidden work when green is applied without same-day restore", () => {
-    const userState = createEmptyUserState();
+    const userState = createConfiguredUserState();
     const blockCKey = getBlockKey(2, "block_c");
     const finalReviewKey = getBlockKey(2, "final_review");
 
@@ -95,7 +101,7 @@ describe("backlog creation and traffic-light handling", () => {
   });
 
   it("creates manual-skip recovery for study blocks but keeps morning revision out of the backlog queue", () => {
-    const userState = createEmptyUserState();
+    const userState = createConfiguredUserState();
     const morningRevisionKey = getBlockKey(2, "morning_revision");
     const blockAKey = getBlockKey(2, "block_a");
 
@@ -109,7 +115,7 @@ describe("backlog creation and traffic-light handling", () => {
   });
 
   it("moves only visible reschedulable study work during wind-down and leaves no-due morning revision closed", () => {
-    const userState = createEmptyUserState();
+    const userState = createConfiguredUserState();
     const morningRevisionKey = getBlockKey(2, "morning_revision");
     const finalReviewKey = getBlockKey(2, "final_review");
 
@@ -229,7 +235,7 @@ describe("backlog creation and traffic-light handling", () => {
       shiftedEnd: "10:30",
     });
 
-    const userState = createEmptyUserState();
+    const userState = createConfiguredUserState();
     const blockAKey = getBlockKey(2, "block_a");
     const blockBKey = getBlockKey(2, "block_b");
     const blockCKey = getBlockKey(2, "block_c");
@@ -251,7 +257,7 @@ describe("backlog creation and traffic-light handling", () => {
   });
 
   it("forces the affected tail into recovery when an overrun would breach the 23:00 boundary", () => {
-    const userState = createEmptyUserState();
+    const userState = createConfiguredUserState();
     const mcqKey = getBlockKey(2, "mcq_practice");
     const finalReviewKey = getBlockKey(2, "final_review");
 
@@ -265,8 +271,7 @@ describe("backlog creation and traffic-light handling", () => {
   });
 
   it("keeps recovery suggestions inside the same macro phase for Phase 1 topic backlog", () => {
-    const userState = createEmptyUserState();
-    userState.settings.dayOneDate = "2026-05-01";
+    const userState = createConfiguredUserState();
     const blockAKey = getBlockKey(2, "block_a");
 
     moveBlockToBacklog(userState, 2, blockAKey, "missed", "missed", "Carry this forward.");

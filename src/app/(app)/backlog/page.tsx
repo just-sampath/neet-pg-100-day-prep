@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getBacklogPageData } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { mutateStore, readRuntimeReferenceData } from "@/lib/data/local-store";
 import { getTrackableBlockOptions } from "@/lib/domain/schedule";
 import type { BacklogBulkScope, BacklogSortMode, BacklogStatus, BacklogViewFilter } from "@/lib/domain/types";
 import { bulkBacklogAction, updateBacklogAction } from "@/lib/server/actions";
@@ -29,8 +29,6 @@ const BULK_SCOPES: Array<{ value: BacklogBulkScope; label: string }> = [
   { value: "yellow_red", label: "Yellow / red day" },
   { value: "overrun", label: "Overruns only" },
 ];
-
-const MANUAL_RESCHEDULE_OPTIONS = getTrackableBlockOptions();
 
 function isBacklogFilter(value: string | undefined): value is BacklogViewFilter {
   return FILTERS.some((item) => item.value === value);
@@ -70,6 +68,8 @@ export default async function BacklogPage({
   const params = await searchParams;
   const filter = isBacklogFilter(params.status) ? params.status : "pending";
   const sort = isBacklogSort(params.sort) ? params.sort : "priority";
+  const referenceData = await readRuntimeReferenceData();
+  const manualRescheduleOptions = getTrackableBlockOptions(undefined, referenceData);
   const data = await mutateStore((store) => getBacklogPageData(store, user.id, { filter, sort }));
 
   const defaultCompletionDate = data.todayDate;
@@ -384,11 +384,11 @@ export default async function BacklogPage({
                             defaultValue={
                               item.rescheduledToBlockKey ??
                               item.suggestedBlockKey ??
-                              MANUAL_RESCHEDULE_OPTIONS[0]?.value ??
+                              manualRescheduleOptions[0]?.value ??
                               ""
                             }
                           >
-                            {MANUAL_RESCHEDULE_OPTIONS.map((option) => (
+                          {manualRescheduleOptions.map((option) => (
                               <option key={option.value} value={option.value}>
                                 {option.label}
                               </option>

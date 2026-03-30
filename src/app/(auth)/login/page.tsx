@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
 import { AppLogo } from "@/components/app/logo";
-import { scheduleData } from "@/lib/generated/schedule-data";
+import { getReferenceSummary } from "@/lib/data/reference-data";
+import { readRuntimeReferenceData } from "@/lib/data/local-store";
 import { getRuntimeLabel, getRuntimeMode } from "@/lib/runtime/mode";
 import { loginAction } from "@/lib/server/actions";
 
@@ -22,23 +23,25 @@ export default async function LoginPage({
 }) {
   const { error } = await searchParams;
   const runtimeMode = getRuntimeMode();
+  const referenceData = await readRuntimeReferenceData();
+  const summary = getReferenceSummary(referenceData);
 
-const stats = [
-  {
-    label: "Schedule Days",
-    value: String(scheduleData.daywisePlan.days.length),
-    note: "Mapped from the curated semantic schedule data.",
-  },
-  {
-    label: "Subjects",
-    value: String(scheduleData.subjectStrategy.subjects.length),
-    note: "Strategy data included as first-class metadata.",
-  },
-  {
-    label: "GT Markers",
-    value: String(scheduleData.gtTestPlan.tests.length),
-    note: "Grand tests preserved as part of the cadence.",
-  },
+  const stats = [
+    {
+      label: "Schedule Days",
+      value: String(summary.scheduleDayCount),
+      note: "Mapped from the curated semantic schedule data.",
+    },
+    {
+      label: "Subjects",
+      value: String(summary.subjectCount),
+      note: "Strategy data included as first-class metadata.",
+    },
+    {
+      label: "GT Markers",
+      value: String(summary.gtPlanCount),
+      note: "Grand tests preserved as part of the cadence.",
+    },
   ];
 
   return (

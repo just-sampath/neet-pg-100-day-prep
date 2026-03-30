@@ -1,26 +1,27 @@
-import { quotesData } from "@/lib/generated/quotes-data";
+import { getQuotePools, getStaticReferenceData } from "@/lib/data/reference-data";
 import type {
   GeneratedQuote,
   QuoteCategory,
   QuoteCategoryCycleState,
   QuoteState,
+  RuntimeReferenceData,
   TrafficLight,
 } from "@/lib/domain/types";
+import { getRuntimeMode } from "@/lib/runtime/mode";
 
 const quoteCategories = ["daily", "tough_day", "celebration"] as const satisfies QuoteCategory[];
 
 type QuotePools = Record<QuoteCategory, GeneratedQuote[]>;
 
-const defaultQuotePools = quoteCategories.reduce<QuotePools>((pools, category) => {
-  pools[category] = quotesData.filter((quote) => quote.category === category);
-  return pools;
-}, {
-  daily: [],
-  tough_day: [],
-  celebration: [],
-});
-
-const quoteById = new Map(quotesData.map((quote) => [quote.id, quote]));
+function getDefaultQuotePools(referenceData?: RuntimeReferenceData) {
+  if (referenceData) {
+    return getQuotePools(referenceData);
+  }
+  if (getRuntimeMode() === "supabase") {
+    throw new Error("Runtime reference data is required in Supabase mode.");
+  }
+  return getQuotePools(getStaticReferenceData());
+}
 
 function emptyCycleState(): QuoteCategoryCycleState {
   return {
@@ -71,7 +72,7 @@ function normalizeCategoryCycleState(
   };
 }
 
-export function normalizeQuoteState(value: QuoteState | undefined, pools: QuotePools = defaultQuotePools): QuoteState {
+export function normalizeQuoteState(value: QuoteState | undefined, pools: QuotePools = getDefaultQuotePools()): QuoteState {
   const base = value ?? emptyQuoteState();
   const validIdsByCategory = getValidIdsByCategory(pools);
 
@@ -128,7 +129,8 @@ function getQuoteFromPools(pools: QuotePools, quoteId: string | null) {
     return null;
   }
 
-  return quoteById.get(quoteId) ?? quoteCategories.flatMap((category) => pools[category]).find((quote) => quote.id === quoteId) ?? null;
+  const quoteById = new Map(quoteCategories.flatMap((category) => pools[category]).map((quote) => [quote.id, quote] as const));
+  return quoteById.get(quoteId) ?? null;
 }
 
 export function selectQuoteForDay(
@@ -136,7 +138,7 @@ export function selectQuoteForDay(
   category: QuoteCategory,
   dateKey: string,
   userKey: string,
-  pools: QuotePools = defaultQuotePools,
+  pools: QuotePools = getDefaultQuotePools(),
 ) {
   if (!isDateKey(dateKey)) {
     return null;
@@ -197,7 +199,7 @@ export function getTodayQuoteSelection(
     trafficLight: TrafficLight;
     dayComplete: boolean;
   },
-  pools: QuotePools = defaultQuotePools,
+  pools: QuotePools = getDefaultQuotePools(),
 ) {
   const dailyQuote = selectQuoteForDay(quoteState, "daily", options.dateKey, options.userKey, pools);
   const toughQuote =
@@ -226,5 +228,5 @@ export function getTodayQuoteSelection(
 }
 
 export function getQuotePoolsForTesting() {
-  return defaultQuotePools;
+  return getDefaultQuotePools();
 }

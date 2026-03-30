@@ -4,7 +4,7 @@ import { MorningPlanPanel } from "@/components/app/morning-plan-panel";
 import { TimeEditor } from "@/components/app/time-editor";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getDayDetailData } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { readScheduleDayStore } from "@/lib/data/local-store";
 import type { BlockKey, ScheduledRecoveryItem } from "@/lib/domain/types";
 import { setTrafficLightAction, updateBlockAction, updateTopicAction } from "@/lib/server/actions";
 import { toDateOnlyInTimeZone } from "@/lib/utils/date";
@@ -38,7 +38,7 @@ export default async function ScheduleDayPage({
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
   const { day } = await params;
-  const detail = await mutateStore((store) => getDayDetailData(store, user.id, Number(day)));
+  const detail = await readScheduleDayStore(Number(day), (store) => getDayDetailData(store, user.id, Number(day)));
 
   if (!detail) {
     notFound();

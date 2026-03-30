@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { completeBlockItems, getRevisionQueuePageData } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import { getScheduleDay } from "@/lib/domain/schedule";
@@ -20,6 +21,7 @@ function createStore(userState?: UserState, simulatedNowIso = "2026-05-02T06:30:
     userState: {
       "local-user": userState ?? createEmptyUserState(),
     },
+    referenceData: getStaticReferenceData(),
     dev: {
       simulatedNowIso,
     },

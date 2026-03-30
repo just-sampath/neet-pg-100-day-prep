@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { scheduleData } from "@/lib/generated/schedule-data";
+import { getStaticReferenceData } from "@/lib/data/reference-data";
+
+const scheduleData = getStaticReferenceData().scheduleData;
 
 function getDay(dayNumber: number) {
   return scheduleData.daywisePlan.days.find((day) => day.dayNumber === dayNumber)!;

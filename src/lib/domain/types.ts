@@ -1,3 +1,5 @@
+import type { ScheduleDataBundle } from "@/lib/domain/schedule-data-types";
+
 export type ThemeMode = "dark" | "light";
 
 export type TrafficLight = "green" | "yellow" | "red";
@@ -76,6 +78,8 @@ export interface AppSettings {
   scheduleShiftDays: number;
   shiftAppliedAt: string | null;
   shiftEvents: ScheduleShiftEvent[];
+  scheduleSeedVersion: number;
+  scheduleSeededAt: string | null;
 }
 
 export interface ScheduleShiftEvent {
@@ -124,6 +128,129 @@ export interface ScheduleDayEditState {
   isReadOnly: boolean;
   canAdjustToday: boolean;
   canRetroactivelyComplete: boolean;
+}
+
+export type ScheduleShiftHiddenReason = "buffer_absorbed" | "compression_merged";
+
+export interface ScheduleDayRow {
+  dayNumber: number;
+  phaseId: string;
+  phaseName: string;
+  phaseGroup: "phase_1" | "phase_2" | "phase_3";
+  primaryFocusRaw: string;
+  primaryFocusParts: string[];
+  primaryFocusSubjectIds: string[];
+  resourceRaw: string;
+  resourceParts: string[];
+  deliverableRaw: string;
+  notesRaw: string | null;
+  sourceMinutes: number | null;
+  bufferMinutes: number | null;
+  plannedStudyMinutes: number | null;
+  totalStudyHours: number | null;
+  gtTestType: GtTestType;
+  gtPlanRef: string | null;
+  mappedDate: string;
+  originalMappedDate: string;
+  trafficLight: TrafficLight;
+  trafficLightUpdatedAt: string;
+  isExtensionDay: boolean;
+  shiftHiddenReason: ScheduleShiftHiddenReason | null;
+  mergedPartnerDay: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScheduleBlockRow {
+  dayNumber: number;
+  blockKey: BlockKey;
+  slotOrder: number;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  timelineKind: TimelineSlotKind;
+  displayLabel: string;
+  semanticBlockKey: string;
+  blockIntent:
+    | "setup"
+    | "revision"
+    | "core_study"
+    | "consolidation"
+    | "practice"
+    | "pyq_image"
+    | "recall"
+    | "assessment"
+    | "analysis"
+    | "repair"
+    | "logistics"
+    | "shutdown"
+    | "break"
+    | "meal";
+  trackable: boolean;
+  rawText: string;
+  recoveryLane: "none" | "core_recovery" | "soft_carry" | "assessment_recovery";
+  phaseFence: "same_phase_only" | "current_phase_preferred" | "no_auto_cross_phase" | "not_reschedulable";
+  defaultRevisionEligible: boolean;
+  reschedulable: boolean;
+  trafficLightGreen: "visible" | "hidden";
+  trafficLightYellow: "visible" | "hidden";
+  trafficLightRed: "visible" | "hidden";
+  backlogWhenHidden: boolean;
+  actualStart: string | null;
+  actualEnd: string | null;
+  timingNote: string | null;
+  timingUpdatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScheduleTopicAssignmentRow {
+  sourceItemId: TopicItemId;
+  dayNumber: number;
+  blockKey: BlockKey;
+  itemOrder: number;
+  kind: "topic" | "task" | "revision_ref" | "gt_step";
+  label: string;
+  rawText: string;
+  plannedMinutes: number;
+  subjectIds: string[];
+  revisionEligible: boolean;
+  recoveryLane: "none" | "core_recovery" | "soft_carry" | "assessment_recovery";
+  phaseFence: "same_phase_only" | "current_phase_preferred" | "no_auto_cross_phase" | "not_reschedulable";
+  notes: string | null;
+  revisionType: RevisionType | null;
+  referenceLabel: string | null;
+  referenceDayNumber: number | null;
+  status: TopicStatus;
+  completedAt: string | null;
+  sourceTag: BacklogSourceTag | null;
+  note: string | null;
+  isPinned: boolean;
+  isRecovery: boolean;
+  originalDayNumber: number | null;
+  originalBlockKey: BlockKey | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PhaseConfigRow {
+  phaseNumber: 1 | 2 | 3;
+  phaseId: string;
+  originalStartDay: number;
+  originalEndDay: number;
+  extensionBudget: number;
+  extensionsUsed: number;
+  currentStartDay: number;
+  currentEndDay: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UserScheduleState {
+  days: Record<string, ScheduleDayRow>;
+  blocks: Record<string, ScheduleBlockRow>;
+  topicAssignments: Record<string, ScheduleTopicAssignmentRow>;
+  phaseConfig: Record<string, PhaseConfigRow>;
 }
 
 export interface DayState {
@@ -348,9 +475,7 @@ export interface LocalSession {
 
 export interface UserState {
   settings: AppSettings;
-  dayStates: Record<string, DayState>;
-  topicProgress: Record<string, TopicProgress>;
-  blockTiming: Record<string, BlockTiming>;
+  schedule: UserScheduleState;
   revisionCompletions: Record<string, RevisionCompletion>;
   backlogItems: Record<string, BacklogItem>;
   quoteState: QuoteState;
@@ -368,11 +493,17 @@ export interface UserState {
   };
 }
 
+export interface RuntimeReferenceData {
+  scheduleData: ScheduleDataBundle;
+  quotes: GeneratedQuote[];
+}
+
 export interface LocalStore {
   version: number;
   users: Record<string, LocalUser>;
   sessions: Record<string, LocalSession>;
   userState: Record<string, UserState>;
+  referenceData: RuntimeReferenceData;
   dev: {
     simulatedNowIso: string | null;
   };

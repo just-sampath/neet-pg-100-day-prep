@@ -3,10 +3,12 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import { getTodayQuoteSelection, normalizeQuoteState, selectQuoteForDay } from "@/lib/domain/quotes";
 import type { GeneratedQuote, QuoteCategory } from "@/lib/domain/types";
-import { quotesData } from "@/lib/generated/quotes-data";
+
+const quotesData = getStaticReferenceData().quotes;
 
 function parseCsv(text: string) {
   const rows: string[][] = [];

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { applyScheduleShiftToUserState, moveBlockToBacklog } from "@/lib/data/app-state";
+import { applyScheduleShiftToUserState, applyTrafficLightToDay, moveBlockToBacklog } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
+import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import {
   createRevisionId,
   getCurrentDayNumber,
@@ -17,6 +18,7 @@ import type { BlockKey, UserState } from "@/lib/domain/types";
 function createConfiguredState() {
   const userState = createEmptyUserState();
   userState.settings.dayOneDate = "2026-05-01";
+  ensureUserScheduleSeeded(userState, "2026-05-01T06:30:00.000Z");
   return userState;
 }
 
@@ -72,11 +74,9 @@ describe("schedule shift mechanism", () => {
     const originalSettings = structuredClone(userState.settings);
     const day38Block = getScheduleDay(38)!.blocks.find((block) => block.semanticBlockKey === "block_a")!;
 
-    userState.dayStates["38"] = {
-      dayNumber: 38,
-      trafficLight: "red",
-      updatedAt: "2026-06-07T10:00:00.000Z",
-    };
+    applyTrafficLightToDay(userState, 38, "red");
+    userState.schedule.days["38"]!.trafficLightUpdatedAt = "2026-06-07T10:00:00.000Z";
+    userState.schedule.days["38"]!.updatedAt = "2026-06-07T10:00:00.000Z";
 
     moveBlockToBacklog(userState, 38, day38Block.timeSlotKey, "missed", "missed", "Needs recovery.");
     moveBlockToBacklog(
@@ -107,9 +107,9 @@ describe("schedule shift mechanism", () => {
     expect(userState.settings.scheduleShiftDays).toBe(2);
     expect(userState.settings.shiftEvents).toHaveLength(1);
     expect(userState.settings.shiftEvents[0]?.compressedPairs).toEqual(preview?.compressedPairs);
-    expect(getMappedDate(100, userState.settings)).toBe(preview?.day100);
-    expect(userState.dayStates["38"]?.trafficLight).toBe("green");
-    expect(userState.topicProgress[sourceItem.itemId]).toBeUndefined();
+    expect(getMappedDate(100, userState)).toBe(preview?.day100);
+    expect(userState.schedule.days["38"]?.trafficLight).toBe("green");
+    expect(userState.schedule.topicAssignments[sourceItem.itemId]?.status).toBe("pending");
     expect(userState.revisionCompletions[revisionId]).toBeUndefined();
 
     const coveredRecovery = Object.values(userState.backlogItems).find((item) => item.originalDay === 38);
@@ -117,9 +117,9 @@ describe("schedule shift mechanism", () => {
 
     expect(coveredRecovery?.status).toBe("dismissed");
     expect(olderRecovery?.status).toBe("pending");
-    expect(getMappedDate(37, userState.settings)).toBe(getMappedDate(37, originalSettings));
-    expect(getMappedDate(38, userState.settings)).toBe(getMappedDate(40, originalSettings));
-    expect(getMappedDate(66, userState.settings)).toBe(getMappedDate(68, originalSettings));
+    expect(getMappedDate(37, userState)).toBe(getMappedDate(37, originalSettings));
+    expect(getMappedDate(38, userState)).toBe(getMappedDate(40, originalSettings));
+    expect(getMappedDate(66, userState)).toBe(getMappedDate(68, originalSettings));
   });
 
   it("marks Day 84 and the consumed compression hidden while keeping Day 99 and Day 100 intact", () => {
@@ -137,12 +137,12 @@ describe("schedule shift mechanism", () => {
 
   it("moves the lived current day back to the shifted anchor instead of keeping the old numeric day", () => {
     const userState = createConfiguredState();
-    const originalDay40 = getMappedDate(40, userState.settings)!;
+    const originalDay40 = getMappedDate(40, userState)!;
     const preview = getShiftPreview(userState.settings, [38, 39]);
 
     applyScheduleShiftToUserState(userState, preview!, "2026-06-09T18:00:00.000Z");
 
-    expect(getCurrentDayNumber(userState.settings, originalDay40)).toBe(38);
+    expect(getCurrentDayNumber(userState, originalDay40)).toBe(38);
   });
 
   it("uses only future-available recoveries on later repeated shifts", () => {
@@ -168,7 +168,7 @@ describe("schedule shift mechanism", () => {
     expect(userState.settings.shiftEvents).toHaveLength(2);
     expect(isCompressedHiddenDay(92, userState.settings)).toBe(true);
     expect(isCompressedHiddenDay(98, userState.settings)).toBe(true);
-    expect(getMappedDate(90, userState.settings)).toBe(getMappedDate(93, originalSettings));
+    expect(getMappedDate(90, userState)).toBe(getMappedDate(93, originalSettings));
   });
 
   it("flags previews that would push the schedule past the August 20 hard boundary", () => {

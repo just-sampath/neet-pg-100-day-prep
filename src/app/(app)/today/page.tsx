@@ -7,7 +7,7 @@ import { TimeEditor } from "@/components/app/time-editor";
 import { WindDownPrompts } from "@/components/app/wind-down-prompts";
 import { requireCurrentUser } from "@/lib/auth/session";
 import { getHomeData } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { readTodayStore } from "@/lib/data/local-store";
 import type { BlockKey, BlockStatus, ScheduledRecoveryItem } from "@/lib/domain/types";
 import {
   buildTodayTimeline,
@@ -20,7 +20,6 @@ import {
   getTopicProgress,
   getVisibleBlockKeys,
 } from "@/lib/domain/schedule";
-import { scheduleData } from "@/lib/generated/schedule-data";
 import {
   setDayOneDateAction,
   setThemeAction,
@@ -87,9 +86,10 @@ function getRecoveryWaitLabel(daysInBacklog: number) {
 
 export default async function TodayPage() {
   const user = await requireCurrentUser();
-  const { data, userState } = await mutateStore((store) => ({
+  const { data, userState, referenceData } = await readTodayStore((store) => ({
     data: getHomeData(store, user.id),
     userState: structuredClone(store.userState[user.id]),
+    referenceData: store.referenceData,
   }));
 
   const tomorrowDefault = addDaysToDateOnly(data.todayDate, 1);
@@ -142,20 +142,15 @@ export default async function TodayPage() {
 
   const todayScheduleDay = data.todayScheduleDay;
   const todayState = data.todayState!;
-  const phase = scheduleData.daywisePlan.phaseCatalog.find(
-    (entry) =>
-      entry.phaseId === todayScheduleDay.phaseId &&
-      todayScheduleDay.dayNumber >= entry.startDay &&
-      todayScheduleDay.dayNumber <= entry.endDay,
-  );
+  const phase = data.phase;
   const visibleBlocks = getVisibleBlockKeys(todayState.trafficLight, todayScheduleDay);
   const hiddenBlocks = getHiddenBlockKeys(todayState.trafficLight, todayScheduleDay);
   const completedVisibleCount = visibleBlocks.filter((blockKey) => {
-    const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, blockKey);
+    const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, blockKey, referenceData);
     return progress.status === "completed";
   }).length;
   const incompleteVisibleBlocks = visibleBlocks.filter((blockKey) => {
-    const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, blockKey);
+    const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, blockKey, referenceData);
     return progress.status !== "completed";
   });
   const revisionDue = data.todayRevisionPlan?.queueSessions.length ?? 0;
@@ -166,13 +161,13 @@ export default async function TodayPage() {
     map.set(item.targetBlockKey, entries);
     return map;
   }, new Map<BlockKey, ScheduledRecoveryItem[]>());
-  const timelineEntries = buildTodayTimeline(todayScheduleDay, userState, todayState.trafficLight);
+  const timelineEntries = buildTodayTimeline(todayScheduleDay, userState, todayState.trafficLight, referenceData);
   const morningBlock = todayScheduleDay.blocks.find((block) => block.semanticBlockKey === "morning_revision") ?? null;
   const timeEditorSlots = todayScheduleDay.blocks
     .filter((block) => block.trackable)
     .map((block) => {
       const key = block.timeSlotKey as typeof visibleBlocks[number];
-      const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, key);
+      const progress = getBlockProgress(userState, todayScheduleDay.dayNumber, key, referenceData);
       const [start, end] = block.timeSlotKey.split("-");
       return {
         key,
@@ -378,7 +373,7 @@ export default async function TodayPage() {
               blockKey: morningBlock.timeSlotKey,
               displayLabel: morningBlock.displayLabel,
               displayDescription: getDisplayBlockDescription(todayScheduleDay, morningBlock.timeSlotKey, todayState.trafficLight),
-              progress: getBlockProgress(userState, todayScheduleDay.dayNumber, morningBlock.timeSlotKey),
+              progress: getBlockProgress(userState, todayScheduleDay.dayNumber, morningBlock.timeSlotKey, referenceData),
               items: morningBlock.items.map((item) => ({
                 itemId: item.itemId,
                 label: item.label,

@@ -13,7 +13,7 @@ export async function POST() {
   await mutateStore((store) => {
     const userState = store.userState[user.id];
     const now = store.dev.simulatedNowIso ?? new Date().toISOString();
-    runWeeklySummaryAutomation(userState, userState.settings, now);
+    runWeeklySummaryAutomation(userState, userState.settings, now, store.referenceData);
   });
 
   return NextResponse.json({ ok: true });

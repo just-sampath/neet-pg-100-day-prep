@@ -3,7 +3,7 @@ import Link from "next/link";
 import { ScheduleBrowserFocus } from "@/components/app/schedule-browser-focus";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getScheduleListData } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { readScheduleBrowserStore } from "@/lib/data/local-store";
 import { formatDateLabel } from "@/lib/utils/format";
 
 const TODAY_CARD_ID = "schedule-today-card";
@@ -43,7 +43,7 @@ function getStatusLabel(status: string) {
 export default async function SchedulePage() {
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
-  const days = await mutateStore((store) => getScheduleListData(store, user.id));
+  const days = await readScheduleBrowserStore((store) => getScheduleListData(store, user.id));
   const todayDay = days.find((day) => day.today);
 
   return (

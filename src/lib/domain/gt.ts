@@ -1,4 +1,4 @@
-import { scheduleData } from "@/lib/generated/schedule-data";
+import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { getMappedDate } from "@/lib/domain/schedule";
 import type { GtPlanEntry } from "@/lib/domain/schedule-data-types";
 import type {
@@ -8,7 +8,10 @@ import type {
   GtOverallFeeling,
   GtSectionBreakdown,
   GtTimeLostCode,
+  RuntimeReferenceData,
+  UserState,
 } from "@/lib/domain/types";
+import { getRuntimeMode } from "@/lib/runtime/mode";
 import { toDateOnly } from "@/lib/utils/date";
 
 export const GT_DEVICE_OPTIONS: Array<{ value: GtDevice; label: string }> = [
@@ -63,6 +66,20 @@ type ValidGtDraft = {
   unsureRightCount: number | null;
   changeBeforeNextGt: string | null;
 };
+
+function isUserState(value: AppSettings | UserState): value is UserState {
+  return typeof value === "object" && value !== null && "schedule" in value;
+}
+
+function getReferenceData(referenceData?: RuntimeReferenceData) {
+  if (referenceData) {
+    return referenceData;
+  }
+  if (getRuntimeMode() === "supabase") {
+    throw new Error("Runtime reference data is required in Supabase mode.");
+  }
+  return getStaticReferenceData();
+}
 
 export type GtScheduleContextItem = GtPlanEntry & {
   label: string;
@@ -135,8 +152,8 @@ function parseNullableInteger(value: string | null | undefined) {
   return parsed;
 }
 
-function normalizeSubjects(values: Array<string | null | undefined>) {
-  const allowed = new Set(scheduleData.subjectStrategy.subjects.map((entry) => entry.subjectName.trim()));
+function normalizeSubjects(values: Array<string | null | undefined>, referenceData?: RuntimeReferenceData) {
+  const allowed = new Set(getReferenceData(referenceData).scheduleData.subjectStrategy.subjects.map((entry) => entry.subjectName.trim()));
   const picked = new Set<string>();
 
   for (const raw of values) {
@@ -410,9 +427,30 @@ function getGtLabel(item: GtPlanEntry) {
   return item.purposeRaw;
 }
 
-export function getMappedGtSchedule(settings: AppSettings, todayDate: string): GtScheduleContextItem[] {
-  return scheduleData.gtTestPlan.tests.map((item) => {
-    const mappedDate = getMappedDate(item.dayNumber, settings);
+export function getMappedGtSchedule(
+  settings: AppSettings,
+  todayDate: string,
+  referenceData?: RuntimeReferenceData,
+): GtScheduleContextItem[];
+export function getMappedGtSchedule(
+  userState: UserState,
+  todayDate: string,
+  referenceData?: RuntimeReferenceData,
+): GtScheduleContextItem[];
+export function getMappedGtSchedule(
+  stateOrSettings: AppSettings | UserState,
+  todayDate: string,
+  referenceData?: RuntimeReferenceData,
+): GtScheduleContextItem[];
+export function getMappedGtSchedule(
+  stateOrSettings: AppSettings | UserState,
+  todayDate: string,
+  referenceData?: RuntimeReferenceData,
+): GtScheduleContextItem[] {
+  return getReferenceData(referenceData).scheduleData.gtTestPlan.tests.map((item) => {
+    const mappedDate = isUserState(stateOrSettings)
+      ? getMappedDate(item.dayNumber, stateOrSettings)
+      : getMappedDate(item.dayNumber, stateOrSettings);
     return {
       ...item,
       label: getGtLabel(item),
@@ -423,8 +461,27 @@ export function getMappedGtSchedule(settings: AppSettings, todayDate: string): G
   });
 }
 
-export function getSuggestedGtPlanItem(settings: AppSettings, todayDate: string) {
-  const mappedPlan = getMappedGtSchedule(settings, todayDate);
+export function getSuggestedGtPlanItem(
+  settings: AppSettings,
+  todayDate: string,
+  referenceData?: RuntimeReferenceData,
+): GtScheduleContextItem | null;
+export function getSuggestedGtPlanItem(
+  userState: UserState,
+  todayDate: string,
+  referenceData?: RuntimeReferenceData,
+): GtScheduleContextItem | null;
+export function getSuggestedGtPlanItem(
+  stateOrSettings: AppSettings | UserState,
+  todayDate: string,
+  referenceData?: RuntimeReferenceData,
+): GtScheduleContextItem | null;
+export function getSuggestedGtPlanItem(
+  stateOrSettings: AppSettings | UserState,
+  todayDate: string,
+  referenceData?: RuntimeReferenceData,
+): GtScheduleContextItem | null {
+  const mappedPlan = getMappedGtSchedule(stateOrSettings, todayDate, referenceData);
   return mappedPlan.find((item) => item.isToday) ?? mappedPlan.find((item) => item.isUpcoming) ?? mappedPlan.at(-1) ?? null;
 }
 

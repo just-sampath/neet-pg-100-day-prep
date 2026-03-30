@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 
+import { getQuotePools } from "@/lib/data/reference-data";
 import {
   completeAssignedRecoveryForTarget,
   getBacklogQueueItems,
@@ -11,7 +12,7 @@ import {
   releaseAssignedRecoveryForTarget,
 } from "@/lib/domain/backlog-queue";
 import { getTrafficLightBacklogSourceTag, previewOverrunCascade, shouldCreateBacklogItem } from "@/lib/domain/backlog";
-import { MORNING_REVISION_SLOT_PLAN } from "@/lib/domain/constants";
+import { MORNING_REVISION_SLOT_PLAN, NO_DUE_MORNING_REVISION_NOTE } from "@/lib/domain/constants";
 import {
   buildGtComparisonSummary,
   buildGtDashboardSummary,
@@ -62,6 +63,7 @@ import {
   getTopicProgress,
   getTrackableBlocks,
   getVisibleBlockKeys,
+  invalidateRuntimeScheduleIndex,
   isCompressedHiddenDay,
   reconcileRevisionCompletionsForSource,
 } from "@/lib/domain/schedule";
@@ -92,13 +94,10 @@ import {
   toDateOnlyInTimeZone,
   weekBounds,
 } from "@/lib/utils/date";
+import { applyScheduleMappingsFromSettings, ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 
 function timingKey(dayNumber: number, blockKey: BlockKey) {
   return `${dayNumber}:${blockKey}`;
-}
-
-function topicKey(itemId: string) {
-  return itemId;
 }
 
 const MORNING_REVISION_MAX_MINUTES = MORNING_REVISION_SLOT_PLAN.reduce((sum, slot) => sum + slot.durationMinutes, 0);
@@ -176,6 +175,7 @@ function maybeAutoAddMorningRevisionSession(
   actualMinutes: number,
   plannedSessionMinutes: number,
   completedAt: string,
+  referenceData?: LocalStore["referenceData"],
 ) {
   if (plannedSessionMinutes <= 0) {
     return;
@@ -192,7 +192,7 @@ function maybeAutoAddMorningRevisionSession(
     return;
   }
 
-  const plan = buildDailyRevisionPlan(targetDate, userState, userState.settings);
+  const plan = buildDailyRevisionPlan(targetDate, userState, userState.settings, referenceData);
   const selectedRevisionIds = userState.morningRevisionSelections[targetDate] ?? [];
   const selectedRevisionIdSet = new Set(selectedRevisionIds);
 
@@ -219,7 +219,7 @@ function maybeAutoAddMorningRevisionSession(
   }
   userState.morningRevisionSelections[targetDate] = selectedRevisionIds;
 
-  const sourceTopicLabel = getScheduleItemById(sourceItemId)?.item.label ?? sourceItemId;
+  const sourceTopicLabel = getScheduleItemById(sourceItemId, userState)?.item.label ?? sourceItemId;
   userState.morningRevisionAutoAddNotice[targetDate] = {
     sourceItemId,
     sourceTopicLabel,
@@ -236,8 +236,9 @@ function maybeAutoAddMorningRevisionSession(
   };
 }
 
-function getBlockOrThrow(dayNumber: number, blockKey: BlockKey) {
-  const day = getScheduleDay(dayNumber);
+function getBlockOrThrow(userState: UserState, dayNumber: number, blockKey: BlockKey) {
+  ensureUserScheduleSeeded(userState);
+  const day = getScheduleDay(dayNumber, userState);
   const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey);
   if (!day || !block) {
     throw new Error(`Missing schedule block ${dayNumber}:${blockKey}`);
@@ -246,12 +247,12 @@ function getBlockOrThrow(dayNumber: number, blockKey: BlockKey) {
   return { day, block };
 }
 
-function getBlockItems(dayNumber: number, blockKey: BlockKey) {
-  return getBlockOrThrow(dayNumber, blockKey).block.items;
+function getBlockItems(userState: UserState, dayNumber: number, blockKey: BlockKey) {
+  return getBlockOrThrow(userState, dayNumber, blockKey).block.items;
 }
 
 function getUnresolvedItems(userState: UserState, dayNumber: number, blockKey: BlockKey) {
-  return getBlockItems(dayNumber, blockKey).filter((item) => {
+  return getBlockItems(userState, dayNumber, blockKey).filter((item) => {
     const progress = getTopicProgress(userState, item, dayNumber, blockKey);
     return progress.status !== "completed";
   });
@@ -264,65 +265,155 @@ function setTopicProgress(
   itemId: string,
   updates: Partial<Omit<TopicProgress, "itemId" | "dayNumber" | "blockKey">>,
 ) {
-  const item = getBlockItems(dayNumber, blockKey).find((entry) => entry.itemId === itemId);
+  const item = getBlockItems(userState, dayNumber, blockKey).find((entry) => entry.itemId === itemId);
   if (!item) {
     throw new Error(`Missing schedule item ${itemId} for ${dayNumber}:${blockKey}`);
   }
 
-  const key = topicKey(itemId);
-  const current =
-    userState.topicProgress[key] ??
-    ({
-      itemId,
-      dayNumber,
-      blockKey,
-      status: "pending",
-      completedAt: null,
-      sourceTag: null,
-      note: null,
-      updatedAt: null,
-    } satisfies TopicProgress);
+  const row = userState.schedule.topicAssignments[itemId];
+  if (!row) {
+    throw new Error(`Missing schedule assignment ${itemId}`);
+  }
 
-  userState.topicProgress[key] = {
-    ...current,
-    ...updates,
-    updatedAt: new Date().toISOString(),
+  if (row.dayNumber !== dayNumber || row.blockKey !== blockKey) {
+    invalidateRuntimeScheduleIndex(userState);
+  }
+  row.dayNumber = dayNumber;
+  row.blockKey = blockKey;
+  row.status = updates.status ?? row.status;
+  row.completedAt = updates.completedAt ?? row.completedAt;
+  row.sourceTag = updates.sourceTag === undefined ? row.sourceTag : updates.sourceTag;
+  row.note = updates.note === undefined ? row.note : updates.note;
+  row.updatedAt = new Date().toISOString();
+
+  return {
+    itemId: row.sourceItemId,
+    dayNumber: row.dayNumber,
+    blockKey: row.blockKey,
+    status: row.status,
+    completedAt: row.completedAt,
+    sourceTag: row.sourceTag,
+    note: row.note,
+    updatedAt: row.updatedAt,
   };
-
-  return userState.topicProgress[key]!;
 }
 
 export function getOrCreateProgress(userState: UserState, dayNumber: number, blockKey: BlockKey): BlockTiming {
-  const key = timingKey(dayNumber, blockKey);
-  if (!userState.blockTiming[key]) {
-    userState.blockTiming[key] = {
-      dayNumber,
-      blockKey,
-      actualStart: null,
-      actualEnd: null,
-      note: null,
-      updatedAt: null,
-    };
+  ensureUserScheduleSeeded(userState);
+  const row = userState.schedule.blocks[timingKey(dayNumber, blockKey)];
+  if (!row) {
+    throw new Error(`Missing schedule block timing ${dayNumber}:${blockKey}`);
   }
-  return userState.blockTiming[key]!;
+
+  return {
+    get dayNumber() {
+      return row.dayNumber;
+    },
+    set dayNumber(value) {
+      if (row.dayNumber !== value) {
+        invalidateRuntimeScheduleIndex(userState);
+      }
+      row.dayNumber = value;
+    },
+    get blockKey() {
+      return row.blockKey;
+    },
+    set blockKey(value) {
+      if (row.blockKey !== value) {
+        invalidateRuntimeScheduleIndex(userState);
+      }
+      row.blockKey = value;
+    },
+    get actualStart() {
+      return row.actualStart;
+    },
+    set actualStart(value) {
+      row.actualStart = value;
+    },
+    get actualEnd() {
+      return row.actualEnd;
+    },
+    set actualEnd(value) {
+      row.actualEnd = value;
+    },
+    get note() {
+      return row.timingNote;
+    },
+    set note(value) {
+      row.timingNote = value;
+    },
+    get updatedAt() {
+      return row.timingUpdatedAt;
+    },
+    set updatedAt(value) {
+      row.timingUpdatedAt = value;
+      if (value) {
+        row.updatedAt = value;
+      }
+    },
+  };
 }
 
 export function getOrCreateTopicProgress(userState: UserState, dayNumber: number, blockKey: BlockKey, itemId: string) {
-  const key = topicKey(itemId);
-  if (!userState.topicProgress[key]) {
-    userState.topicProgress[key] = {
-      itemId,
-      dayNumber,
-      blockKey,
-      status: "pending",
-      completedAt: null,
-      sourceTag: null,
-      note: null,
-      updatedAt: null,
-    };
+  ensureUserScheduleSeeded(userState);
+  const row = userState.schedule.topicAssignments[itemId];
+  if (!row) {
+    throw new Error(`Missing schedule assignment ${itemId}`);
   }
 
-  return userState.topicProgress[key]!;
+  row.dayNumber = dayNumber;
+  row.blockKey = blockKey;
+
+  return {
+    get itemId() {
+      return row.sourceItemId;
+    },
+    set itemId(value) {
+      row.sourceItemId = value;
+    },
+    get dayNumber() {
+      return row.dayNumber;
+    },
+    set dayNumber(value) {
+      row.dayNumber = value;
+    },
+    get blockKey() {
+      return row.blockKey;
+    },
+    set blockKey(value) {
+      row.blockKey = value;
+    },
+    get status() {
+      return row.status;
+    },
+    set status(value) {
+      row.status = value;
+    },
+    get completedAt() {
+      return row.completedAt;
+    },
+    set completedAt(value) {
+      row.completedAt = value;
+    },
+    get sourceTag() {
+      return row.sourceTag;
+    },
+    set sourceTag(value) {
+      row.sourceTag = value;
+    },
+    get note() {
+      return row.note;
+    },
+    set note(value) {
+      row.note = value;
+    },
+    get updatedAt() {
+      return row.updatedAt;
+    },
+    set updatedAt(value) {
+      row.updatedAt = value ?? row.updatedAt;
+    },
+  };
 }
 
 function markBacklogCompletedBySourceItem(userState: UserState, sourceItemId: string, completedAt: string) {
@@ -380,6 +471,7 @@ export function completeRevisionSession(
     actualMinutes?: number | null;
     targetDate?: string | null;
   },
+  referenceData?: LocalStore["referenceData"],
 ) {
   const validRevisionIds: string[] = [];
   for (const revisionId of revisionIds) {
@@ -419,6 +511,7 @@ export function completeRevisionSession(
     actualMinutes,
     plannedSessionMinutes,
     completedAt,
+    referenceData,
   );
 }
 
@@ -461,7 +554,7 @@ export function upsertBacklogItem(
   itemId: string,
   sourceTag: BacklogSourceTag,
 ) {
-  const { day, block } = getBlockOrThrow(dayNumber, blockKey);
+  const { day, block } = getBlockOrThrow(userState, dayNumber, blockKey);
   const item = block.items.find((entry) => entry.itemId === itemId);
   if (!item) {
     throw new Error(`Missing schedule item ${itemId}`);
@@ -507,7 +600,7 @@ export function moveBlockToBacklog(
   status: TopicStatus = "rescheduled",
   note: string | null = null,
 ) {
-  const { block } = getBlockOrThrow(dayNumber, blockKey);
+  const { block } = getBlockOrThrow(userState, dayNumber, blockKey);
   const movedItemIds: string[] = [];
 
   releaseAssignedRecoveryForTarget(userState, dayNumber, blockKey);
@@ -533,7 +626,7 @@ export function moveBlockToBacklog(
 }
 
 function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, restoredBlocks: Set<BlockKey>) {
-  const day = getScheduleDay(dayNumber);
+  const day = getScheduleDay(dayNumber, userState);
 
   for (const item of Object.values(userState.backlogItems)) {
     if (
@@ -544,11 +637,12 @@ function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, res
     ) {
       item.status = "dismissed";
       item.dismissedAt = new Date().toISOString();
-      const progress = userState.topicProgress[item.sourceItemId];
+      const progress = userState.schedule.topicAssignments[item.sourceItemId];
       if (progress && progress.status === "rescheduled") {
         progress.status = "pending";
         progress.sourceTag = null;
         progress.note = null;
+        progress.updatedAt = new Date().toISOString();
       }
     }
   }
@@ -564,7 +658,7 @@ function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, res
     }
 
     for (const item of block.items) {
-      const progress = userState.topicProgress[item.itemId];
+      const progress = userState.schedule.topicAssignments[item.itemId];
       if (!progress) {
         continue;
       }
@@ -576,9 +670,22 @@ function restoreTrafficLightBacklog(userState: UserState, dayNumber: number, res
         progress.status = "pending";
         progress.sourceTag = null;
         progress.note = null;
+        progress.updatedAt = new Date().toISOString();
       }
     }
   }
+}
+
+function markNoDueMorningRevisionClosed(userState: UserState, dayNumber: number, closedAt: string) {
+  const day = getScheduleDay(dayNumber, userState);
+  const blockKey = day?.blocks.find((entry) => entry.semanticBlockKey === "morning_revision")?.timeSlotKey;
+  if (!blockKey) {
+    return;
+  }
+
+  const timing = getOrCreateProgress(userState, dayNumber, blockKey);
+  timing.note = NO_DUE_MORNING_REVISION_NOTE;
+  timing.updatedAt = closedAt;
 }
 
 export function applyTrafficLightToDay(
@@ -587,17 +694,20 @@ export function applyTrafficLightToDay(
   trafficLight: TrafficLight,
   options?: { allowRestore?: boolean },
 ) {
-  const day = getScheduleDay(dayNumber);
+  ensureUserScheduleSeeded(userState);
+  const day = getScheduleDay(dayNumber, userState);
   if (!day) {
     return;
   }
 
   const previous = getDayState(userState, dayNumber);
-  userState.dayStates[String(dayNumber)] = {
-    dayNumber,
-    trafficLight,
-    updatedAt: new Date().toISOString(),
-  };
+  const dayRow = userState.schedule.days[String(dayNumber)];
+  if (dayRow) {
+    const updatedAt = new Date().toISOString();
+    dayRow.trafficLight = trafficLight;
+    dayRow.trafficLightUpdatedAt = updatedAt;
+    dayRow.updatedAt = updatedAt;
+  }
 
   if (previous.trafficLight === trafficLight) {
     return;
@@ -625,8 +735,9 @@ export function moveVisibleBlocksToBacklog(
   dayNumber: number,
   trafficLight: TrafficLight,
   options?: { excludeFinalReview?: boolean; note?: string | null },
+  referenceData?: LocalStore["referenceData"],
 ) {
-  const day = getScheduleDay(dayNumber);
+  const day = getScheduleDay(dayNumber, userState);
   if (!day) {
     return;
   }
@@ -639,8 +750,8 @@ export function moveVisibleBlocksToBacklog(
     }
 
     if (block.semanticBlockKey === "morning_revision") {
-      const mappedDate = getMappedDate(dayNumber, userState.settings);
-      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings) : null;
+      const mappedDate = getMappedDate(dayNumber, userState);
+      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
       if (!revisionPlan || revisionPlan.morningSessionPlanned === 0) {
         continue;
       }
@@ -665,8 +776,9 @@ export function runLateNightSweep(
   todayDate: string,
   todayDayNumber: number,
   nowMinutes: number,
+  referenceData?: LocalStore["referenceData"],
 ) {
-  if (!settings.dayOneDate || todayDayNumber < 1 || todayDayNumber > 100 || nowMinutes < 22 * 60 + 45) {
+  if (!settings.dayOneDate || todayDayNumber < 1 || todayDayNumber > 105 || nowMinutes < 22 * 60 + 45) {
     return;
   }
   if (userState.processedDates.lateNightSweepDates.includes(todayDate)) {
@@ -676,13 +788,13 @@ export function runLateNightSweep(
   const trafficLight = getDayState(userState, todayDayNumber).trafficLight;
   moveVisibleBlocksToBacklog(userState, todayDayNumber, trafficLight, {
     note: "Moved to recovery by wind-down prompt.",
-  });
+  }, referenceData);
 
   userState.processedDates.lateNightSweepDates.push(todayDate);
 }
 
-function buildOverrunSlots(userState: UserState, dayNumber: number) {
-  const day = getScheduleDay(dayNumber);
+function buildOverrunSlots(userState: UserState, dayNumber: number, referenceData?: LocalStore["referenceData"]) {
+  const day = getScheduleDay(dayNumber, userState);
   if (!day) {
     return [];
   }
@@ -691,7 +803,7 @@ function buildOverrunSlots(userState: UserState, dayNumber: number) {
   const visible = new Set(getVisibleBlockKeys(trafficLight, day));
 
   return getTrackableBlocks(day).map((block) => {
-    const progress = getBlockProgress(userState, dayNumber, block.timeSlotKey);
+    const progress = getBlockProgress(userState, dayNumber, block.timeSlotKey, referenceData);
     const [start, end] = block.timeSlotKey.split("-");
     return {
       key: block.timeSlotKey,
@@ -713,11 +825,12 @@ export function applyOverrunCascadeBacklog(
   blockKey: BlockKey,
   newEndTime: string,
   note?: string | null,
+  referenceData?: LocalStore["referenceData"],
 ) {
   const preview = previewOverrunCascade({
     editedBlockKey: blockKey,
     newEndTime,
-    slots: buildOverrunSlots(userState, dayNumber),
+    slots: buildOverrunSlots(userState, dayNumber, referenceData),
   });
 
   if (preview.kind === "decision") {
@@ -754,11 +867,12 @@ export function applyOverrunCascadeShift(
   dayNumber: number,
   blockKey: BlockKey,
   newEndTime: string,
+  referenceData?: LocalStore["referenceData"],
 ) {
   const preview = previewOverrunCascade({
     editedBlockKey: blockKey,
     newEndTime,
-    slots: buildOverrunSlots(userState, dayNumber),
+    slots: buildOverrunSlots(userState, dayNumber, referenceData),
   });
 
   if (preview.kind !== "decision") {
@@ -775,8 +889,13 @@ export function applyOverrunCascadeShift(
   return { preview, shiftedBlockKey: preview.affectedBlockKey };
 }
 
-export function getRevisionRolloverSnapshot(userState: UserState, settings: AppSettings, todayDate: string) {
-  const revisionPlan = buildDailyRevisionPlan(todayDate, userState, settings);
+export function getRevisionRolloverSnapshot(
+  userState: UserState,
+  settings: AppSettings,
+  todayDate: string,
+  referenceData?: LocalStore["referenceData"],
+) {
+  const revisionPlan = buildDailyRevisionPlan(todayDate, userState, settings, referenceData);
   return {
     due: revisionPlan.queue.length,
     overflow: revisionPlan.overflow.length,
@@ -785,13 +904,19 @@ export function getRevisionRolloverSnapshot(userState: UserState, settings: AppS
   };
 }
 
-export function runMidnightRollover(userState: UserState, settings: AppSettings, todayDate: string, todayDayNumber: number) {
+export function runMidnightRollover(
+  userState: UserState,
+  settings: AppSettings,
+  todayDate: string,
+  todayDayNumber: number,
+  referenceData?: LocalStore["referenceData"],
+) {
   if (!settings.dayOneDate || todayDayNumber <= 1) {
     return {
       processedDate: null,
       missedBlocks: 0,
       backlogCreated: 0,
-      revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate),
+      revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate, referenceData),
     };
   }
 
@@ -801,24 +926,30 @@ export function runMidnightRollover(userState: UserState, settings: AppSettings,
       processedDate: previousDate,
       missedBlocks: 0,
       backlogCreated: 0,
-      revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate),
+      revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate, referenceData),
     };
   }
 
   const previousDayNumber = todayDayNumber - 1;
   let missedBlocks = 0;
   let backlogCreated = 0;
+  ensureUserScheduleSeeded(userState);
 
-  if (previousDayNumber >= 1 && previousDayNumber <= 100) {
-    const day = getScheduleDay(previousDayNumber);
+  if (previousDayNumber >= 1 && previousDayNumber <= 105) {
+    const day = getScheduleDay(previousDayNumber, userState);
     if (day) {
       const trafficLight = getDayState(userState, previousDayNumber).trafficLight;
+      const mappedDate = getMappedDate(previousDayNumber, userState);
+      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
+      if (revisionPlan && revisionPlan.morningSessionPlanned === 0) {
+        markNoDueMorningRevisionClosed(userState, previousDayNumber, `${previousDate}T23:59:00.000Z`);
+      }
       const visibleBlocks = getVisibleBlockKeys(trafficLight, day);
       const beforeCount = Object.values(userState.backlogItems).filter((item) => item.status === "pending").length;
-      moveVisibleBlocksToBacklog(userState, previousDayNumber, trafficLight);
+      moveVisibleBlocksToBacklog(userState, previousDayNumber, trafficLight, undefined, referenceData);
       const afterCount = Object.values(userState.backlogItems).filter((item) => item.status === "pending").length;
       backlogCreated += Math.max(0, afterCount - beforeCount);
-      missedBlocks += visibleBlocks.filter((blockKey) => getBlockProgress(userState, previousDayNumber, blockKey).status === "missed").length;
+      missedBlocks += visibleBlocks.filter((blockKey) => getBlockProgress(userState, previousDayNumber, blockKey, referenceData).status === "missed").length;
     }
   }
 
@@ -844,7 +975,7 @@ export function runMidnightRollover(userState: UserState, settings: AppSettings,
     processedDate: previousDate,
     missedBlocks,
     backlogCreated,
-    revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate),
+    revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate, referenceData),
   };
 }
 
@@ -871,33 +1002,41 @@ export function applyScheduleShiftToUserState(
   ].toSorted((left, right) => left.appliedAt.localeCompare(right.appliedAt));
   userState.settings.scheduleShiftDays = userState.settings.shiftEvents.reduce((sum, event) => sum + event.shiftDays, 0);
   userState.settings.shiftAppliedAt = appliedAt;
+  ensureUserScheduleSeeded(userState, appliedAt);
+  applyScheduleMappingsFromSettings(userState.schedule, userState.settings, appliedAt);
 
-  for (const [key, state] of Object.entries(userState.dayStates)) {
-    if (state.dayNumber >= preview.anchorDayNumber) {
-      userState.dayStates[key] = {
-        dayNumber: state.dayNumber,
-        trafficLight: "green",
-        updatedAt: appliedAt,
-      };
+  for (const row of Object.values(userState.schedule.days)) {
+    if (row.dayNumber >= preview.anchorDayNumber) {
+      row.trafficLight = "green";
+      row.trafficLightUpdatedAt = appliedAt;
+      row.updatedAt = appliedAt;
     }
   }
 
-  for (const [key, timing] of Object.entries(userState.blockTiming)) {
-    if (timing.dayNumber >= preview.anchorDayNumber) {
-      delete userState.blockTiming[key];
+  for (const row of Object.values(userState.schedule.blocks)) {
+    if (row.dayNumber >= preview.anchorDayNumber) {
+      row.actualStart = null;
+      row.actualEnd = null;
+      row.timingNote = null;
+      row.timingUpdatedAt = null;
+      row.updatedAt = appliedAt;
     }
   }
 
-  for (const [key, progress] of Object.entries(userState.topicProgress)) {
-    if (progress.dayNumber < preview.anchorDayNumber) {
+  for (const row of Object.values(userState.schedule.topicAssignments)) {
+    if (row.dayNumber < preview.anchorDayNumber) {
       continue;
     }
 
-    if (progress.status === "completed") {
+    if (row.status === "completed") {
       continue;
     }
 
-    delete userState.topicProgress[key];
+    row.status = "pending";
+    row.completedAt = null;
+    row.sourceTag = null;
+    row.note = null;
+    row.updatedAt = appliedAt;
   }
 
   for (const item of Object.values(userState.backlogItems)) {
@@ -918,7 +1057,7 @@ export function applyScheduleShiftToUserState(
       continue;
     }
 
-    const source = userState.topicProgress[completion.sourceItemId];
+    const source = userState.schedule.topicAssignments[completion.sourceItemId];
     if (!source || source.status !== "completed" || !source.completedAt) {
       delete userState.revisionCompletions[revisionId];
     }
@@ -954,14 +1093,15 @@ export function generateWeeklySummary(
     generatedAt?: string;
     throughDate?: string;
   },
+  referenceData?: LocalStore["referenceData"],
 ): WeeklySummary {
   const { start, end } = weekBounds(weekStartDate);
   const coveredThroughDate = clampWeeklyCoverage(start, options?.throughDate);
-  const summaryDays = getScheduleDays().filter((day) => {
+  const summaryDays = getScheduleDays(userState).filter((day) => {
     if (isCompressedHiddenDay(day.dayNumber, settings)) {
       return false;
     }
-    const mappedDate = getMappedDate(day.dayNumber, settings);
+    const mappedDate = getMappedDate(day.dayNumber, userState);
     return mappedDate && mappedDate >= start && mappedDate <= coveredThroughDate;
   });
 
@@ -986,9 +1126,9 @@ export function generateWeeklySummary(
     if (state.trafficLight === "red") redDays += 1;
     blocksPlanned += visibleBlocks.length;
 
-    const mappedDate = getMappedDate(day.dayNumber, settings)!;
-    const revisionPlan = buildDailyRevisionPlan(mappedDate, userState, settings);
-    const morningRevisionStats = getMorningRevisionStatsForDate(mappedDate, userState, settings);
+    const mappedDate = getMappedDate(day.dayNumber, userState)!;
+    const revisionPlan = buildDailyRevisionPlan(mappedDate, userState, settings, referenceData);
+    const morningRevisionStats = getMorningRevisionStatsForDate(mappedDate, userState, settings, referenceData);
     morningRevisionPlanned += morningRevisionStats.planned;
     morningRevisionCompleted += morningRevisionStats.completed;
 
@@ -1003,19 +1143,19 @@ export function generateWeeklySummary(
     }
 
     for (const blockKey of visibleBlocks) {
-      const progress = getBlockProgress(userState, day.dayNumber, blockKey);
+      const progress = getBlockProgress(userState, day.dayNumber, blockKey, referenceData);
       if (progress.status === "completed") {
         blocksCompleted += 1;
       }
 
       const [, slotEnd] = blockKey.split("-");
       if (progress.actualEnd && slotEnd && progress.actualEnd > slotEnd) {
-        const label = `${getSubjectFromPrimaryFocus(day.primaryFocusRaw)} · ${getBlockOrThrow(day.dayNumber, blockKey).block.displayLabel}`;
+        const label = `${getSubjectFromPrimaryFocus(day.primaryFocusRaw)} · ${getBlockOrThrow(userState, day.dayNumber, blockKey).block.displayLabel}`;
         overrunMap.set(label, (overrunMap.get(label) ?? 0) + 1);
       }
     }
 
-    if (getDayCompletionState(day, userState, state.trafficLight)) {
+    if (getDayCompletionState(day, userState, state.trafficLight, referenceData)) {
       subjectsStudied.add(getSubjectFromPrimaryFocus(day.primaryFocusRaw));
     }
   }
@@ -1056,8 +1196,8 @@ export function generateWeeklySummary(
     if (overallAccuracy < previousAccuracy) accuracyVsPrevious = "down";
   }
 
-  const currentDayNumber = getCurrentDayNumber(settings, coveredThroughDate);
-  const { missedDays } = getScheduleHealth(userState, settings, currentDayNumber);
+  const currentDayNumber = getCurrentDayNumber(userState, coveredThroughDate);
+  const { missedDays } = getScheduleHealth(userState, settings, currentDayNumber, referenceData);
   const backlogSummary = getBacklogSummary(userState);
   const bufferDaysUsed = settings.shiftEvents.filter((event) => event.bufferDayUsed !== null).length;
   const scheduleStatus = getWeeklyScheduleStatus(missedDays.length, bufferDaysUsed);
@@ -1112,13 +1252,19 @@ export function generateWeeklySummary(
   };
 }
 
-export function upsertWeeklySummary(userState: UserState, settings: AppSettings, weekStartDate: string, throughDate?: string) {
+export function upsertWeeklySummary(
+  userState: UserState,
+  settings: AppSettings,
+  weekStartDate: string,
+  throughDate?: string,
+  referenceData?: LocalStore["referenceData"],
+) {
   const week = weekBounds(weekStartDate);
   const existing = findWeeklySummaryByWeekKey(userState.weeklySummaries, week.start);
   const summary = generateWeeklySummary(userState, settings, week.start, {
     id: existing?.id,
     throughDate,
-  });
+  }, referenceData);
 
   for (const entry of Object.values(userState.weeklySummaries)) {
     if (entry.weekKey === week.start && entry.id !== summary.id) {
@@ -1130,7 +1276,12 @@ export function upsertWeeklySummary(userState: UserState, settings: AppSettings,
   return summary;
 }
 
-export function runWeeklySummaryAutomation(userState: UserState, settings: AppSettings, runAt: Date | string) {
+export function runWeeklySummaryAutomation(
+  userState: UserState,
+  settings: AppSettings,
+  runAt: Date | string,
+  referenceData?: LocalStore["referenceData"],
+) {
   const todayDate = toDateOnlyInTimeZone(runAt, IST_TIME_ZONE);
   const week = weekBounds(todayDate);
   if (todayDate !== week.end || getWeekdayInTimeZone(runAt, IST_TIME_ZONE) !== 0) {
@@ -1155,7 +1306,7 @@ export function runWeeklySummaryAutomation(userState: UserState, settings: AppSe
     };
   }
 
-  const summary = upsertWeeklySummary(userState, settings, week.start, week.end);
+  const summary = upsertWeeklySummary(userState, settings, week.start, week.end, referenceData);
   userState.processedDates.weeklySummaryDates.push(week.start);
   return {
     generated: true,
@@ -1166,17 +1317,18 @@ export function runWeeklySummaryAutomation(userState: UserState, settings: AppSe
 
 export function applyAutomations(store: LocalStore, userId: string) {
   const userState = store.userState[userId];
+  ensureUserScheduleSeeded(userState);
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const settings = userState.settings;
-  const todayDayNumber = getCurrentDayNumber(settings, todayDate);
+  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
   const minutes = getMinutesInTimeZone(now, IST_TIME_ZONE);
 
-  runLateNightSweep(userState, settings, todayDate, todayDayNumber, minutes);
+  runLateNightSweep(userState, settings, todayDate, todayDayNumber, minutes, store.referenceData);
 
   if (getRuntimeMode() === "local") {
-    runMidnightRollover(userState, settings, todayDate, todayDayNumber);
-    runWeeklySummaryAutomation(userState, settings, now);
+    runMidnightRollover(userState, settings, todayDate, todayDayNumber, store.referenceData);
+    runWeeklySummaryAutomation(userState, settings, now, store.referenceData);
   }
 
   refreshBacklogSuggestions(userState, settings, todayDayNumber);
@@ -1189,15 +1341,15 @@ export function getHomeData(store: LocalStore, userId: string) {
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const settings = userState.settings;
-  const todayDayNumber = getCurrentDayNumber(settings, todayDate);
-  const todayScheduleDay = getScheduleDay(todayDayNumber);
+  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+  const todayScheduleDay = getScheduleDay(todayDayNumber, userState);
 
   const todayState = todayScheduleDay ? getDayState(userState, todayDayNumber) : null;
   const todayRevisionPlan =
-    todayScheduleDay && settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings) : null;
+    todayScheduleDay && settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings, store.referenceData) : null;
   const backlogCount = getBacklogCount(userState);
   const dayComplete =
-    todayScheduleDay && todayState ? getDayCompletionState(todayScheduleDay, userState, todayState.trafficLight) : false;
+    todayScheduleDay && todayState ? getDayCompletionState(todayScheduleDay, userState, todayState.trafficLight, store.referenceData) : false;
   const quoteSelection =
     todayScheduleDay && todayState
       ? getTodayQuoteSelection(userState.quoteState, {
@@ -1205,7 +1357,7 @@ export function getHomeData(store: LocalStore, userId: string) {
         userKey: userId,
         trafficLight: todayState.trafficLight,
         dayComplete,
-      })
+      }, getQuotePools(store.referenceData))
       : {
         lineCategory: null,
         lineQuote: null,
@@ -1214,8 +1366,8 @@ export function getHomeData(store: LocalStore, userId: string) {
         celebrationQuote: null,
       };
 
-  const shiftHealth = getScheduleHealth(userState, settings, todayDayNumber);
-  const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays) : null;
+  const shiftHealth = getScheduleHealth(userState, settings, todayDayNumber, store.referenceData);
+  const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays, store.referenceData) : null;
   const plannedRecovery = getScheduledRecoveryForDay(userState, settings, todayDayNumber, todayDate);
 
   return {
@@ -1236,11 +1388,25 @@ export function getHomeData(store: LocalStore, userId: string) {
     shiftHealth,
     shiftPreview,
     plannedRecovery,
+    phase:
+      todayScheduleDay
+        ? store.referenceData.scheduleData.daywisePlan.phaseCatalog.find(
+          (entry) =>
+            entry.phaseId === todayScheduleDay.phaseId &&
+            todayScheduleDay.dayNumber >= entry.startDay &&
+            todayScheduleDay.dayNumber <= entry.endDay,
+        ) ?? null
+        : null,
   };
 }
 
-function buildRevisionOverview(userState: UserState, settings: AppSettings, todayDate: string) {
-  const allItems = buildRevisionInventory(userState, settings);
+function buildRevisionOverview(
+  userState: UserState,
+  settings: AppSettings,
+  todayDate: string,
+  referenceData?: LocalStore["referenceData"],
+) {
+  const allItems = buildRevisionInventory(userState, settings, referenceData);
   const pendingItems = allItems.filter((item) => item.status !== "completed" && item.scheduledDate <= todayDate);
   const completedItems = allItems.filter((item) => item.status === "completed");
   const overdueItems = pendingItems.filter((item) => item.scheduledDate < todayDate);
@@ -1264,9 +1430,9 @@ export function getRevisionQueuePageData(store: LocalStore, userId: string) {
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const settings = userState.settings;
-  const todayDayNumber = getCurrentDayNumber(settings, todayDate);
-  const todayScheduleDay = getScheduleDay(todayDayNumber);
-  const revisionPlan = settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings) : null;
+  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+  const todayScheduleDay = getScheduleDay(todayDayNumber, userState);
+  const revisionPlan = settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings, store.referenceData) : null;
   const waitingSessions = revisionPlan
     ? [...revisionPlan.overflowSessions, ...revisionPlan.catchUpSessions, ...revisionPlan.restudySessions]
     : [];
@@ -1278,7 +1444,7 @@ export function getRevisionQueuePageData(store: LocalStore, userId: string) {
     todayScheduleDay,
     revisionPlan,
     waitingSessions,
-    revision: buildRevisionOverview(userState, settings, todayDate),
+    revision: buildRevisionOverview(userState, settings, todayDate, store.referenceData),
   };
 }
 
@@ -1295,7 +1461,7 @@ export function getBacklogPageData(
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
 
   return {
     todayDate,
@@ -1303,7 +1469,7 @@ export function getBacklogPageData(
     summary: getBacklogSummary(userState),
     counts: getBacklogStatusCounts(userState),
     items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort),
-    revision: buildRevisionOverview(userState, userState.settings, todayDate),
+    revision: buildRevisionOverview(userState, userState.settings, todayDate, store.referenceData),
   };
 }
 
@@ -1319,7 +1485,7 @@ export function getMcqPageData(store: LocalStore, userId: string) {
   return {
     todayDate,
     summary: buildMcqDashboardSummary(userState),
-    subjects: getMcqSubjectOptions(),
+    subjects: getMcqSubjectOptions(store.referenceData),
     recentTopics: getMcqRecentTopics(itemLogs),
     recentSources: getMcqRecentSources(bulkLogs, itemLogs),
     recentDetailedEntries: itemLogs.slice(0, 6),
@@ -1348,8 +1514,8 @@ export function getGtPageData(store: LocalStore, userId: string) {
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const logs = Object.values(userState.gtLogs).toSorted((left, right) => right.gtDate.localeCompare(left.gtDate));
-  const schedule = getMappedGtSchedule(userState.settings, todayDate);
-  const suggestedPlanItem = getSuggestedGtPlanItem(userState.settings, todayDate);
+  const schedule = getMappedGtSchedule(userState, todayDate, store.referenceData);
+  const suggestedPlanItem = getSuggestedGtPlanItem(userState, todayDate, store.referenceData);
 
   return {
     todayDate,
@@ -1357,7 +1523,7 @@ export function getGtPageData(store: LocalStore, userId: string) {
     schedule,
     suggestedPlanItem,
     recentLogs: logs.slice(0, 6),
-    subjectOptions: getMcqSubjectOptions(),
+    subjectOptions: getMcqSubjectOptions(store.referenceData),
   };
 }
 
@@ -1406,15 +1572,15 @@ export function getScheduleListData(store: LocalStore, userId: string) {
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
 
-  return getScheduleDays().map((day) => {
-    const mappedDate = getMappedDate(day.dayNumber, userState.settings);
-    const originalPlannedDate = getOriginalPlannedDate(day.dayNumber, userState.settings);
+  return getScheduleDays(userState).map((day) => {
+    const mappedDate = getMappedDate(day.dayNumber, userState);
+    const originalPlannedDate = getOriginalPlannedDate(day.dayNumber, userState);
     const dayState = getDayState(userState, day.dayNumber);
-    const completed = getDayCompletionState(day, userState, dayState.trafficLight);
-    const dayStatus = getPhaseDayStatus(day.dayNumber, userState);
-    const mergedPartnerDay = getMergedPartner(day.dayNumber, userState.settings);
+    const completed = getDayCompletionState(day, userState, dayState.trafficLight, store.referenceData);
+    const dayStatus = getPhaseDayStatus(day.dayNumber, userState, store.referenceData);
+    const mergedPartnerDay = getMergedPartner(day.dayNumber, userState.settings, userState);
     const isPastVisibleDay = mappedDate !== null && mappedDate < todayDate;
 
     return {
@@ -1426,7 +1592,7 @@ export function getScheduleListData(store: LocalStore, userId: string) {
       completed,
       mergedPartnerDay,
       hiddenByCompression: isCompressedHiddenDay(day.dayNumber, userState.settings),
-      hiddenShiftLabel: getShiftHiddenDayLabel(day.dayNumber, userState.settings),
+      hiddenShiftLabel: getShiftHiddenDayLabel(day.dayNumber, userState.settings, userState),
       status:
         day.dayNumber === todayDayNumber
           ? "today"
@@ -1444,31 +1610,31 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const day = getScheduleDay(dayNumber);
+  const day = getScheduleDay(dayNumber, userState);
   if (!day) {
     return null;
   }
 
   const state = getDayState(userState, dayNumber);
-  const mappedDate = getMappedDate(dayNumber, userState.settings);
-  const originalPlannedDate = getOriginalPlannedDate(dayNumber, userState.settings);
-  const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
+  const mappedDate = getMappedDate(dayNumber, userState);
+  const originalPlannedDate = getOriginalPlannedDate(dayNumber, userState);
+  const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate, userState);
   const revisionPlan =
     mappedDate && !editState.isFuture && !editState.isShiftHidden
-      ? buildDailyRevisionPlan(mappedDate, userState, userState.settings)
+      ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, store.referenceData)
       : null;
   const plannedRecovery = getScheduledRecoveryForDay(userState, userState.settings, dayNumber, todayDate);
 
   return {
     day,
     todayDate,
-    todayDayNumber: getCurrentDayNumber(userState.settings, todayDate),
+    todayDayNumber: getCurrentDayNumber(userState, todayDate),
     mappedDate,
     originalPlannedDate,
     state,
     editState,
-    hiddenShiftLabel: getShiftHiddenDayLabel(dayNumber, userState.settings),
-    mergedPartnerDay: getMergedPartner(dayNumber, userState.settings),
+    hiddenShiftLabel: getShiftHiddenDayLabel(dayNumber, userState.settings, userState),
+    mergedPartnerDay: getMergedPartner(dayNumber, userState.settings, userState),
     revisionPlan,
     plannedRecovery,
     blocks: getTrackableBlocks(day).map((block) => {
@@ -1477,7 +1643,7 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
         ...block,
         start,
         end,
-        progress: getBlockProgress(userState, dayNumber, block.timeSlotKey),
+        progress: getBlockProgress(userState, dayNumber, block.timeSlotKey, store.referenceData),
         displayDescription: getDisplayBlockDescription(day, block.timeSlotKey, state.trafficLight),
         items: block.items.map((item) => ({
           ...item,

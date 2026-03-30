@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { getStaticReferenceData } from "@/lib/data/reference-data";
 import type { LocalStore, RevisionCompletion, RevisionType } from "@/lib/domain/types";
 
 type SupabaseCall =
@@ -80,6 +81,7 @@ function buildStore(revisionCompletions: Record<string, RevisionCompletion>): Lo
     userState: {
       [userId]: userState,
     },
+    referenceData: getStaticReferenceData(),
     dev: {
       simulatedNowIso: null,
     },
@@ -118,7 +120,7 @@ describe("supabase revision completion sync", () => {
 
     const revisionUpserts = calls.filter((call) => call.table === "revision_completions" && call.action === "upsert");
     expect(revisionUpserts).toHaveLength(1);
-    const payload = revisionUpserts[0]!.payload;
+    const payload = (revisionUpserts[0] as Extract<SupabaseCall, { action: "upsert" }>).payload;
     expect(Array.isArray(payload)).toBe(true);
     expect(payload).toMatchObject([
       {

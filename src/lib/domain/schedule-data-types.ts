@@ -163,10 +163,47 @@ export interface GtPlanData {
   tests: GtPlanEntry[];
 }
 
+export interface RevisionMapDayEntry {
+  dayNumber: number;
+  d1DueTopics: string | null;
+  d3DueTopics: string | null;
+  d7DueTopics: string | null;
+  d14DueTopics: string | null;
+  d28DueTopics: string | null;
+  morningQueueRule: string;
+}
+
+export interface RevisionMapData {
+  version: number;
+  source: "workbook";
+  sourceWorkbook: "NEET_PG_FINAL_SCHEDULE.xlsx";
+  sourceSheet: "Revision_Map";
+  days: RevisionMapDayEntry[];
+}
+
+export interface PhaseConfigSeedEntry {
+  phaseNumber: 1 | 2 | 3;
+  phaseId: string;
+  originalStartDay: number;
+  originalEndDay: number;
+  extensionBudget: number;
+}
+
+export interface PhaseConfigSeedData {
+  version: number;
+  source: "workbook";
+  sourceWorkbook: "NEET_PG_FINAL_SCHEDULE.xlsx";
+  sourceSheet: "Daywise_Plan";
+  phases: PhaseConfigSeedEntry[];
+}
+
 export interface ScheduleDataBundle {
+  seedVersion: number;
   examDate: string;
   hardBoundaryDate: string;
   daywisePlan: ScheduleDaywisePlanData;
   subjectStrategy: SubjectStrategyData;
   gtTestPlan: GtPlanData;
+  revisionMap: RevisionMapData;
+  phaseConfig: PhaseConfigSeedData;
 }

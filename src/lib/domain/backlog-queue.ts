@@ -57,8 +57,8 @@ function getTrackableSlotStart(dayNumber: number, blockKey: BlockKey) {
   return getScheduleDay(dayNumber)?.blocks.find((slot) => slot.timeSlotKey === blockKey)?.timeSlotKey.split("-")[0] ?? "23:59";
 }
 
-function isStudyBoundarySafe(dayNumber: number, settings: AppSettings) {
-  const mappedDate = getMappedDate(dayNumber, settings);
+function isStudyBoundarySafe(dayNumber: number, settings: AppSettings, userState?: UserState) {
+  const mappedDate = userState ? getMappedDate(dayNumber, userState) : getMappedDate(dayNumber, settings);
   if (!mappedDate) {
     return false;
   }
@@ -84,11 +84,16 @@ function isTargetSlotAvailable(
   blockKey: BlockKey,
   occupiedSlots: Set<string>,
 ) {
-  if (dayNumber < 1 || dayNumber > 100 || isCompressedHiddenDay(dayNumber, settings) || !isStudyBoundarySafe(dayNumber, settings)) {
+  if (
+    dayNumber < 1 ||
+    dayNumber > MAX_SCHEDULE_DAY ||
+    isCompressedHiddenDay(dayNumber, settings) ||
+    !isStudyBoundarySafe(dayNumber, settings, userState)
+  ) {
     return false;
   }
 
-  const day = getScheduleDay(dayNumber);
+  const day = getScheduleDay(dayNumber, userState);
   const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey && entry.trackable);
   if (!day || !block || !block.reschedulable) {
     return false;
@@ -138,10 +143,13 @@ function buildTargetLabel(dayNumber: number, blockKey: BlockKey, settings: AppSe
 }
 
 function getCompatibleFutureDays(item: BacklogItem, settings: AppSettings, startDay: number) {
-  const sourceDay = getScheduleDay(item.originalDay);
+  const sourceDay = getScheduleDay(item.originalDay, undefined);
   const sourcePhaseId = sourceDay?.phaseId ?? null;
   const days = getScheduleDays().filter(
-    (day) => day.dayNumber >= startDay && !isCompressedHiddenDay(day.dayNumber, settings) && isStudyBoundarySafe(day.dayNumber, settings),
+    (day) =>
+      day.dayNumber >= startDay &&
+      !isCompressedHiddenDay(day.dayNumber, settings) &&
+      isStudyBoundarySafe(day.dayNumber, settings, undefined),
   );
 
   if (item.phaseFence === "same_phase_only" || item.phaseFence === "no_auto_cross_phase") {
@@ -345,7 +353,7 @@ export function getBacklogQueueItems(
     ...item,
     daysInBacklog: getBacklogAgeDays(item.createdAt, todayDate),
     sourceLabel: getBacklogSourceLabel(item.sourceTag),
-    originalMappedDate: getMappedDate(item.originalDay, settings),
+    originalMappedDate: getMappedDate(item.originalDay, userState),
     suggestionLabel:
       item.suggestedDay && item.suggestedBlockKey ? buildTargetLabel(item.suggestedDay, item.suggestedBlockKey, settings) : null,
     rescheduledLabel:
@@ -378,7 +386,7 @@ export function getScheduledRecoveryForDay(
       id: item.id,
       sourceItemId: item.sourceItemId,
       sourceDay: item.originalDay,
-      sourceMappedDate: getMappedDate(item.originalDay, settings),
+      sourceMappedDate: getMappedDate(item.originalDay, userState),
       subject: item.subject,
       topicDescription: item.topicDescription,
       sourceTag: item.sourceTag,
@@ -527,3 +535,4 @@ export function rescheduleBacklogScopeToSuggestions(
     item.rescheduledToBlockKey = item.suggestedBlockKey;
   }
 }
+const MAX_SCHEDULE_DAY = 105;

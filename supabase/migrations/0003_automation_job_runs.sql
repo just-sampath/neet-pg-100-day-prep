@@ -8,11 +8,9 @@ create table if not exists automation_job_runs (
   processed_users integer not null default 0,
   metadata jsonb not null default '{}'::jsonb,
   started_at timestamptz not null default now(),
-  finished_at timestamptz
+  finished_at timestamptz,
+  unique (job_name, run_key)
 );
-
-create unique index if not exists automation_job_runs_name_key_unique
-  on automation_job_runs(job_name, run_key);
 
 create index if not exists automation_job_runs_started_at_idx
   on automation_job_runs(started_at desc);

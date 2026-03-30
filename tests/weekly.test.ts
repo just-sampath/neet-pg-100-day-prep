@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyTrafficLightToDay,
   completeBlockItems,
   generateWeeklySummary,
   getOrCreateProgress,
@@ -14,11 +15,12 @@ import { createRevisionId, getScheduleDay, getVisibleBlockKeys } from "@/lib/dom
 import type { TrafficLight, UserState } from "@/lib/domain/types";
 
 function setTrafficLight(userState: UserState, dayNumber: number, trafficLight: TrafficLight) {
-  userState.dayStates[String(dayNumber)] = {
-    dayNumber,
-    trafficLight,
-    updatedAt: `2026-05-${String(dayNumber + 3).padStart(2, "0")}T08:00:00.000Z`,
-  };
+  applyTrafficLightToDay(userState, dayNumber, trafficLight);
+  const row = userState.schedule.days[String(dayNumber)];
+  if (row) {
+    row.trafficLightUpdatedAt = `2026-05-${String(dayNumber + 3).padStart(2, "0")}T08:00:00.000Z`;
+    row.updatedAt = row.trafficLightUpdatedAt;
+  }
 }
 
 function completeVisibleBlocks(userState: UserState, dayNumber: number, trafficLight: TrafficLight, completedAt: string) {

@@ -29,6 +29,7 @@ import {
   upsertWeeklySummary,
 } from "@/lib/data/app-state";
 import { createEmptyUserState, getEffectiveNow, mutateStore } from "@/lib/data/local-store";
+import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import {
   getCurrentDayNumber,
   getMappedDate,
@@ -136,13 +137,14 @@ export async function setTrafficLightAction(formData: FormData) {
 
   await mutateStore((store) => {
     const userState = store.userState[user.id];
+    ensureUserScheduleSeeded(userState);
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
-    const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
+    const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate, userState);
     if (!editState.canAdjustToday) {
       return;
     }
 
-    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
     applyTrafficLightToDay(userState, dayNumber, trafficLight, {
       allowRestore: dayNumber === todayDayNumber,
     });
@@ -163,9 +165,10 @@ export async function updateBlockAction(formData: FormData) {
 
   await mutateStore((store) => {
     const userState = store.userState[user.id];
+    ensureUserScheduleSeeded(userState);
     const effectiveNow = getEffectiveNow(store);
     const todayDate = toDateOnlyInTimeZone(effectiveNow, IST_TIME_ZONE);
-    const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
+    const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate, userState);
     const isRetroactiveCompletion = intent === "complete" && editState.canRetroactivelyComplete;
     const canMutateToday = editState.canAdjustToday;
 
@@ -179,7 +182,7 @@ export async function updateBlockAction(formData: FormData) {
 
     let resolvedCompletionDate = completionDate;
     if (isRetroactiveCompletion) {
-      resolvedCompletionDate = completionDate || getMappedDate(dayNumber, userState.settings) || todayDate;
+      resolvedCompletionDate = completionDate || getMappedDate(dayNumber, userState) || todayDate;
 
       if (resolvedCompletionDate > todayDate) {
         return;
@@ -193,8 +196,8 @@ export async function updateBlockAction(formData: FormData) {
     if (intent === "complete") {
       completeBlockItems(userState, dayNumber, blockKey, completionIsoForDateOnly(resolvedCompletionDate, effectiveNow), note);
     } else if (intent === "partial" || intent === "quick_finish") {
-      const block = getScheduleDay(dayNumber)?.blocks.find((entry) => entry.timeSlotKey === blockKey);
-      const nextItem = block?.items.find((item) => userState.topicProgress[item.itemId]?.status !== "completed");
+      const block = getScheduleDay(dayNumber, userState)?.blocks.find((entry) => entry.timeSlotKey === blockKey);
+      const nextItem = block?.items.find((item) => userState.schedule.topicAssignments[item.itemId]?.status !== "completed");
       if (!nextItem) {
         return;
       }
@@ -216,7 +219,7 @@ export async function updateBlockAction(formData: FormData) {
       progress.updatedAt = new Date().toISOString();
 
       if (actualEnd && cascadeDecision === "keep_next_visible") {
-        applyOverrunCascadeShift(userState, dayNumber, blockKey, actualEnd);
+        applyOverrunCascadeShift(userState, dayNumber, blockKey, actualEnd, store.referenceData);
       }
 
       if (actualEnd && cascadeDecision === "move_next_to_backlog") {
@@ -226,6 +229,7 @@ export async function updateBlockAction(formData: FormData) {
           blockKey,
           actualEnd,
           "Moved to backlog after the earlier block ran long.",
+          store.referenceData,
         );
       }
 
@@ -236,6 +240,7 @@ export async function updateBlockAction(formData: FormData) {
           blockKey,
           actualEnd,
           "Moved to backlog to protect sleep.",
+          store.referenceData,
         );
       }
     }
@@ -259,9 +264,10 @@ export async function updateTopicAction(formData: FormData) {
 
   await mutateStore((store) => {
     const userState = store.userState[user.id];
+    ensureUserScheduleSeeded(userState);
     const effectiveNow = getEffectiveNow(store);
     const todayDate = toDateOnlyInTimeZone(effectiveNow, IST_TIME_ZONE);
-    const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate);
+    const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate, userState);
     const isRetroactiveCompletion = intent === "complete" && editState.canRetroactivelyComplete;
 
     if (!editState.canAdjustToday && !isRetroactiveCompletion) {
@@ -274,7 +280,7 @@ export async function updateTopicAction(formData: FormData) {
 
     let resolvedCompletionDate = completionDate;
     if (isRetroactiveCompletion) {
-      resolvedCompletionDate = completionDate || getMappedDate(dayNumber, userState.settings) || todayDate;
+      resolvedCompletionDate = completionDate || getMappedDate(dayNumber, userState) || todayDate;
       if (resolvedCompletionDate > todayDate) {
         return;
       }
@@ -321,6 +327,7 @@ export async function completeRevisionSessionAction(formData: FormData) {
         actualMinutes,
         targetDate: todayDate,
       },
+      store.referenceData,
     );
   });
   refresh();
@@ -362,7 +369,7 @@ export async function updateBacklogAction(formData: FormData) {
   await mutateStore((store) => {
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
     refreshBacklogSuggestions(userState, userState.settings, todayDayNumber);
     const item = userState.backlogItems[backlogId];
     if (!item) {
@@ -425,7 +432,7 @@ export async function bulkBacklogAction(formData: FormData) {
   await mutateStore((store) => {
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
     refreshBacklogSuggestions(userState, userState.settings, todayDayNumber);
 
     if (intent === "dismiss_scope") {
@@ -448,7 +455,7 @@ export async function wrapUpDayAction(formData: FormData) {
     moveVisibleBlocksToBacklog(userState, dayNumber, trafficLight, {
       excludeFinalReview: true,
       note: "Moved to backlog by wind-down prompt.",
-    });
+    }, store.referenceData);
   });
   refresh();
 }
@@ -459,10 +466,10 @@ export async function runLateNightSweepAction() {
     const userState = store.userState[user.id];
     const now = getEffectiveNow(store);
     const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
     const minutes = getMinutesInTimeZone(now, IST_TIME_ZONE);
 
-    runLateNightSweep(userState, userState.settings, todayDate, todayDayNumber, minutes);
+    runLateNightSweep(userState, userState.settings, todayDate, todayDayNumber, minutes, store.referenceData);
   });
   refresh();
 }
@@ -473,9 +480,9 @@ export async function applyShiftAction(formData: FormData) {
   await mutateStore((store) => {
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
-    const shiftHealth = getScheduleHealth(userState, userState.settings, todayDayNumber);
-    const preview = shiftHealth.suggestShift ? getShiftPreview(userState.settings, shiftHealth.missedDays) : null;
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const shiftHealth = getScheduleHealth(userState, userState.settings, todayDayNumber, store.referenceData);
+    const preview = shiftHealth.suggestShift ? getShiftPreview(userState.settings, shiftHealth.missedDays, store.referenceData) : null;
 
     if (!preview || preview.signature !== previewSignature) {
       return;
@@ -642,7 +649,7 @@ export async function generateWeeklySummaryAction() {
     const userState = store.userState[user.id];
     const today = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
     const week = weekBounds(today);
-    upsertWeeklySummary(userState, userState.settings, week.start, today);
+    upsertWeeklySummary(userState, userState.settings, week.start, today, store.referenceData);
   });
   refresh();
 }

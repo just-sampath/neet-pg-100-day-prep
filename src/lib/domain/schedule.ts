@@ -1,9 +1,10 @@
-import { scheduleData } from "@/lib/generated/schedule-data";
+import { getStaticReferenceData } from "@/lib/data/reference-data";
 import {
   BUFFER_DAY,
   EXAM_DATE,
   HARD_BOUNDARY_DATE,
   MORNING_REVISION_SLOT_PLAN,
+  NO_DUE_MORNING_REVISION_NOTE,
   REVISION_INTERVALS,
   SHIFT_COMPRESSION_PAIRS,
 } from "@/lib/domain/constants";
@@ -32,42 +33,284 @@ import type {
   TopicProgress,
   TopicStatus,
   TrafficLight,
+  RuntimeReferenceData,
   UserState,
 } from "@/lib/domain/types";
+import { getRuntimeMode } from "@/lib/runtime/mode";
 import { addDaysToDateOnly, diffDays, parseDateOnly, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
-const ALL_DAYS = scheduleData.daywisePlan.days;
-const DAY_BY_NUMBER = new Map(ALL_DAYS.map((day) => [day.dayNumber, day] as const));
-const SUBJECTS = scheduleData.subjectStrategy.subjects;
-const SUBJECT_LABEL_BY_ID = new Map(SUBJECTS.map((subject) => [subject.subjectId, subject.subjectName] as const));
-const SUBJECT_PRIORITY_BY_ID = new Map(SUBJECTS.map((subject) => [subject.subjectId, subject.priorityRank] as const));
-const SUBJECT_PRIORITY_BY_LABEL = new Map(SUBJECTS.map((subject) => [subject.subjectName, subject.priorityRank] as const));
-const PHASE_GROUP_BY_ID = new Map(scheduleData.daywisePlan.phaseCatalog.map((phase) => [phase.phaseId, phase.phaseGroup] as const));
-const ITEM_LOOKUP = new Map(
-  ALL_DAYS.flatMap((day) =>
-    day.blocks.flatMap((block) =>
-      block.items.map((item) => [
-        item.itemId,
-        {
-          day,
-          block,
-          item,
-        },
-      ] as const),
+const MAX_SCHEDULE_DAY = 105;
+
+type ReferenceScheduleIndex = {
+  dayByNumber: Map<number, ScheduleDayPlan>;
+  phaseGroupById: Map<string, SchedulePhaseGroup>;
+  itemLookup: Map<
+    string,
+    {
+      day: ScheduleDayPlan;
+      block: ScheduleDayBlock;
+      item: ScheduleDayBlockItem;
+    }
+  >;
+  subjectLabelById: Map<string, string>;
+  subjectPriorityById: Map<string, number>;
+  subjectPriorityByLabel: Map<string, number>;
+  subjectMatchers: Array<{ label: string; normalized: string }>;
+};
+
+const referenceScheduleIndexCache = new WeakMap<RuntimeReferenceData["scheduleData"], ReferenceScheduleIndex>();
+
+function getReferenceData(referenceData?: RuntimeReferenceData) {
+  if (referenceData) {
+    return referenceData;
+  }
+  if (getRuntimeMode() === "supabase") {
+    throw new Error("Runtime reference data is required in Supabase mode.");
+  }
+  return getStaticReferenceData();
+}
+
+function buildReferenceScheduleIndex(referenceData: RuntimeReferenceData): ReferenceScheduleIndex {
+  const scheduleData = referenceData.scheduleData;
+  const days = scheduleData.daywisePlan.days;
+  const subjects = scheduleData.subjectStrategy.subjects;
+
+  return {
+    dayByNumber: new Map(days.map((day) => [day.dayNumber, day] as const)),
+    phaseGroupById: new Map(
+      scheduleData.daywisePlan.phaseCatalog.map((entry) => [entry.phaseId, entry.phaseGroup] as const),
     ),
-  ),
-);
-const SUBJECT_MATCHERS = SUBJECTS.flatMap((subject) => [
-  { label: subject.subjectName, normalized: subject.subjectName.toLowerCase() },
-  ...subject.aliases.map((alias) => ({ label: subject.subjectName, normalized: alias.toLowerCase() })),
-]).sort((left, right) => right.normalized.length - left.normalized.length);
+    itemLookup: new Map(
+      days.flatMap((day) =>
+        day.blocks.flatMap((block) =>
+          block.items.map((item) => [
+            item.itemId,
+            {
+              day,
+              block,
+              item,
+            },
+          ] as const),
+        ),
+      ),
+    ),
+    subjectLabelById: new Map(subjects.map((subject) => [subject.subjectId, subject.subjectName] as const)),
+    subjectPriorityById: new Map(subjects.map((subject) => [subject.subjectId, subject.priorityRank] as const)),
+    subjectPriorityByLabel: new Map(subjects.map((subject) => [subject.subjectName, subject.priorityRank] as const)),
+    subjectMatchers: subjects
+      .flatMap((subject) => [
+        { label: subject.subjectName, normalized: subject.subjectName.toLowerCase() },
+        ...subject.aliases.map((alias) => ({ label: subject.subjectName, normalized: alias.toLowerCase() })),
+      ])
+      .sort((left, right) => right.normalized.length - left.normalized.length),
+  };
+}
+
+function getReferenceScheduleIndex(referenceData?: RuntimeReferenceData) {
+  const resolved = getReferenceData(referenceData);
+  const cached = referenceScheduleIndexCache.get(resolved.scheduleData);
+  if (cached) {
+    return cached;
+  }
+
+  const index = buildReferenceScheduleIndex(resolved);
+  referenceScheduleIndexCache.set(resolved.scheduleData, index);
+  return index;
+}
+
+function blockTrafficPolicyFromRow(row: UserState["schedule"]["blocks"][string]) {
+  return {
+    green: row.trafficLightGreen,
+    yellow: row.trafficLightYellow,
+    red: row.trafficLightRed,
+    backlogWhenHidden: row.backlogWhenHidden,
+  };
+}
+
+type RuntimeBlockRow = UserState["schedule"]["blocks"][string];
+type RuntimeAssignmentRow = UserState["schedule"]["topicAssignments"][string];
+type RuntimeScheduleIndex = {
+  blockRowsByDay: Map<number, RuntimeBlockRow[]>;
+  assignmentRowsBySlot: Map<string, RuntimeAssignmentRow[]>;
+};
+const runtimeScheduleIndexCache = new WeakMap<UserState, RuntimeScheduleIndex>();
+
+function buildRuntimeScheduleIndex(userState: UserState): RuntimeScheduleIndex {
+  const blockRowsByDay = new Map<number, RuntimeBlockRow[]>();
+  for (const row of Object.values(userState.schedule.blocks)) {
+    const rows = blockRowsByDay.get(row.dayNumber) ?? [];
+    rows.push(row);
+    blockRowsByDay.set(row.dayNumber, rows);
+  }
+  for (const rows of blockRowsByDay.values()) {
+    rows.sort((left, right) => left.slotOrder - right.slotOrder);
+  }
+
+  const assignmentRowsBySlot = new Map<string, RuntimeAssignmentRow[]>();
+  for (const row of Object.values(userState.schedule.topicAssignments)) {
+    const key = `${row.dayNumber}:${row.blockKey}`;
+    const rows = assignmentRowsBySlot.get(key) ?? [];
+    rows.push(row);
+    assignmentRowsBySlot.set(key, rows);
+  }
+  for (const rows of assignmentRowsBySlot.values()) {
+    rows.sort((left, right) => left.itemOrder - right.itemOrder);
+  }
+
+  return {
+    blockRowsByDay,
+    assignmentRowsBySlot,
+  };
+}
+
+function getRuntimeScheduleIndex(userState: UserState): RuntimeScheduleIndex {
+  const cached = runtimeScheduleIndexCache.get(userState);
+  if (cached) {
+    return cached;
+  }
+
+  const index = buildRuntimeScheduleIndex(userState);
+  runtimeScheduleIndexCache.set(userState, index);
+  return index;
+}
+
+export function invalidateRuntimeScheduleIndex(userState: UserState) {
+  runtimeScheduleIndexCache.delete(userState);
+}
+
+function cloneTemplateItems(items: ScheduleDayBlock["items"]): ScheduleDayBlock["items"] {
+  return items.map((entry) => ({
+    ...entry,
+    subjectIds: [...entry.subjectIds],
+  }));
+}
+
+function buildRuntimeDayBlock(
+  row: RuntimeBlockRow | null,
+  templateBlock: ScheduleDayBlock | null,
+  itemRows: RuntimeAssignmentRow[],
+): ScheduleDayBlock {
+  const items = itemRows.length > 0
+    ? itemRows.map((entry) => ({
+      itemId: entry.sourceItemId,
+      order: entry.itemOrder,
+      kind: entry.kind,
+      label: entry.label,
+      rawText: entry.rawText,
+      plannedMinutes: entry.plannedMinutes,
+      subjectIds: [...entry.subjectIds],
+      revisionEligible: entry.revisionEligible,
+      recoveryLane: entry.recoveryLane,
+      phaseFence: entry.phaseFence,
+      notes: entry.notes,
+      revisionType: entry.revisionType,
+      referenceLabel: entry.referenceLabel,
+      referenceDayNumber: entry.referenceDayNumber,
+    }))
+    : cloneTemplateItems(templateBlock?.items ?? []);
+
+  if (!row && templateBlock) {
+    return {
+      ...templateBlock,
+      items,
+    };
+  }
+
+  if (!row) {
+    throw new Error("Runtime block row or template block is required.");
+  }
+
+  return {
+    timeSlotKey: row.blockKey,
+    displayLabel: row.displayLabel,
+    semanticBlockKey: row.semanticBlockKey,
+    blockIntent: row.blockIntent,
+    trackable: row.trackable,
+    rawText: row.rawText,
+    items,
+    recoveryLane: row.recoveryLane,
+    phaseFence: row.phaseFence,
+    defaultRevisionEligible: row.defaultRevisionEligible,
+    reschedulable: row.reschedulable,
+    trafficLightPolicy: blockTrafficPolicyFromRow(row),
+  };
+}
+
+function buildRuntimeScheduleDay(
+  userState: UserState,
+  dayNumber: number,
+  runtimeIndex: RuntimeScheduleIndex = getRuntimeScheduleIndex(userState),
+  referenceData?: RuntimeReferenceData,
+): ScheduleDayPlan | null {
+  const dayRow = userState.schedule.days[String(dayNumber)];
+  if (!dayRow) {
+    return null;
+  }
+
+  const templateBlocks = getReferenceScheduleIndex(referenceData).dayByNumber.get(dayNumber)?.blocks ?? [];
+  const runtimeBlockRows = runtimeIndex.blockRowsByDay.get(dayNumber) ?? [];
+  const runtimeBlockRowsByKey = new Map(runtimeBlockRows.map((entry) => [entry.blockKey, entry] as const));
+  const blocks = templateBlocks.map((templateBlock) =>
+    buildRuntimeDayBlock(
+      runtimeBlockRowsByKey.get(templateBlock.timeSlotKey) ?? null,
+      templateBlock,
+      runtimeIndex.assignmentRowsBySlot.get(`${dayNumber}:${templateBlock.timeSlotKey}`) ?? [],
+    ),
+  );
+
+  for (const row of runtimeBlockRows) {
+    if (templateBlocks.some((entry) => entry.timeSlotKey === row.blockKey)) {
+      continue;
+    }
+
+    blocks.push(buildRuntimeDayBlock(
+      row,
+      null,
+      runtimeIndex.assignmentRowsBySlot.get(`${dayNumber}:${row.blockKey}`) ?? [],
+    ));
+  }
+
+  return {
+    dayNumber: dayRow.dayNumber,
+    phaseId: dayRow.phaseId,
+    phaseName: dayRow.phaseName,
+    primaryFocusRaw: dayRow.primaryFocusRaw,
+    primaryFocusParts: [...dayRow.primaryFocusParts],
+    primaryFocusSubjectIds: [...dayRow.primaryFocusSubjectIds],
+    resourceRaw: dayRow.resourceRaw,
+    resourceParts: [...dayRow.resourceParts],
+    deliverableRaw: dayRow.deliverableRaw,
+    notesRaw: dayRow.notesRaw,
+    sourceMinutes: dayRow.sourceMinutes,
+    bufferMinutes: dayRow.bufferMinutes,
+    plannedStudyMinutes: dayRow.plannedStudyMinutes,
+    totalStudyHours: dayRow.totalStudyHours,
+    gtTestType: dayRow.gtTestType,
+    gtPlanRef: dayRow.gtPlanRef,
+    blocks,
+  };
+}
+
+function getRuntimeScheduleDays(userState?: UserState, referenceData?: RuntimeReferenceData) {
+  if (!userState || Object.keys(userState.schedule.days).length === 0) {
+    return getReferenceData(referenceData).scheduleData.daywisePlan.days;
+  }
+
+  const runtimeIndex = getRuntimeScheduleIndex(userState);
+  return Object.values(userState.schedule.days)
+    .toSorted((left, right) => left.dayNumber - right.dayNumber)
+    .flatMap((entry) => {
+      const day = buildRuntimeScheduleDay(userState, entry.dayNumber, runtimeIndex, referenceData);
+      return day ? [day] : [];
+    });
+}
 
 function timingKey(dayNumber: number, blockKey: BlockKey) {
   return `${dayNumber}:${blockKey}`;
 }
 
-function getTopicProgressKey(itemId: string) {
-  return itemId;
+function isUserState(value: AppSettings | UserState): value is UserState {
+  return typeof value === "object" && value !== null && "schedule" in value;
 }
 
 function getShiftEvents(settings: AppSettings): ScheduleShiftEvent[] {
@@ -195,23 +438,25 @@ function getDerivedStatus(statuses: TopicStatus[]) {
   return "pending" as const;
 }
 
-function getSubjectLabel(subjectIds: string[], fallback: string) {
-  const first = subjectIds.find((subjectId) => SUBJECT_LABEL_BY_ID.has(subjectId));
-  return (first ? SUBJECT_LABEL_BY_ID.get(first) : null) ?? fallback;
+function getSubjectLabel(subjectIds: string[], fallback: string, referenceData?: RuntimeReferenceData) {
+  const index = getReferenceScheduleIndex(referenceData);
+  const first = subjectIds.find((subjectId) => index.subjectLabelById.has(subjectId));
+  return (first ? index.subjectLabelById.get(first) : null) ?? fallback;
 }
 
-function getPhaseGroup(day: ScheduleDayPlan): SchedulePhaseGroup {
-  return PHASE_GROUP_BY_ID.get(day.phaseId) ?? "phase_1";
+function getPhaseGroup(day: ScheduleDayPlan, referenceData?: RuntimeReferenceData): SchedulePhaseGroup {
+  return getReferenceScheduleIndex(referenceData).phaseGroupById.get(day.phaseId) ?? "phase_1";
 }
 
-function getSubjectPriorityForRevisionItem(item: RevisionQueueItem) {
-  const source = ITEM_LOOKUP.get(item.sourceItemId);
-  const subjectId = source?.item.subjectIds.find((entry) => SUBJECT_PRIORITY_BY_ID.has(entry));
+function getSubjectPriorityForRevisionItem(item: RevisionQueueItem, referenceData?: RuntimeReferenceData) {
+  const index = getReferenceScheduleIndex(referenceData);
+  const source = index.itemLookup.get(item.sourceItemId);
+  const subjectId = source?.item.subjectIds.find((entry) => index.subjectPriorityById.has(entry));
   if (subjectId) {
-    return SUBJECT_PRIORITY_BY_ID.get(subjectId) ?? Number.MAX_SAFE_INTEGER;
+    return index.subjectPriorityById.get(subjectId) ?? Number.MAX_SAFE_INTEGER;
   }
 
-  return SUBJECT_PRIORITY_BY_LABEL.get(item.subject) ?? Number.MAX_SAFE_INTEGER;
+  return index.subjectPriorityByLabel.get(item.subject) ?? Number.MAX_SAFE_INTEGER;
 }
 
 type RevisionSessionBucket = {
@@ -422,19 +667,47 @@ function getCompletedAssignedRecovery(userState: UserState, dayNumber: number, b
 }
 
 function getItemCompletion(userState: UserState, item: ScheduleDayBlockItem, dayNumber: number, blockKey: BlockKey) {
-  return userState.topicProgress[getTopicProgressKey(item.itemId)] ?? defaultTopicProgress(item, dayNumber, blockKey);
+  const assignment = userState.schedule.topicAssignments[item.itemId];
+  if (!assignment) {
+    return defaultTopicProgress(item, dayNumber, blockKey);
+  }
+
+  return {
+    itemId: assignment.sourceItemId,
+    dayNumber: assignment.dayNumber,
+    blockKey: assignment.blockKey,
+    status: assignment.status,
+    completedAt: assignment.completedAt,
+    sourceTag: assignment.sourceTag,
+    note: assignment.note,
+    updatedAt: assignment.updatedAt,
+  };
 }
 
-export function getScheduleDay(dayNumber: number): ScheduleDayPlan | undefined {
-  return DAY_BY_NUMBER.get(dayNumber);
+export function getScheduleDay(dayNumber: number, userState?: UserState, referenceData?: RuntimeReferenceData): ScheduleDayPlan | undefined {
+  return userState
+    ? buildRuntimeScheduleDay(userState, dayNumber, undefined, referenceData) ?? getReferenceScheduleIndex(referenceData).dayByNumber.get(dayNumber)
+    : getReferenceScheduleIndex(referenceData).dayByNumber.get(dayNumber);
 }
 
-export function getScheduleDays() {
-  return ALL_DAYS;
+export function getScheduleDays(userState?: UserState, referenceData?: RuntimeReferenceData) {
+  return getRuntimeScheduleDays(userState, referenceData);
 }
 
-export function getScheduleItemById(itemId: string) {
-  return ITEM_LOOKUP.get(itemId) ?? null;
+export function getScheduleItemById(itemId: string, userState?: UserState, referenceData?: RuntimeReferenceData) {
+  if (userState) {
+    const assignment = userState.schedule.topicAssignments[itemId];
+    if (assignment) {
+      const day = getScheduleDay(assignment.dayNumber, userState, referenceData);
+      const block = day?.blocks.find((entry) => entry.timeSlotKey === assignment.blockKey) ?? null;
+      const item = block?.items.find((entry) => entry.itemId === itemId) ?? null;
+      if (day && block && item) {
+        return { day, block, item };
+      }
+    }
+  }
+
+  return getReferenceScheduleIndex(referenceData).itemLookup.get(itemId) ?? null;
 }
 
 export function getTrackableBlocks(day: ScheduleDayPlan) {
@@ -442,19 +715,45 @@ export function getTrackableBlocks(day: ScheduleDayPlan) {
 }
 
 export function getDayState(userState: UserState, dayNumber: number): DayState {
-  return userState.dayStates[String(dayNumber)] ?? defaultDayState(dayNumber);
+  const row = userState.schedule.days[String(dayNumber)];
+  if (!row) {
+    return defaultDayState(dayNumber);
+  }
+
+  return {
+    dayNumber: row.dayNumber,
+    trafficLight: row.trafficLight,
+    updatedAt: row.trafficLightUpdatedAt,
+  };
 }
 
 export function getBlockTiming(userState: UserState, dayNumber: number, blockKey: BlockKey) {
-  return userState.blockTiming[timingKey(dayNumber, blockKey)] ?? defaultBlockTiming(dayNumber, blockKey);
+  const row = userState.schedule.blocks[timingKey(dayNumber, blockKey)];
+  if (!row) {
+    return defaultBlockTiming(dayNumber, blockKey);
+  }
+
+  return {
+    dayNumber: row.dayNumber,
+    blockKey: row.blockKey,
+    actualStart: row.actualStart,
+    actualEnd: row.actualEnd,
+    note: row.timingNote,
+    updatedAt: row.timingUpdatedAt,
+  };
 }
 
 export function getTopicProgress(userState: UserState, item: ScheduleDayBlockItem, dayNumber: number, blockKey: BlockKey) {
   return getItemCompletion(userState, item, dayNumber, blockKey);
 }
 
-export function getBlockProgress(userState: UserState, dayNumber: number, blockKey: BlockKey): BlockProgress {
-  const day = getScheduleDay(dayNumber);
+export function getBlockProgress(
+  userState: UserState,
+  dayNumber: number,
+  blockKey: BlockKey,
+  referenceData?: RuntimeReferenceData,
+): BlockProgress {
+  const day = getScheduleDay(dayNumber, userState);
   const timing = getBlockTiming(userState, dayNumber, blockKey);
 
   if (!day) {
@@ -493,9 +792,9 @@ export function getBlockProgress(userState: UserState, dayNumber: number, blockK
   const nativeProgress = block.items.map((item) => getItemCompletion(userState, item, dayNumber, blockKey));
 
   if (block.semanticBlockKey === "morning_revision") {
-    const mappedDate = getMappedDate(dayNumber, userState.settings);
+    const mappedDate = getMappedDate(dayNumber, userState);
     if (mappedDate) {
-      const revisionPlan = buildDailyRevisionPlan(mappedDate, userState, userState.settings);
+      const revisionPlan = buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData);
       if (revisionPlan.blockStatusMode === "revision_sessions") {
         const nativeStatus = getDerivedStatus(nativeProgress.map((entry) => entry.status));
         if (nativeStatus === "missed" || nativeStatus === "skipped" || nativeStatus === "rescheduled") {
@@ -515,7 +814,11 @@ export function getBlockProgress(userState: UserState, dayNumber: number, blockK
         }
 
         const status =
-          revisionPlan.morningSessionRemaining === 0
+          revisionPlan.morningSessionPlanned === 0
+            ? timing.note === NO_DUE_MORNING_REVISION_NOTE
+              ? "completed"
+              : "pending"
+            : revisionPlan.morningSessionRemaining === 0
             ? "completed"
             : revisionPlan.morningSessionCompleted > 0
               ? "partially_complete"
@@ -527,7 +830,7 @@ export function getBlockProgress(userState: UserState, dayNumber: number, blockK
           status,
           actualStart: timing.actualStart,
           actualEnd: timing.actualEnd,
-          completedAt: null,
+          completedAt: status === "completed" ? timing.updatedAt : null,
           sourceTag: null,
           note: timing.note,
           completedItemCount: revisionPlan.morningSessionCompleted,
@@ -574,9 +877,9 @@ export function getBlockProgress(userState: UserState, dayNumber: number, blockK
   };
 }
 
-export function getSubjectFromPrimaryFocus(primaryFocus: string): string {
+export function getSubjectFromPrimaryFocus(primaryFocus: string, referenceData?: RuntimeReferenceData): string {
   const normalized = primaryFocus.toLowerCase();
-  const match = SUBJECT_MATCHERS.find((candidate) => normalized.includes(candidate.normalized));
+  const match = getReferenceScheduleIndex(referenceData).subjectMatchers.find((candidate) => normalized.includes(candidate.normalized));
   if (match) {
     return match.label;
   }
@@ -652,12 +955,26 @@ export function isCompressedHiddenDay(dayNumber: number, settings: AppSettings):
   );
 }
 
-export function getMergedPartner(dayNumber: number, settings: AppSettings): number | null {
+export function getMergedPartner(dayNumber: number, settings: AppSettings, userState?: UserState): number | null {
+  if (userState) {
+    return userState.schedule.days[String(dayNumber)]?.mergedPartnerDay ?? null;
+  }
+
   const pair = getConsumedCompressionPairs(settings).find(([visibleDay]) => visibleDay === dayNumber);
   return pair ? pair[1] : null;
 }
 
-export function getShiftHiddenDayLabel(dayNumber: number, settings: AppSettings) {
+export function getShiftHiddenDayLabel(dayNumber: number, settings: AppSettings, userState?: UserState) {
+  if (userState) {
+    const reason = userState.schedule.days[String(dayNumber)]?.shiftHiddenReason ?? null;
+    if (reason === "buffer_absorbed") {
+      return "absorbed as a buffer day";
+    }
+    if (reason === "compression_merged") {
+      return "merged by shift compression";
+    }
+  }
+
   if (getShiftEvents(settings).some((event) => event.bufferDayUsed === dayNumber)) {
     return "absorbed as a buffer day";
   }
@@ -669,37 +986,60 @@ export function getShiftHiddenDayLabel(dayNumber: number, settings: AppSettings)
   return null;
 }
 
-export function getOriginalPlannedDate(dayNumber: number, settings: AppSettings): string | null {
-  if (!settings.dayOneDate) {
+export function getOriginalPlannedDate(dayNumber: number, settings: AppSettings): string | null;
+export function getOriginalPlannedDate(dayNumber: number, userState: UserState): string | null;
+export function getOriginalPlannedDate(dayNumber: number, stateOrSettings: AppSettings | UserState): string | null {
+  if (isUserState(stateOrSettings)) {
+    return stateOrSettings.schedule.days[String(dayNumber)]?.originalMappedDate ?? null;
+  }
+
+  if (!stateOrSettings.dayOneDate) {
     return null;
   }
 
-  return addDaysToDateOnly(settings.dayOneDate, dayNumber - 1);
+  return addDaysToDateOnly(stateOrSettings.dayOneDate, dayNumber - 1);
 }
 
-export function getMappedDate(dayNumber: number, settings: AppSettings): string | null {
-  if (!settings.dayOneDate) {
+export function getMappedDate(dayNumber: number, settings: AppSettings): string | null;
+export function getMappedDate(dayNumber: number, userState: UserState): string | null;
+export function getMappedDate(dayNumber: number, stateOrSettings: AppSettings | UserState): string | null {
+  if (isUserState(stateOrSettings)) {
+    return stateOrSettings.schedule.days[String(dayNumber)]?.mappedDate ?? null;
+  }
+
+  if (!stateOrSettings.dayOneDate) {
     return null;
   }
 
-  const shiftDelta = getShiftEvents(settings).reduce(
+  const shiftDelta = getShiftEvents(stateOrSettings).reduce(
     (sum, event) => (dayNumber >= event.anchorDayNumber ? sum + event.shiftDays : sum),
     0,
   );
-  const delta = dayNumber - 1 + shiftDelta - getAbsorptionSavings(dayNumber, settings);
-  return addDaysToDateOnly(settings.dayOneDate, delta);
+  const delta = dayNumber - 1 + shiftDelta - getAbsorptionSavings(dayNumber, stateOrSettings);
+  return addDaysToDateOnly(stateOrSettings.dayOneDate, delta);
 }
 
-export function getCurrentDayNumber(settings: AppSettings, todayDate: string): number {
+export function getCurrentDayNumber(settings: AppSettings, todayDate: string, referenceData?: RuntimeReferenceData): number;
+export function getCurrentDayNumber(userState: UserState, todayDate: string, referenceData?: RuntimeReferenceData): number;
+export function getCurrentDayNumber(
+  stateOrSettings: AppSettings | UserState,
+  todayDate: string,
+  referenceData?: RuntimeReferenceData,
+): number {
+  const settings = isUserState(stateOrSettings) ? stateOrSettings.settings : stateOrSettings;
   if (!settings.dayOneDate) {
     return 0;
   }
 
-  const visibleDays = ALL_DAYS
+  const visibleDays = (isUserState(stateOrSettings) ? getScheduleDays(stateOrSettings, referenceData) : getReferenceData(referenceData).scheduleData.daywisePlan.days)
     .map((day) => day.dayNumber)
     .filter((dayNumber) => !isCompressedHiddenDay(dayNumber, settings));
   const firstVisibleDay = visibleDays.at(0);
-  const firstVisibleDate = firstVisibleDay ? getMappedDate(firstVisibleDay, settings) : null;
+  const firstVisibleDate = firstVisibleDay
+    ? isUserState(stateOrSettings)
+      ? getMappedDate(firstVisibleDay, stateOrSettings)
+      : getMappedDate(firstVisibleDay, settings)
+    : null;
 
   if (!firstVisibleDate || todayDate < firstVisibleDate) {
     return 0;
@@ -709,7 +1049,9 @@ export function getCurrentDayNumber(settings: AppSettings, todayDate: string): n
   let lastVisibleMappedDate: string | null = null;
 
   for (const dayNumber of visibleDays) {
-    const mappedDate = getMappedDate(dayNumber, settings);
+    const mappedDate = isUserState(stateOrSettings)
+      ? getMappedDate(dayNumber, stateOrSettings)
+      : getMappedDate(dayNumber, settings);
     if (!mappedDate) {
       continue;
     }
@@ -738,8 +1080,9 @@ export function getScheduleDayRelation(
   dayNumber: number,
   settings: AppSettings,
   todayDate: string,
+  userState?: UserState,
 ): ScheduleDayRelation {
-  const mappedDate = getMappedDate(dayNumber, settings);
+  const mappedDate = userState ? getMappedDate(dayNumber, userState) : getMappedDate(dayNumber, settings);
   if (!mappedDate) {
     return "unmapped";
   }
@@ -759,9 +1102,10 @@ export function getScheduleDayEditState(
   dayNumber: number,
   settings: AppSettings,
   todayDate: string,
+  userState?: UserState,
 ): ScheduleDayEditState {
-  const relation = getScheduleDayRelation(dayNumber, settings, todayDate);
-  const isShiftHidden = Boolean(getShiftHiddenDayLabel(dayNumber, settings));
+  const relation = getScheduleDayRelation(dayNumber, settings, todayDate, userState);
+  const isShiftHidden = Boolean(getShiftHiddenDayLabel(dayNumber, settings, userState));
   const isPast = relation === "past";
   const isToday = relation === "today";
   const isFuture = relation === "future";
@@ -791,7 +1135,7 @@ export function getPreviousVisibleDayNumber(dayNumber: number, settings: AppSett
 }
 
 export function getNextVisibleDayNumber(dayNumber: number, settings: AppSettings) {
-  for (let cursor = dayNumber + 1; cursor <= 100; cursor += 1) {
+  for (let cursor = dayNumber + 1; cursor <= MAX_SCHEDULE_DAY; cursor += 1) {
     if (!isCompressedHiddenDay(cursor, settings)) {
       return cursor;
     }
@@ -858,8 +1202,77 @@ function getRevisionCompletion(
   return completions[createRevisionId(sourceItemId, revisionType)];
 }
 
-function getRevisionEligibleItems() {
-  return ALL_DAYS.filter((day) => getPhaseGroup(day) !== "phase_3")
+function buildRevisionEligibleItemFromAssignmentRow(
+  row: RuntimeAssignmentRow,
+  userState: UserState,
+  referenceData?: RuntimeReferenceData,
+) {
+  const day =
+    getScheduleDay(row.dayNumber, userState, referenceData) ??
+    getReferenceScheduleIndex(referenceData).itemLookup.get(row.sourceItemId)?.day ??
+    null;
+  if (!day || getPhaseGroup(day, referenceData) === "phase_3") {
+    return null;
+  }
+
+  const templateBlock =
+    day.blocks.find((entry) => entry.timeSlotKey === row.blockKey) ??
+    getReferenceScheduleIndex(referenceData).itemLookup.get(row.sourceItemId)?.block ??
+    null;
+  const item = {
+    itemId: row.sourceItemId,
+    order: row.itemOrder,
+    kind: row.kind,
+    label: row.label,
+    rawText: row.rawText,
+    plannedMinutes: row.plannedMinutes,
+    subjectIds: [...row.subjectIds],
+    revisionEligible: row.revisionEligible,
+    recoveryLane: row.recoveryLane,
+    phaseFence: row.phaseFence,
+    notes: row.notes,
+    revisionType: row.revisionType,
+    referenceLabel: row.referenceLabel,
+    referenceDayNumber: row.referenceDayNumber,
+  } satisfies ScheduleDayBlockItem;
+  const block = templateBlock ?? {
+    timeSlotKey: row.blockKey,
+    displayLabel: row.referenceLabel ?? row.blockKey,
+    semanticBlockKey: row.blockKey,
+    blockIntent: "core_study",
+    trackable: true,
+    rawText: row.rawText,
+    items: [item],
+    recoveryLane: row.recoveryLane,
+    phaseFence: row.phaseFence,
+    defaultRevisionEligible: row.revisionEligible,
+    reschedulable: row.phaseFence !== "not_reschedulable",
+    trafficLightPolicy: {
+      green: "visible",
+      yellow: "visible",
+      red: "visible",
+      backlogWhenHidden: false,
+    },
+  } satisfies ScheduleDayBlock;
+
+  return {
+    day,
+    block,
+    item,
+  };
+}
+
+function getRevisionEligibleItems(userState?: UserState, referenceData?: RuntimeReferenceData) {
+  if (userState && Object.keys(userState.schedule.topicAssignments).length > 0) {
+    return Object.values(userState.schedule.topicAssignments)
+      .filter((row) => row.revisionEligible)
+      .flatMap((row) => {
+        const entry = buildRevisionEligibleItemFromAssignmentRow(row, userState, referenceData);
+        return entry ? [entry] : [];
+      });
+  }
+
+  return getScheduleDays(userState, referenceData).filter((day) => getPhaseGroup(day, referenceData) !== "phase_3")
     .flatMap((day) =>
       getTrackableBlocks(day).flatMap((block) =>
         block.items
@@ -873,20 +1286,28 @@ function getRevisionEligibleItems() {
     );
 }
 
-export function buildRevisionInventory(userState: UserState, settings: AppSettings): RevisionQueueItem[] {
+export function buildRevisionInventory(
+  userState: UserState,
+  settings: AppSettings,
+  referenceData?: RuntimeReferenceData,
+): RevisionQueueItem[] {
   if (!settings.dayOneDate) {
     return [];
   }
 
   const items: RevisionQueueItem[] = [];
-  for (const entry of getRevisionEligibleItems()) {
+  for (const entry of getRevisionEligibleItems(userState, referenceData)) {
     const progress = getItemCompletion(userState, entry.item, entry.day.dayNumber, entry.block.timeSlotKey);
     if (progress.status !== "completed" || !progress.completedAt) {
       continue;
     }
 
     const anchorDate = toDateOnlyInTimeZone(progress.completedAt);
-    const subject = getSubjectLabel(entry.item.subjectIds, getSubjectFromPrimaryFocus(entry.day.primaryFocusRaw));
+    const subject = getSubjectLabel(
+      entry.item.subjectIds,
+      getSubjectFromPrimaryFocus(entry.day.primaryFocusRaw, referenceData),
+      referenceData,
+    );
 
     for (const [revisionType, offset] of Object.entries(REVISION_INTERVALS) as Array<[RevisionType, number]>) {
       const scheduledDate = addDaysToDateOnly(anchorDate, offset);
@@ -969,8 +1390,13 @@ export function groupRevisionItemsForDisplay(items: RevisionQueueItem[]): Revisi
     });
 }
 
-function buildDueRevisionItems(targetDate: string, userState: UserState, settings: AppSettings) {
-  return buildRevisionInventory(userState, settings)
+function buildDueRevisionItems(
+  targetDate: string,
+  userState: UserState,
+  settings: AppSettings,
+  referenceData?: RuntimeReferenceData,
+) {
+  return buildRevisionInventory(userState, settings, referenceData)
     .filter((item) => diffDays(targetDate, item.scheduledDate) >= 0)
     .map((candidate) => {
       const overdueBy = diffDays(targetDate, candidate.scheduledDate);
@@ -1063,8 +1489,9 @@ function buildRevisionPlanBase(
   targetDate: string,
   userState: UserState,
   settings: AppSettings,
+  referenceData?: RuntimeReferenceData,
 ): Omit<DailyRevisionPlan, "overflowStreakDays" | "overflowSuggestion"> {
-  const dueItems = buildDueRevisionItems(targetDate, userState, settings);
+  const dueItems = buildDueRevisionItems(targetDate, userState, settings, referenceData);
   const candidates = dueItems.filter((item) => isQueuedRevisionItemCandidate(item, targetDate));
 
   const storedSelection = userState.morningRevisionSelections?.[targetDate];
@@ -1121,8 +1548,8 @@ function buildRevisionPlanBase(
   const catchUp = catchUpSessions.flatMap((session) => session.items);
   const restudyFlags = restudySessions.flatMap((session) => session.items);
 
-  const dayNumber = getCurrentDayNumber(settings, targetDate);
-  const day = getScheduleDay(dayNumber);
+  const dayNumber = getCurrentDayNumber(settings, targetDate, referenceData);
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   const morningSessionPlanned = morningSessionsAll.length;
   const morningSessionCompleted = morningSessionsAll.filter((session) => session.status === "completed").length;
   const morningSessionRemaining = morningSessionPlanned - morningSessionCompleted;
@@ -1148,7 +1575,12 @@ function buildRevisionPlanBase(
   };
 }
 
-function getOverflowStreakDays(targetDate: string, userState: UserState, settings: AppSettings) {
+function getOverflowStreakDays(
+  targetDate: string,
+  userState: UserState,
+  settings: AppSettings,
+  referenceData?: RuntimeReferenceData,
+) {
   if (!settings.dayOneDate) {
     return 0;
   }
@@ -1156,7 +1588,7 @@ function getOverflowStreakDays(targetDate: string, userState: UserState, setting
   let streak = 0;
   let cursor = targetDate;
   while (cursor >= settings.dayOneDate) {
-    const plan = buildRevisionPlanBase(cursor, userState, settings);
+    const plan = buildRevisionPlanBase(cursor, userState, settings, referenceData);
     if (plan.overflow.length === 0) {
       break;
     }
@@ -1205,9 +1637,10 @@ export function buildDailyRevisionPlan(
   targetDate: string,
   userState: UserState,
   settings: AppSettings,
+  referenceData?: RuntimeReferenceData,
 ): DailyRevisionPlan {
-  const basePlan = buildRevisionPlanBase(targetDate, userState, settings);
-  const overflowStreakDays = getOverflowStreakDays(targetDate, userState, settings);
+  const basePlan = buildRevisionPlanBase(targetDate, userState, settings, referenceData);
+  const overflowStreakDays = getOverflowStreakDays(targetDate, userState, settings, referenceData);
 
   return {
     ...basePlan,
@@ -1223,8 +1656,9 @@ export function getMorningRevisionStatsForDate(
   targetDate: string,
   userState: UserState,
   settings: AppSettings,
+  referenceData?: RuntimeReferenceData,
 ) {
-  const plan = buildRevisionPlanBase(targetDate, userState, settings);
+  const plan = buildRevisionPlanBase(targetDate, userState, settings, referenceData);
 
   return {
     planned: plan.morningSessionPlanned,
@@ -1249,7 +1683,11 @@ export function createShiftPreviewSignature(preview: Omit<ScheduleShiftPreview, 
   ].join("|");
 }
 
-export function getShiftPreview(settings: AppSettings, missedDays: number[]): ScheduleShiftPreview | null {
+export function getShiftPreview(
+  settings: AppSettings,
+  missedDays: number[],
+  referenceData?: RuntimeReferenceData,
+): ScheduleShiftPreview | null {
   if (!settings.dayOneDate || missedDays.length < 2) {
     return null;
   }
@@ -1284,8 +1722,8 @@ export function getShiftPreview(settings: AppSettings, missedDays: number[]): Sc
     compressedPairs,
     mergedDays: compressedPairs.map((pair) => {
       const [leftDay, rightDay] = pair;
-      const left = getScheduleDay(leftDay);
-      const right = getScheduleDay(rightDay);
+      const left = getScheduleDay(leftDay, undefined, referenceData);
+      const right = getScheduleDay(rightDay, undefined, referenceData);
 
       return {
         originalDays: [leftDay, rightDay],
@@ -1302,7 +1740,12 @@ export function getShiftPreview(settings: AppSettings, missedDays: number[]): Sc
   };
 }
 
-export function getScheduleHealth(userState: UserState, settings: AppSettings, todayDayNumber: number): ScheduleHealth {
+export function getScheduleHealth(
+  userState: UserState,
+  settings: AppSettings,
+  todayDayNumber: number,
+  referenceData?: RuntimeReferenceData,
+): ScheduleHealth {
   if (!settings.dayOneDate || todayDayNumber < 1) {
     return {
       missedDays: [],
@@ -1311,21 +1754,21 @@ export function getScheduleHealth(userState: UserState, settings: AppSettings, t
     };
   }
 
-  const visibleProjectedDays = ALL_DAYS
+  const visibleProjectedDays = getScheduleDays(userState)
     .map((day) => day.dayNumber)
     .filter((dayNumber) => !isCompressedHiddenDay(dayNumber, settings))
     .filter((dayNumber) => dayNumber <= todayDayNumber)
     .slice(-7);
 
   const missedDays = visibleProjectedDays.filter((dayNumber) => {
-    const day = getScheduleDay(dayNumber);
+    const day = getScheduleDay(dayNumber, userState);
     if (!day) {
       return false;
     }
 
     const trafficLight = getDayState(userState, dayNumber).trafficLight;
     const badBlocks = getVisibleBlockKeys(trafficLight, day).filter((blockKey) => {
-      const status = getBlockProgress(userState, dayNumber, blockKey).status;
+      const status = getBlockProgress(userState, dayNumber, blockKey, referenceData).status;
       return status === "missed" || status === "skipped" || status === "rescheduled";
     });
 
@@ -1339,12 +1782,26 @@ export function getScheduleHealth(userState: UserState, settings: AppSettings, t
   };
 }
 
-export function getDayCompletionState(day: ScheduleDayPlan, userState: UserState, trafficLight: TrafficLight) {
+export function getDayCompletionState(
+  day: ScheduleDayPlan,
+  userState: UserState,
+  trafficLight: TrafficLight,
+  referenceData?: RuntimeReferenceData,
+) {
   const visibleBlocks = getVisibleBlockKeys(trafficLight, day);
 
   return visibleBlocks.every((blockKey) => {
-    const status = getBlockProgress(userState, day.dayNumber, blockKey).status;
-    return status === "completed" || status === "skipped" || status === "missed" || status === "rescheduled";
+    const progress = getBlockProgress(userState, day.dayNumber, blockKey, referenceData);
+    if (progress.status === "pending" && progress.totalItemCount === 0 && progress.unresolvedItemCount === 0) {
+      return true;
+    }
+
+    return (
+      progress.status === "completed" ||
+      progress.status === "skipped" ||
+      progress.status === "missed" ||
+      progress.status === "rescheduled"
+    );
   });
 }
 
@@ -1353,20 +1810,20 @@ export function getSafeDayCountLabel(dayNumber: number) {
     return "Before Day 1";
   }
 
-  if (dayNumber > 100) {
-    return `Beyond Day 100`;
+  if (dayNumber > MAX_SCHEDULE_DAY) {
+    return `Beyond Day ${MAX_SCHEDULE_DAY}`;
   }
 
   return `Day ${dayNumber}`;
 }
 
-export function getPhaseDayStatus(dayNumber: number, userState: UserState): BlockStatus {
-  const day = getScheduleDay(dayNumber);
+export function getPhaseDayStatus(dayNumber: number, userState: UserState, referenceData?: RuntimeReferenceData): BlockStatus {
+  const day = getScheduleDay(dayNumber, userState);
   if (!day) {
     return "pending";
   }
 
-  const visibleStatuses = getTrackableBlocks(day).map((block) => getBlockProgress(userState, day.dayNumber, block.timeSlotKey).status);
+  const visibleStatuses = getTrackableBlocks(day).map((block) => getBlockProgress(userState, day.dayNumber, block.timeSlotKey, referenceData).status);
   return getDerivedStatus(
     visibleStatuses.map((status) => {
       if (status === "partially_complete") {
@@ -1378,8 +1835,8 @@ export function getPhaseDayStatus(dayNumber: number, userState: UserState): Bloc
   );
 }
 
-function getMacroPhaseDayStatus(dayNumber: number, userState: UserState): BlockStatus {
-  const day = getScheduleDay(dayNumber);
+function getMacroPhaseDayStatus(dayNumber: number, userState: UserState, referenceData?: RuntimeReferenceData): BlockStatus {
+  const day = getScheduleDay(dayNumber, userState);
   if (!day) {
     return "pending";
   }
@@ -1387,7 +1844,7 @@ function getMacroPhaseDayStatus(dayNumber: number, userState: UserState): BlockS
   // Macro phases should reflect workbook day progress while ignoring only the derived morning revision lane.
   const visibleStatuses = getTrackableBlocks(day)
     .filter((block) => block.semanticBlockKey !== "morning_revision")
-    .map((block) => getBlockProgress(userState, day.dayNumber, block.timeSlotKey).status);
+    .map((block) => getBlockProgress(userState, day.dayNumber, block.timeSlotKey, referenceData).status);
 
   return getDerivedStatus(
     visibleStatuses.map((status) => {
@@ -1402,7 +1859,7 @@ function getMacroPhaseDayStatus(dayNumber: number, userState: UserState): BlockS
 
 export function getPhaseStatus(phaseId: string, userState: UserState, settings: AppSettings): BlockStatus {
   void settings;
-  const days = ALL_DAYS.filter((day) => getPhaseGroup(day) === phaseId);
+  const days = getScheduleDays(userState).filter((day) => getPhaseGroup(day) === phaseId);
   const statuses = days.map((day) => getMacroPhaseDayStatus(day.dayNumber, userState));
 
   return getDerivedStatus(
@@ -1416,9 +1873,9 @@ export function getPhaseStatus(phaseId: string, userState: UserState, settings: 
   );
 }
 
-export function getTrackableBlockOptions(dayNumber?: number) {
+export function getTrackableBlockOptions(dayNumber?: number, referenceData?: RuntimeReferenceData) {
   if (dayNumber) {
-    const day = getScheduleDay(dayNumber);
+    const day = getScheduleDay(dayNumber, undefined, referenceData);
     if (day) {
       return getTrackableBlocks(day).map((block) => ({
         value: block.timeSlotKey,
@@ -1427,7 +1884,7 @@ export function getTrackableBlockOptions(dayNumber?: number) {
     }
   }
 
-  return scheduleData.daywisePlan.slotCatalog
+  return getReferenceData(referenceData).scheduleData.daywisePlan.slotCatalog
     .filter((slot) => slot.defaultTrackable)
     .map((slot) => ({
       value: slot.timeSlotKey,

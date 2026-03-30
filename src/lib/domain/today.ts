@@ -7,6 +7,7 @@ import type { ScheduleDayPlan } from "@/lib/domain/schedule-data-types";
 import type {
   BlockKey,
   BlockProgress,
+  RuntimeReferenceData,
   TimelineSlotKind,
   TrafficLight,
   UserState,
@@ -63,6 +64,7 @@ export function buildTodayTimeline(
   day: ScheduleDayPlan,
   userState: UserState,
   trafficLight: TrafficLight,
+  referenceData?: RuntimeReferenceData,
 ): TodayTimelineEntry[] {
   const visibleBlocks = new Set(getVisibleBlockKeys(trafficLight, day));
 
@@ -91,7 +93,7 @@ export function buildTodayTimeline(
         start,
         end,
         mode: visibleBlocks.has(blockKey) ? "visible" : "hidden",
-        progress: getBlockProgress(userState, day.dayNumber, blockKey),
+        progress: getBlockProgress(userState, day.dayNumber, blockKey, referenceData),
         displayDescription: getDisplayBlockDescription(day, blockKey, trafficLight),
       };
     });

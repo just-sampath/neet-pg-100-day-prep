@@ -1,0 +1,391 @@
+{
+  "version": 2,
+  "source": "workbook",
+  "sourceWorkbook": "NEET_PG_FINAL_SCHEDULE.xlsx",
+  "sourceSheet": "Subject_Tiering",
+  "subjects": [
+    {
+      "subjectId": "pathology",
+      "subjectName": "Pathology",
+      "aliases": [
+        "pathology",
+        "path"
+      ],
+      "worHours": 13.92,
+      "firstPassDays": 5,
+      "priorityTier": "Tier A - Anchor",
+      "priorityRank": 1,
+      "resourceDecisionRaw": "1 full first pass + 1 deep revision + 1 compression pass + repeated GT repair + volatile notebook",
+      "mustFocusTopics": [
+        "Haematology: RBC Disorders",
+        "General Pathology: Neoplasia and Immunity",
+        "Haematology: Haemostasis, Blood Banking and Practical Haematology",
+        "Systemic Pathology: Gastrointestinal, Endocrine and Musculoskeletal System",
+        "Systemic Pathology: Kidney and Liver"
+      ]
+    },
+    {
+      "subjectId": "pharmacology",
+      "subjectName": "Pharmacology",
+      "aliases": [
+        "pharmacology",
+        "pharma"
+      ],
+      "worHours": 10.6,
+      "firstPassDays": 3,
+      "priorityTier": "Tier A - Anchor",
+      "priorityRank": 1,
+      "resourceDecisionRaw": "1 full first pass + 1 deep revision + 1 compression pass + repeated GT repair + volatile notebook",
+      "mustFocusTopics": [
+        "General Pharmacology: Part 1",
+        "Drugs Acting on Cardiovascular System",
+        "Drugs Acting on CNS",
+        "General Pharmacology: Part 2",
+        "Antimicrobial Drugs: Part 2"
+      ]
+    },
+    {
+      "subjectId": "microbiology",
+      "subjectName": "Microbiology",
+      "aliases": [
+        "microbiology",
+        "micro"
+      ],
+      "worHours": 12.68,
+      "firstPassDays": 3,
+      "priorityTier": "Tier A - Anchor",
+      "priorityRank": 1,
+      "resourceDecisionRaw": "1 full first pass + 1 deep revision + 1 compression pass + repeated GT repair + volatile notebook",
+      "mustFocusTopics": [
+        "General Microbiology: Part 3",
+        "Respiratory System",
+        "General Microbiology: Part 1",
+        "Cardiovascular System: Bloodstream and Lymphatic Infections",
+        "Immunology"
+      ]
+    },
+    {
+      "subjectId": "physiology",
+      "subjectName": "Physiology",
+      "aliases": [
+        "physiology",
+        "physio"
+      ],
+      "worHours": 16.48,
+      "firstPassDays": 5,
+      "priorityTier": "Tier B - Support",
+      "priorityRank": 2,
+      "resourceDecisionRaw": "1 full first pass + 1 structured revision + 1 compression pass + weak-area repair",
+      "mustFocusTopics": [
+        "Nerve Muscle Physiology",
+        "Neurophysiology: Part 3",
+        "Endocrine Physiology",
+        "General and Cellular Physiology: Part 1",
+        "Renal Physiology"
+      ]
+    },
+    {
+      "subjectId": "biochemistry",
+      "subjectName": "Biochemistry",
+      "aliases": [
+        "biochemistry",
+        "biochem"
+      ],
+      "worHours": 11.75,
+      "firstPassDays": 4,
+      "priorityTier": "Tier B - Support",
+      "priorityRank": 2,
+      "resourceDecisionRaw": "1 full first pass + 1 structured revision + 1 compression pass + weak-area repair",
+      "mustFocusTopics": [
+        "Enzymes",
+        "Metabolism of Lipids",
+        "Metabolism of Carbohydrates: Part 2",
+        "Amino Acids: Part 2",
+        "Molecular Biology"
+      ]
+    },
+    {
+      "subjectId": "anatomy",
+      "subjectName": "Anatomy",
+      "aliases": [
+        "anatomy",
+        "anat"
+      ],
+      "worHours": 11.98,
+      "firstPassDays": 4,
+      "priorityTier": "Tier B - Support",
+      "priorityRank": 2,
+      "resourceDecisionRaw": "1 full first pass + 1 structured revision + 1 compression pass + weak-area repair",
+      "mustFocusTopics": [
+        "Head, Neck and Face: Part 1",
+        "Neuroanatomy: Part 1",
+        "Upper Limb",
+        "Neuroanatomy: Part 2",
+        "Head, Neck and Face: Part 2"
+      ]
+    },
+    {
+      "subjectId": "medicine",
+      "subjectName": "Medicine",
+      "aliases": [
+        "medicine"
+      ],
+      "worHours": 35.15,
+      "firstPassDays": 10,
+      "priorityTier": "Tier A - Anchor",
+      "priorityRank": 1,
+      "resourceDecisionRaw": "1 full first pass + 1 deep revision + 1 compression pass + repeated GT repair + volatile notebook",
+      "mustFocusTopics": [
+        "Hepatic Disorders",
+        "Heart Failure and Cardiomyopathies",
+        "Cortical and Subcortical Lesions",
+        "Gastrointestinal Disorders",
+        "Posterior Pituitary Disorders"
+      ]
+    },
+    {
+      "subjectId": "surgery",
+      "subjectName": "Surgery",
+      "aliases": [
+        "surgery"
+      ],
+      "worHours": 12.85,
+      "firstPassDays": 5,
+      "priorityTier": "Tier A - Anchor",
+      "priorityRank": 1,
+      "resourceDecisionRaw": "1 full first pass + 1 deep revision + 1 compression pass + repeated GT repair + volatile notebook",
+      "mustFocusTopics": [
+        "General Surgery",
+        "Trauma and Burns",
+        "Hepatobiliary and Minimally Invasive Surgery",
+        "Gastrointestinal Surgery: Part 1",
+        "Urology: Part 2"
+      ]
+    },
+    {
+      "subjectId": "obstetrics_and_gynaecology",
+      "subjectName": "Obstetrics & Gynaecology",
+      "aliases": [
+        "obstetrics and gynaecology",
+        "obstetrics and gynecology",
+        "obstetrics gynaecology",
+        "obg",
+        "gynaecology",
+        "gynecology",
+        "obstetrics"
+      ],
+      "worHours": 21.5,
+      "firstPassDays": 6,
+      "priorityTier": "Tier A - Anchor",
+      "priorityRank": 1,
+      "resourceDecisionRaw": "1 full first pass + 1 deep revision + 1 compression pass + repeated GT repair + volatile notebook",
+      "mustFocusTopics": [
+        "Gynaecology Revision: Part 7",
+        "Gynaecology Revision: Part 3",
+        "Obstetrics Revision: Part 4",
+        "Gynaecology Revision: Part 6",
+        "Gynaecology Revision: Part 5"
+      ]
+    },
+    {
+      "subjectId": "paediatrics",
+      "subjectName": "Paediatrics",
+      "aliases": [
+        "paediatrics",
+        "pediatrics",
+        "peds"
+      ],
+      "worHours": 14.55,
+      "firstPassDays": 5,
+      "priorityTier": "Tier B - Support",
+      "priorityRank": 2,
+      "resourceDecisionRaw": "1 full first pass + 1 structured revision + 1 compression pass + weak-area repair",
+      "mustFocusTopics": [
+        "General Paediatrics: Nutrition",
+        "Neonatology: Part 1",
+        "Neonatology: Part 2",
+        "Systemic Paediatrics: Cardiology",
+        "Systemic Paediatrics: Gastroenterology"
+      ]
+    },
+    {
+      "subjectId": "community_medicine",
+      "subjectName": "Community Medicine",
+      "aliases": [],
+      "worHours": 15.72,
+      "firstPassDays": 5,
+      "priorityTier": "Tier A - Anchor",
+      "priorityRank": 1,
+      "resourceDecisionRaw": "1 full first pass + 1 deep revision + 1 compression pass + repeated GT repair + volatile notebook",
+      "mustFocusTopics": [
+        "NTEP and NACP",
+        "Epidemiology",
+        "Biostatistics",
+        "Preventive Obstetrics",
+        "Preventive Paediatrics"
+      ]
+    },
+    {
+      "subjectId": "ent",
+      "subjectName": "ENT",
+      "aliases": [
+        "ent"
+      ],
+      "worHours": 13.12,
+      "firstPassDays": 4,
+      "priorityTier": "Tier C - Short scorer",
+      "priorityRank": 3,
+      "resourceDecisionRaw": "1 full first pass + 2 fast sweeps + final volatile sweeps + image/list repair",
+      "mustFocusTopics": [
+        "Ear: Part 5",
+        "Nose: Part 1",
+        "Nose: Part 2",
+        "Larynx: Part 2",
+        "Ear: Part 3"
+      ]
+    },
+    {
+      "subjectId": "ophthalmology",
+      "subjectName": "Ophthalmology",
+      "aliases": [
+        "ophthalmology",
+        "ophthal"
+      ],
+      "worHours": 8.62,
+      "firstPassDays": 4,
+      "priorityTier": "Tier C - Short scorer",
+      "priorityRank": 3,
+      "resourceDecisionRaw": "1 full first pass + 2 fast sweeps + final volatile sweeps + image/list repair",
+      "mustFocusTopics": [
+        "Squint",
+        "Retina",
+        "Lens and Blunt Trauma",
+        "Neuro-Ophthalmology",
+        "Glaucoma"
+      ]
+    },
+    {
+      "subjectId": "orthopaedics",
+      "subjectName": "Orthopaedics",
+      "aliases": [
+        "orthopaedics",
+        "orthopedics",
+        "ortho"
+      ],
+      "worHours": 5.6,
+      "firstPassDays": 3,
+      "priorityTier": "Tier C - Short scorer",
+      "priorityRank": 3,
+      "resourceDecisionRaw": "1 full first pass + 2 fast sweeps + final volatile sweeps + image/list repair",
+      "mustFocusTopics": [
+        "Upper Limb Trauma",
+        "Basics of Orthopaedics and Trauma",
+        "Metabolic Disorders of Bone",
+        "Lower Limb Trauma",
+        "Orthopaedic Oncology"
+      ]
+    },
+    {
+      "subjectId": "anaesthesia",
+      "subjectName": "Anaesthesia",
+      "aliases": [
+        "anaesthesia",
+        "anesthesia",
+        "anaesth"
+      ],
+      "worHours": 8.02,
+      "firstPassDays": 2,
+      "priorityTier": "Tier C - Short scorer",
+      "priorityRank": 3,
+      "resourceDecisionRaw": "1 full first pass + 2 fast sweeps + final volatile sweeps + image/list repair",
+      "mustFocusTopics": [
+        "Regional Anaesthesia, Anaesthesia Machines and Circuits, and Day Care Surgery",
+        "IV and Inhalational Induction Agents",
+        "Pre-Anaesthetic Check-up",
+        "Airway Management",
+        "Muscle Relaxants"
+      ]
+    },
+    {
+      "subjectId": "radiology",
+      "subjectName": "Radiology",
+      "aliases": [
+        "radiology",
+        "radio"
+      ],
+      "worHours": 7.53,
+      "firstPassDays": 2,
+      "priorityTier": "Tier C - Short scorer",
+      "priorityRank": 3,
+      "resourceDecisionRaw": "1 full first pass + 2 fast sweeps + final volatile sweeps + image/list repair",
+      "mustFocusTopics": [
+        "Fundamentals of Radiology",
+        "Respiratory Imaging",
+        "Neurological Imaging",
+        "Gastrointestinal Tract Imaging",
+        "Genitourinary Tract and Women's Imaging"
+      ]
+    },
+    {
+      "subjectId": "dermatology",
+      "subjectName": "Dermatology",
+      "aliases": [
+        "dermatology",
+        "derm"
+      ],
+      "worHours": 4.33,
+      "firstPassDays": 2,
+      "priorityTier": "Tier C - Short scorer",
+      "priorityRank": 3,
+      "resourceDecisionRaw": "1 full first pass + 2 fast sweeps + final volatile sweeps + image/list repair",
+      "mustFocusTopics": [
+        "Dermatology Revision: Part 1",
+        "Dermatology Revision: Part 5",
+        "Dermatology Revision: Part 6",
+        "Dermatology Revision: Part 2",
+        "Dermatology Revision: Part 3"
+      ]
+    },
+    {
+      "subjectId": "psychiatry",
+      "subjectName": "Psychiatry",
+      "aliases": [
+        "psychiatry",
+        "psych"
+      ],
+      "worHours": 4.58,
+      "firstPassDays": 2,
+      "priorityTier": "Tier C - Short scorer",
+      "priorityRank": 3,
+      "resourceDecisionRaw": "1 full first pass + 2 fast sweeps + final volatile sweeps + image/list repair",
+      "mustFocusTopics": [
+        "Neurocognitive, Neurodevelopmental and Other Disorders",
+        "Eating, Sleep and Other Disorders",
+        "Anxiety, Stress and Other Disorders",
+        "Psychosis Related Disorders",
+        "Mood Related Disorders"
+      ]
+    },
+    {
+      "subjectId": "forensic_medicine",
+      "subjectName": "Forensic Medicine",
+      "aliases": [
+        "forensic medicine",
+        "fmt",
+        "forensic"
+      ],
+      "worHours": 7.43,
+      "firstPassDays": 3,
+      "priorityTier": "Tier C - Short scorer",
+      "priorityRank": 3,
+      "resourceDecisionRaw": "1 full first pass + 2 fast sweeps + final volatile sweeps + image/list repair",
+      "mustFocusTopics": [
+        "Toxicology",
+        "Traumatology",
+        "Human Identification",
+        "Autopsy Techniques and Thanatology",
+        "Medical Jurisprudence"
+      ]
+    }
+  ]
+}

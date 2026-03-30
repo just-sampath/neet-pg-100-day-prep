@@ -129,9 +129,9 @@ export async function runMidnightCronJob(runAt = new Date()): Promise<JobResult>
       const store = await readSupabaseStoreForUser(user, supabase);
       const previous = structuredClone(store);
       const userState = store.userState[userId];
-      const todayDayNumber = getCurrentDayNumber(userState.settings, scheduledDate);
-      const midnight = runMidnightRollover(userState, userState.settings, scheduledDate, todayDayNumber);
-      const shiftHealth = getScheduleHealth(userState, userState.settings, todayDayNumber);
+      const todayDayNumber = getCurrentDayNumber(userState, scheduledDate);
+      const midnight = runMidnightRollover(userState, userState.settings, scheduledDate, todayDayNumber, store.referenceData);
+      const shiftHealth = getScheduleHealth(userState, userState.settings, todayDayNumber, store.referenceData);
 
       if (JSON.stringify(store) !== JSON.stringify(previous)) {
         await persistSupabaseStoreForUser(store, previous, supabase);
@@ -205,7 +205,7 @@ export async function runWeeklySummaryCronJob(runAt = new Date()): Promise<JobRe
       const store = await readSupabaseStoreForUser(user, supabase);
       const previous = structuredClone(store);
       const userState = store.userState[userId];
-      const weekly = runWeeklySummaryAutomation(userState, userState.settings, runAt);
+      const weekly = runWeeklySummaryAutomation(userState, userState.settings, runAt, store.referenceData);
 
       if (JSON.stringify(store) !== JSON.stringify(previous)) {
         await persistSupabaseStoreForUser(store, previous, supabase);

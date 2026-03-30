@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getStaticReferenceData } from "@/lib/data/reference-data";
 import type { LocalStore } from "@/lib/domain/types";
 
 let testStore: LocalStore;
@@ -51,6 +52,7 @@ describe("server actions", () => {
       userState: {
         "test-user": createEmptyUserState(),
       },
+      referenceData: getStaticReferenceData(),
       dev: {
         simulatedNowIso: "2026-05-10T06:30:00.000Z",
       },

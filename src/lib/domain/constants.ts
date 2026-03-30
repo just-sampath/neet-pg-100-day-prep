@@ -23,6 +23,8 @@ export const MORNING_REVISION_SLOT_PLAN = [
   durationMinutes: number;
 }>;
 
+export const NO_DUE_MORNING_REVISION_NOTE = "__auto_closed_no_due_morning_revision__";
+
 export const BREAK_MICRO_SLOT_LABELS = [
   "07:45 quick recall",
   "11:00 quick recall",

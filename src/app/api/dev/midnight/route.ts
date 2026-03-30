@@ -20,8 +20,8 @@ export async function POST() {
     store.dev.simulatedNowIso = advanced.toISOString();
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(advanced, IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState.settings, todayDate);
-    runMidnightRollover(userState, userState.settings, todayDate, todayDayNumber);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    runMidnightRollover(userState, userState.settings, todayDate, todayDayNumber, store.referenceData);
   });
 
   return NextResponse.json({ ok: true });
