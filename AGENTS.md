@@ -154,16 +154,9 @@ Defaults:
 - `src/lib/supabase/server.ts`: server Supabase client
 - `src/lib/supabase/admin.ts`: service-role client for hosted automation
 - `src/lib/supabase/proxy.ts`: request-time session refresh for `proxy.ts`
-- `supabase/migrations/0001_initial_schema.sql`: base schema
-- `supabase/migrations/0002_runtime_rls_realtime.sql`: runtime metadata, RLS, uniqueness, and realtime publication coverage
+- `supabase/migrations/0001_initial_schema.sql`: consolidated baseline — schedule tables, phase config, reference tables, user-state tables, mutable logs, backlog, and all indexes/constraints
+- `supabase/migrations/0002_runtime_rls_realtime.sql`: RLS policies (per-user auth.uid(), reference read-only, automation deny-all) and realtime publication coverage
 - `supabase/migrations/0003_automation_job_runs.sql`: hosted job ledger for cron telemetry and idempotence
-- `supabase/migrations/0004_revision_completion_identity.sql`: block-aware revision completion identity
-- `supabase/migrations/0005_backlog_creation_metadata.sql`: original slot timing metadata for backlog items
-- `supabase/migrations/0006_backlog_queue_priority.sql`: queue priority ordering for backlog items
-- `supabase/migrations/0007_schedule_shift_events.sql`: persistent shift-event history for anchored schedule shifts
-- `supabase/migrations/0008_gt_weakest_subjects.sql`: explicit weakest-subject persistence for GT wrapper analytics
-- `supabase/migrations/0009_weekly_summary_uniqueness.sql`: one summary per user per week plus duplicate cleanup
-- `supabase/migrations/0010_quote_state_history.sql`: persisted quote-cycle state for local and Supabase parity
 - `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
 
 ### Server Automation
@@ -397,7 +390,7 @@ Every feature should be runnable locally. Minimum manual pass:
 - 22:45 late-night sweep
 - next-day midnight rollover
 
-13. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.
+1. Use a past schedule day to complete a block retroactively and confirm the old planned revision placement disappears.
 2. Open `/schedule` and confirm it auto-focuses near Today.
 3. Open a future day and confirm the page is view-only.
 4. Open a shift-hidden day and confirm it stays view-only while still explaining the active mapping.

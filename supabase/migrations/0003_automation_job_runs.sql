@@ -16,3 +16,22 @@ create index if not exists automation_job_runs_started_at_idx
   on automation_job_runs(started_at desc);
 
 alter table if exists automation_job_runs enable row level security;
+
+-- Service-role bypass is implicit in Supabase (service_role key bypasses RLS).
+-- Deny all access for regular authenticated users by having no permissive policies.
+-- Add an explicit documentation policy to make the intent clear.
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'automation_job_runs'
+      and policyname = 'automation_job_runs_deny_all'
+  ) then
+    create policy automation_job_runs_deny_all
+      on automation_job_runs
+      for all
+      using (false);
+  end if;
+end
+$$;

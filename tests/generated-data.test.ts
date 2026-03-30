@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { getStaticReferenceData } from "@/lib/data/reference-data";
 
-const scheduleData = getStaticReferenceData().scheduleData;
+const { scheduleData, quotes } = getStaticReferenceData();
 
 function getDay(dayNumber: number) {
   return scheduleData.daywisePlan.days.find((day) => day.dayNumber === dayNumber)!;
@@ -24,6 +24,25 @@ describe("generated schedule data", () => {
     expect(scheduleData.daywisePlan.slotCatalog).toHaveLength(12);
     expect(scheduleData.subjectStrategy.subjects).toHaveLength(19);
     expect(scheduleData.gtTestPlan.tests).toHaveLength(9);
+  });
+
+  it("validates seed row counts for the DB migration contract", () => {
+    const totalBlocks = scheduleData.daywisePlan.days.reduce(
+      (sum, day) => sum + day.blocks.length, 0,
+    );
+    const totalAssignments = scheduleData.daywisePlan.days.reduce(
+      (sum, day) => sum + day.blocks.reduce((bs, block) => bs + block.items.length, 0), 0,
+    );
+    const phase1Days = scheduleData.daywisePlan.days.filter((d) => d.dayNumber <= 63);
+    const revisionEligiblePhase1 = phase1Days.reduce(
+      (sum, day) => sum + day.blocks.reduce((bs, block) => bs + block.items.filter((i) => i.revisionEligible).length, 0), 0,
+    );
+
+    expect(totalBlocks).toBe(1200);
+    expect(totalAssignments).toBe(1151);
+    expect(revisionEligiblePhase1).toBe(271);
+    expect(quotes).toHaveLength(200);
+    expect(scheduleData.revisionMap.days).toHaveLength(100);
   });
 
   it("locks the new phase catalog to the 3 workbook spans", () => {
