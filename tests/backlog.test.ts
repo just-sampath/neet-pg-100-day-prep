@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { getBacklogQueueItems, refreshBacklogSuggestions } from "@/lib/domain/backlog-queue";
+import { dismissBacklogScope, getBacklogQueueItems, moveBacklogItemPriority, refreshBacklogSuggestions, sortBacklogQueue } from "@/lib/domain/backlog-queue";
 import { previewOverrunCascade, resolvePhase, resolveSubjectTier } from "@/lib/domain/backlog";
+import type { BacklogItem, SubjectTier } from "@/lib/domain/types";
 import {
   applyOverrunCascadeBacklog,
   applyOverrunCascadeShift,
@@ -677,5 +678,317 @@ describe("interaction between 22:45 cutoff and 23:15 sweep", () => {
     runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
 
     expect(Object.values(userState.backlogItems).length).toBe(cutoffItems.length);
+  });
+});
+
+describe("sortBacklogQueue ordering", () => {
+  function makeItem(overrides: Partial<BacklogItem> & { id: string }): BacklogItem {
+    return {
+      sourceItemId: overrides.id as BacklogItem["sourceItemId"],
+      originalDay: 1,
+      originalBlockKey: "08:00-11:00" as BacklogItem["originalBlockKey"],
+      originalStart: "08:00",
+      originalEnd: "11:00",
+      priorityOrder: 0,
+      topicDescription: "Test topic",
+      subject: "Pathology",
+      subjectIds: ["pathology"],
+      subjectTier: null,
+      plannedMinutes: 45,
+      sourceTag: "manual_skip",
+      recoveryLane: "core_study",
+      phaseFence: "phase_1",
+      phase: 1,
+      manualSortOverride: null,
+      status: "pending",
+      suggestedDay: null,
+      suggestedBlockKey: null,
+      suggestedNote: null,
+      rescheduledToDay: null,
+      rescheduledToBlockKey: null,
+      createdAt: "2026-05-01T08:00:00.000Z",
+      updatedAt: "2026-05-01T08:00:00.000Z",
+      completedAt: null,
+      dismissedAt: null,
+      ...overrides,
+    };
+  }
+
+  it("sorts by tier first: A < B < C < null", () => {
+    const items = [
+      makeItem({ id: "c1", subjectTier: "C" }),
+      makeItem({ id: "null1", subjectTier: null }),
+      makeItem({ id: "a1", subjectTier: "A" }),
+      makeItem({ id: "b1", subjectTier: "B" }),
+    ];
+
+    const sorted = sortBacklogQueue(items);
+    expect(sorted.map((i) => i.id)).toEqual(["a1", "b1", "c1", "null1"]);
+  });
+
+  it("within same tier, sorts by originalDay ascending", () => {
+    const items = [
+      makeItem({ id: "d5", subjectTier: "A", originalDay: 5 }),
+      makeItem({ id: "d2", subjectTier: "A", originalDay: 2 }),
+      makeItem({ id: "d8", subjectTier: "A", originalDay: 8 }),
+    ];
+
+    const sorted = sortBacklogQueue(items);
+    expect(sorted.map((i) => i.id)).toEqual(["d2", "d5", "d8"]);
+  });
+
+  it("within same tier and day, manualSortOverride ascending (nulls last)", () => {
+    const items = [
+      makeItem({ id: "no-override", subjectTier: "B", originalDay: 3, manualSortOverride: null }),
+      makeItem({ id: "override-20", subjectTier: "B", originalDay: 3, manualSortOverride: 20 }),
+      makeItem({ id: "override-10", subjectTier: "B", originalDay: 3, manualSortOverride: 10 }),
+    ];
+
+    const sorted = sortBacklogQueue(items);
+    expect(sorted.map((i) => i.id)).toEqual(["override-10", "override-20", "no-override"]);
+  });
+
+  it("uses createdAt as tiebreaker after override", () => {
+    const items = [
+      makeItem({ id: "late", subjectTier: "A", originalDay: 1, createdAt: "2026-05-01T10:00:00.000Z" }),
+      makeItem({ id: "early", subjectTier: "A", originalDay: 1, createdAt: "2026-05-01T08:00:00.000Z" }),
+    ];
+
+    const sorted = sortBacklogQueue(items);
+    expect(sorted.map((i) => i.id)).toEqual(["early", "late"]);
+  });
+
+  it("uses id as final tiebreaker", () => {
+    const items = [
+      makeItem({ id: "z-item", subjectTier: "A", originalDay: 1, createdAt: "2026-05-01T08:00:00.000Z" }),
+      makeItem({ id: "a-item", subjectTier: "A", originalDay: 1, createdAt: "2026-05-01T08:00:00.000Z" }),
+    ];
+
+    const sorted = sortBacklogQueue(items);
+    expect(sorted.map((i) => i.id)).toEqual(["a-item", "z-item"]);
+  });
+
+  it("does not mutate the original array", () => {
+    const items = [
+      makeItem({ id: "b1", subjectTier: "B" }),
+      makeItem({ id: "a1", subjectTier: "A" }),
+    ];
+    const original = [...items];
+
+    sortBacklogQueue(items);
+    expect(items.map((i) => i.id)).toEqual(original.map((i) => i.id));
+  });
+});
+
+describe("moveBacklogItemPriority tier-bounded moves", () => {
+  function seedItems(userState: ReturnType<typeof createEmptyUserState>, tiers: Array<{ id: string; tier: SubjectTier | null; day?: number }>) {
+    for (const entry of tiers) {
+      userState.backlogItems[entry.id] = {
+        id: entry.id,
+        sourceItemId: entry.id as BacklogItem["sourceItemId"],
+        originalDay: entry.day ?? 1,
+        originalBlockKey: "08:00-11:00" as BacklogItem["originalBlockKey"],
+        originalStart: "08:00",
+        originalEnd: "11:00",
+        priorityOrder: 0,
+        topicDescription: `Topic ${entry.id}`,
+        subject: "Test",
+        subjectIds: ["test"],
+        subjectTier: entry.tier,
+        plannedMinutes: 45,
+        sourceTag: "manual_skip",
+        recoveryLane: "core_study",
+        phaseFence: "phase_1",
+        phase: 1,
+        manualSortOverride: null,
+        status: "pending",
+        suggestedDay: null,
+        suggestedBlockKey: null,
+        suggestedNote: null,
+        rescheduledToDay: null,
+        rescheduledToBlockKey: null,
+        createdAt: "2026-05-01T08:00:00.000Z",
+        updatedAt: "2026-05-01T08:00:00.000Z",
+        completedAt: null,
+        dismissedAt: null,
+      };
+    }
+  }
+
+  it("swaps two items within the same tier", () => {
+    const userState = createEmptyUserState();
+    seedItems(userState, [
+      { id: "a1", tier: "A", day: 1 },
+      { id: "a2", tier: "A", day: 1 },
+    ]);
+    // Give them a deterministic initial ordering via createdAt
+    userState.backlogItems["a1"]!.createdAt = "2026-05-01T08:00:00.000Z";
+    userState.backlogItems["a2"]!.createdAt = "2026-05-01T09:00:00.000Z";
+
+    // Before move: a1 sorts first (earlier createdAt)
+    const beforeSort = sortBacklogQueue(Object.values(userState.backlogItems));
+    expect(beforeSort[0]!.id).toBe("a1");
+
+    const result = moveBacklogItemPriority(userState, "a2", "up");
+    expect(result).toBe(true);
+
+    // After sort, a2 should come before a1
+    const pending = Object.values(userState.backlogItems).filter((i) => i.status === "pending");
+    const sorted = sortBacklogQueue(pending);
+    expect(sorted[0]!.id).toBe("a2");
+    expect(sorted[1]!.id).toBe("a1");
+  });
+
+  it("refuses to move across tier boundary (A → B)", () => {
+    const userState = createEmptyUserState();
+    seedItems(userState, [
+      { id: "a1", tier: "A", day: 1 },
+      { id: "b1", tier: "B", day: 2 },
+    ]);
+
+    // a1 is at position 0, moving down would cross into tier B
+    const result = moveBacklogItemPriority(userState, "a1", "down");
+    expect(result).toBe(false);
+  });
+
+  it("refuses to move across tier boundary (B → A)", () => {
+    const userState = createEmptyUserState();
+    seedItems(userState, [
+      { id: "a1", tier: "A", day: 1 },
+      { id: "b1", tier: "B", day: 2 },
+    ]);
+
+    // b1 is at position 1, moving up would cross into tier A
+    const result = moveBacklogItemPriority(userState, "b1", "up");
+    expect(result).toBe(false);
+  });
+
+  it("refuses to move the first item up", () => {
+    const userState = createEmptyUserState();
+    seedItems(userState, [
+      { id: "a1", tier: "A", day: 1 },
+      { id: "a2", tier: "A", day: 2 },
+    ]);
+
+    const result = moveBacklogItemPriority(userState, "a1", "up");
+    expect(result).toBe(false);
+  });
+
+  it("refuses to move the last item down", () => {
+    const userState = createEmptyUserState();
+    seedItems(userState, [
+      { id: "a1", tier: "A", day: 1 },
+      { id: "a2", tier: "A", day: 2 },
+    ]);
+
+    const result = moveBacklogItemPriority(userState, "a2", "down");
+    expect(result).toBe(false);
+  });
+
+  it("returns false for non-existent backlog id", () => {
+    const userState = createEmptyUserState();
+    seedItems(userState, [
+      { id: "a1", tier: "A", day: 1 },
+    ]);
+
+    const result = moveBacklogItemPriority(userState, "non-existent", "up");
+    expect(result).toBe(false);
+  });
+
+  it("ignores non-pending items (only pending are sortable)", () => {
+    const userState = createEmptyUserState();
+    seedItems(userState, [
+      { id: "a1", tier: "A", day: 1 },
+      { id: "a2", tier: "A", day: 2 },
+    ]);
+    userState.backlogItems["a1"]!.status = "dismissed";
+
+    // a2 is the only pending item — can't move up
+    const result = moveBacklogItemPriority(userState, "a2", "up");
+    expect(result).toBe(false);
+  });
+});
+
+describe("per-source-tag bulk dismiss", () => {
+  it("dismisses only manual_skip items when source_manual_skip scope is used", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+
+    moveBlockToBacklog(userState, 2, blockAKey, "manual_skip", "skipped", "User chose to skip.");
+    // Create traffic_light entries
+    applyTrafficLightToDay(userState, 2, "yellow", { allowRestore: true });
+
+    const before = Object.values(userState.backlogItems).filter((i) => i.status === "pending");
+    const manualSkipBefore = before.filter((i) => i.sourceTag === "manual_skip");
+    const trafficLightBefore = before.filter((i) => i.sourceTag === "traffic_light");
+    expect(manualSkipBefore.length).toBeGreaterThan(0);
+    expect(trafficLightBefore.length).toBeGreaterThan(0);
+
+    dismissBacklogScope(userState, "source_manual_skip");
+
+    const manualSkipAfter = Object.values(userState.backlogItems).filter((i) => i.sourceTag === "manual_skip");
+    expect(manualSkipAfter.every((i) => i.status === "dismissed")).toBe(true);
+    // traffic_light items are still pending
+    const trafficLightAfter = Object.values(userState.backlogItems).filter((i) => i.sourceTag === "traffic_light");
+    expect(trafficLightAfter.every((i) => i.status === "pending")).toBe(true);
+  });
+
+  it("dismisses only traffic_light items when source_traffic_light scope is used", () => {
+    const userState = createConfiguredUserState();
+
+    applyTrafficLightToDay(userState, 2, "yellow", { allowRestore: true });
+
+    const trafficLightBefore = Object.values(userState.backlogItems).filter((i) => i.sourceTag === "traffic_light" && i.status === "pending");
+    expect(trafficLightBefore.length).toBeGreaterThan(0);
+
+    dismissBacklogScope(userState, "source_traffic_light");
+
+    const trafficLightAfter = Object.values(userState.backlogItems).filter((i) => i.sourceTag === "traffic_light");
+    expect(trafficLightAfter.every((i) => i.status === "dismissed")).toBe(true);
+  });
+
+  it("dismisses only end_of_day_sweep items when source_end_of_day_sweep scope is used", () => {
+    const userState = createConfiguredUserState();
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    const sweepBefore = Object.values(userState.backlogItems).filter((i) => i.sourceTag === "end_of_day_sweep" && i.status === "pending");
+    expect(sweepBefore.length).toBeGreaterThan(0);
+
+    dismissBacklogScope(userState, "source_end_of_day_sweep");
+
+    const sweepAfter = Object.values(userState.backlogItems).filter((i) => i.sourceTag === "end_of_day_sweep");
+    expect(sweepAfter.every((i) => i.status === "dismissed")).toBe(true);
+  });
+
+  it("dismisses only block_overrun_2245 items when source_block_overrun_2245 scope is used", () => {
+    const userState = createConfiguredUserState();
+
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+
+    const overrunBefore = Object.values(userState.backlogItems).filter((i) => i.sourceTag === "block_overrun_2245" && i.status === "pending");
+    expect(overrunBefore.length).toBeGreaterThan(0);
+
+    dismissBacklogScope(userState, "source_block_overrun_2245");
+
+    const overrunAfter = Object.values(userState.backlogItems).filter((i) => i.sourceTag === "block_overrun_2245");
+    expect(overrunAfter.every((i) => i.status === "dismissed")).toBe(true);
+  });
+
+  it("all_pending scope dismisses everything pending", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+
+    moveBlockToBacklog(userState, 2, blockAKey, "manual_skip", "skipped", null);
+    applyTrafficLightToDay(userState, 2, "yellow", { allowRestore: true });
+
+    const pendingBefore = Object.values(userState.backlogItems).filter((i) => i.status === "pending");
+    expect(pendingBefore.length).toBeGreaterThan(0);
+
+    dismissBacklogScope(userState, "all_pending");
+
+    const pendingAfter = Object.values(userState.backlogItems).filter((i) => i.status === "pending");
+    expect(pendingAfter).toHaveLength(0);
+    expect(Object.values(userState.backlogItems).every((i) => i.status === "dismissed")).toBe(true);
   });
 });

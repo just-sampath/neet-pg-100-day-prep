@@ -13,26 +13,30 @@ import type {
   BlockKey,
   RuntimeReferenceData,
   ScheduledRecoveryItem,
+  SubjectTier,
   UserState,
 } from "@/lib/domain/types";
 import { diffDays, parseDateOnly, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
 const SOURCE_LABELS: Record<BacklogItem["sourceTag"], string> = {
-  missed: "Missed day",
-  skipped: "Manual skip",
-  yellow_day: "Yellow day",
-  red_day: "Red day",
-  overrun_cascade: "Overrun cascade",
-  manual_skip: "Manual skip",
-  manual_missed: "Manual miss",
-  traffic_light: "Traffic light",
+  missed: "Missed",
+  skipped: "Skipped",
+  yellow_day: "Day off",
+  red_day: "Day off",
+  overrun_cascade: "Overrun",
+  manual_skip: "Skipped",
+  manual_missed: "Missed",
+  traffic_light: "Day off",
+  end_of_day_sweep: "End of day",
+  block_overrun_2245: "Overrun",
 } as const;
 
 const STATUS_ORDER: Record<BacklogStatus, number> = {
   pending: 1,
   rescheduled: 2,
   completed: 3,
-  dismissed: 4,
+  phase_closed: 4,
+  dismissed: 5,
 };
 
 function getPendingItems(userState: UserState) {
@@ -47,6 +51,45 @@ function getPendingItems(userState: UserState) {
       }
       return left.id.localeCompare(right.id);
     });
+}
+
+const TIER_RANK: Record<SubjectTier, number> = { A: 1, B: 2, C: 3 };
+const NULL_TIER_RANK = 4;
+
+function tierRank(tier: SubjectTier | null): number {
+  return tier ? TIER_RANK[tier] : NULL_TIER_RANK;
+}
+
+export const TIER_LABELS: Record<SubjectTier, string> = {
+  A: "Tier A \u2014 Anchor Subjects",
+  B: "Tier B \u2014 Support Subjects",
+  C: "Tier C \u2014 Short Scorers",
+};
+
+/**
+ * Pure deterministic sort for the backlog queue.
+ * Sort criteria applied in strict sequence:
+ * 1. Subject tier: A < B < C < null
+ * 2. Original scheduled day (ascending)
+ * 3. Manual sort override (ascending, nulls last)
+ * 4. Created-at (ascending)
+ * 5. ID as final tiebreaker
+ */
+export function sortBacklogQueue(items: BacklogItem[]): BacklogItem[] {
+  return [...items].sort((left, right) => {
+    const tierDelta = tierRank(left.subjectTier) - tierRank(right.subjectTier);
+    if (tierDelta !== 0) return tierDelta;
+
+    if (left.originalDay !== right.originalDay) return left.originalDay - right.originalDay;
+
+    const leftOverride = left.manualSortOverride ?? Number.MAX_SAFE_INTEGER;
+    const rightOverride = right.manualSortOverride ?? Number.MAX_SAFE_INTEGER;
+    if (leftOverride !== rightOverride) return leftOverride - rightOverride;
+
+    if (left.createdAt !== right.createdAt) return left.createdAt.localeCompare(right.createdAt);
+
+    return left.id.localeCompare(right.id);
+  });
 }
 
 function getSlotKey(dayNumber: number, blockKey: BlockKey) {
@@ -283,13 +326,17 @@ export function getBacklogSourceLabel(sourceTag: BacklogItem["sourceTag"]) {
 }
 
 export function getBacklogSummary(userState: UserState): BacklogQueueSummary {
-  const pendingItems = Object.values(userState.backlogItems).filter((item) => item.status === "pending");
+  const allItems = Object.values(userState.backlogItems);
+  const pendingItems = allItems.filter((item) => item.status === "pending");
 
   return {
     totalPending: pendingItems.length,
     fromMissed: pendingItems.filter((item) => item.sourceTag === "missed" || item.sourceTag === "skipped" || item.sourceTag === "manual_skip" || item.sourceTag === "manual_missed").length,
     fromYellowRed: pendingItems.filter((item) => item.sourceTag === "yellow_day" || item.sourceTag === "red_day" || item.sourceTag === "traffic_light").length,
     fromOverrun: pendingItems.filter((item) => item.sourceTag === "overrun_cascade").length,
+    fromEndOfDay: pendingItems.filter((item) => item.sourceTag === "end_of_day_sweep").length,
+    fromOverrun2245: pendingItems.filter((item) => item.sourceTag === "block_overrun_2245").length,
+    phaseClosed: allItems.filter((item) => item.status === "phase_closed").length,
   };
 }
 
@@ -304,6 +351,7 @@ export function getBacklogStatusCounts(userState: UserState) {
       rescheduled: 0,
       completed: 0,
       dismissed: 0,
+      phase_closed: 0,
       all: Object.keys(userState.backlogItems).length,
     },
   );
@@ -352,13 +400,14 @@ export function getBacklogQueueItems(
   filter: BacklogViewFilter,
   sort: BacklogSortMode,
   referenceData?: RuntimeReferenceData,
+  todayDayNumber?: number,
 ): BacklogQueueViewItem[] {
   const allItems = Object.values(userState.backlogItems);
   const filtered = filter === "all" ? allItems : allItems.filter((item) => item.status === filter);
 
   return sortBacklogItems(filtered, todayDate, sort).map((item) => ({
     ...item,
-    daysInBacklog: getBacklogAgeDays(item.createdAt, todayDate),
+    daysInBacklog: todayDayNumber != null ? Math.max(0, todayDayNumber - item.originalDay) : getBacklogAgeDays(item.createdAt, todayDate),
     sourceLabel: getBacklogSourceLabel(item.sourceTag),
     originalMappedDate: getMappedDate(item.originalDay, userState),
     suggestionLabel:
@@ -471,24 +520,47 @@ export function isValidBacklogRescheduleTarget(
 }
 
 export function moveBacklogItemPriority(userState: UserState, backlogId: string, direction: BacklogMoveDirection) {
-  normalizeBacklogPriorityOrder(userState);
-  const pendingItems = getPendingItems(userState);
-  const index = pendingItems.findIndex((item) => item.id === backlogId);
+  const pending = Object.values(userState.backlogItems).filter((item) => item.status === "pending");
+  const sorted = sortBacklogQueue(pending);
+  const index = sorted.findIndex((item) => item.id === backlogId);
   if (index === -1) {
     return false;
   }
 
+  const current = sorted[index]!;
   const swapIndex = direction === "up" ? index - 1 : index + 1;
-  if (swapIndex < 0 || swapIndex >= pendingItems.length) {
+  if (swapIndex < 0 || swapIndex >= sorted.length) {
     return false;
   }
 
-  const current = pendingItems[index]!;
-  const target = pendingItems[swapIndex]!;
-  const currentPriority = current.priorityOrder;
-  current.priorityOrder = target.priorityOrder;
-  target.priorityOrder = currentPriority;
-  normalizeBacklogPriorityOrder(userState);
+  const adjacent = sorted[swapIndex]!;
+
+  // Tier boundary check: refuse if the adjacent item is in a different tier
+  if (tierRank(current.subjectTier) !== tierRank(adjacent.subjectTier)) {
+    return false;
+  }
+
+  // Assign sequential manualSortOverride values to all items in this tier
+  // so the swap is deterministic within the tier group
+  const currentTier = tierRank(current.subjectTier);
+  const tierItems = sorted.filter((item) => tierRank(item.subjectTier) === currentTier);
+  tierItems.forEach((item, i) => {
+    item.manualSortOverride = (i + 1) * 10;
+  });
+
+  // Now swap the two items within the tier
+  const tierIndex = tierItems.indexOf(current);
+  const tierSwapIndex = direction === "up" ? tierIndex - 1 : tierIndex + 1;
+  if (tierSwapIndex < 0 || tierSwapIndex >= tierItems.length) {
+    return false;
+  }
+
+  const tierCurrent = tierItems[tierIndex]!;
+  const tierAdjacent = tierItems[tierSwapIndex]!;
+  const tempOverride = tierCurrent.manualSortOverride!;
+  tierCurrent.manualSortOverride = tierAdjacent.manualSortOverride!;
+  tierAdjacent.manualSortOverride = tempOverride;
+
   return true;
 }
 
@@ -500,6 +572,14 @@ function getScopeFilter(scope: BacklogBulkScope) {
       return (item: BacklogItem) => item.status === "pending" && (item.sourceTag === "yellow_day" || item.sourceTag === "red_day" || item.sourceTag === "traffic_light");
     case "overrun":
       return (item: BacklogItem) => item.status === "pending" && item.sourceTag === "overrun_cascade";
+    case "source_manual_skip":
+      return (item: BacklogItem) => item.status === "pending" && item.sourceTag === "manual_skip";
+    case "source_traffic_light":
+      return (item: BacklogItem) => item.status === "pending" && item.sourceTag === "traffic_light";
+    case "source_end_of_day_sweep":
+      return (item: BacklogItem) => item.status === "pending" && item.sourceTag === "end_of_day_sweep";
+    case "source_block_overrun_2245":
+      return (item: BacklogItem) => item.status === "pending" && item.sourceTag === "block_overrun_2245";
     default:
       return (item: BacklogItem) => item.status === "pending";
   }

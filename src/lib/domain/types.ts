@@ -43,10 +43,18 @@ export type BacklogSourceTag =
   | "end_of_day_sweep"
   | "block_overrun_2245";
 
-export type BacklogStatus = "pending" | "rescheduled" | "completed" | "dismissed";
+export type BacklogStatus = "pending" | "rescheduled" | "completed" | "dismissed" | "phase_closed";
 export type BacklogViewFilter = BacklogStatus | "all";
 export type BacklogSortMode = "priority" | "oldest" | "newest" | "subject";
-export type BacklogBulkScope = "all_pending" | "missed_skipped" | "yellow_red" | "overrun";
+export type BacklogBulkScope =
+  | "all_pending"
+  | "missed_skipped"
+  | "yellow_red"
+  | "overrun"
+  | "source_manual_skip"
+  | "source_traffic_light"
+  | "source_end_of_day_sweep"
+  | "source_block_overrun_2245";
 export type BacklogMoveDirection = "up" | "down";
 
 export type QuoteCategory = "daily" | "tough_day" | "celebration";
@@ -344,6 +352,9 @@ export interface BacklogQueueSummary {
   fromMissed: number;
   fromYellowRed: number;
   fromOverrun: number;
+  fromEndOfDay: number;
+  fromOverrun2245: number;
+  phaseClosed: number;
 }
 
 export interface BacklogQueueViewItem extends BacklogItem {

@@ -34,6 +34,9 @@ function asBacklogSummary(value: unknown): BacklogQueueSummary {
       fromMissed: 0,
       fromYellowRed: 0,
       fromOverrun: 0,
+      fromEndOfDay: 0,
+      fromOverrun2245: 0,
+      phaseClosed: 0,
     };
   }
 
@@ -42,6 +45,9 @@ function asBacklogSummary(value: unknown): BacklogQueueSummary {
     fromMissed: asNumber((value as { fromMissed?: unknown }).fromMissed, 0),
     fromYellowRed: asNumber((value as { fromYellowRed?: unknown }).fromYellowRed, 0),
     fromOverrun: asNumber((value as { fromOverrun?: unknown }).fromOverrun, 0),
+    fromEndOfDay: asNumber((value as { fromEndOfDay?: unknown }).fromEndOfDay, 0),
+    fromOverrun2245: asNumber((value as { fromOverrun2245?: unknown }).fromOverrun2245, 0),
+    phaseClosed: asNumber((value as { phaseClosed?: unknown }).phaseClosed, 0),
   };
 }
 

@@ -6,10 +6,13 @@ import {
   getBacklogQueueItems,
   getBacklogStatusCounts,
   getBacklogSummary,
+  getBacklogSourceLabel,
   getNextBacklogPriorityOrder,
   getScheduledRecoveryForDay,
   refreshBacklogSuggestions,
   releaseAssignedRecoveryForTarget,
+  sortBacklogQueue,
+  TIER_LABELS,
 } from "@/lib/domain/backlog-queue";
 import { getTrafficLightBacklogSourceTag, previewOverrunCascade, resolvePhase, resolveSubjectTier, shouldCreateBacklogItem } from "@/lib/domain/backlog";
 import { MORNING_REVISION_SLOT_PLAN, NO_DUE_MORNING_REVISION_NOTE } from "@/lib/domain/constants";
@@ -70,6 +73,7 @@ import {
 import { findWeeklySummaryByWeekKey, getWeeklyScheduleStatus, WEEKLY_AUTOMATION_MINUTES } from "@/lib/domain/weekly";
 import type {
   AppSettings,
+  BacklogQueueViewItem,
   BacklogSourceTag,
   BacklogSortMode,
   BacklogViewFilter,
@@ -78,6 +82,7 @@ import type {
   GtLog,
   LocalStore,
   RevisionType,
+  SubjectTier,
   TopicProgress,
   TopicStatus,
   TrafficLight,
@@ -1581,6 +1586,12 @@ export function getRevisionQueuePageData(store: LocalStore, userId: string) {
   };
 }
 
+export interface BacklogTierGroup {
+  tier: SubjectTier;
+  tierLabel: string;
+  items: BacklogQueueViewItem[];
+}
+
 export function getBacklogPageData(
   store: LocalStore,
   userId: string,
@@ -1596,12 +1607,78 @@ export function getBacklogPageData(
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const todayDayNumber = getCurrentDayNumber(userState, todayDate);
 
+  // Build tier-grouped pending items using the queue sort order
+  const pendingItems = Object.values(userState.backlogItems).filter((item) => item.status === "pending");
+  const sorted = sortBacklogQueue(pendingItems);
+  const tierOrder: SubjectTier[] = ["A", "B", "C"];
+  const tierGroups: BacklogTierGroup[] = tierOrder
+    .map((tier) => ({
+      tier,
+      tierLabel: TIER_LABELS[tier],
+      items: sorted
+        .filter((item) => item.subjectTier === tier)
+        .map((item) => ({
+          ...item,
+          daysInBacklog: Math.max(0, todayDayNumber - item.originalDay),
+          sourceLabel: getBacklogSourceLabel(item.sourceTag),
+          originalMappedDate: getMappedDate(item.originalDay, userState),
+          suggestionLabel:
+            item.suggestedDay && item.suggestedBlockKey
+              ? `Day ${item.suggestedDay} \u00b7 ${item.suggestedBlockKey}`
+              : null,
+          rescheduledLabel:
+            item.rescheduledToDay && item.rescheduledToBlockKey
+              ? `Day ${item.rescheduledToDay} \u00b7 ${item.rescheduledToBlockKey}`
+              : null,
+        })),
+    }))
+    .filter((group) => group.items.length > 0);
+
+  // Dismissed items for the toggle section
+  const dismissedItems = Object.values(userState.backlogItems)
+    .filter((item) => item.status === "dismissed")
+    .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt))
+    .map((item) => ({
+      ...item,
+      daysInBacklog: Math.max(0, todayDayNumber - item.originalDay),
+      sourceLabel: getBacklogSourceLabel(item.sourceTag),
+      originalMappedDate: getMappedDate(item.originalDay, userState),
+      suggestionLabel: null as string | null,
+      rescheduledLabel: null as string | null,
+    }));
+
+  // Phase-closed items
+  const phaseClosedItems = Object.values(userState.backlogItems)
+    .filter((item) => item.status === "phase_closed")
+    .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt))
+    .map((item) => ({
+      ...item,
+      daysInBacklog: Math.max(0, todayDayNumber - item.originalDay),
+      sourceLabel: getBacklogSourceLabel(item.sourceTag),
+      originalMappedDate: getMappedDate(item.originalDay, userState),
+      suggestionLabel: null as string | null,
+      rescheduledLabel: null as string | null,
+    }));
+
+  // Per-source-tag counts for bulk dismiss labels
+  const bulkDismissCounts = {
+    source_manual_skip: pendingItems.filter((i) => i.sourceTag === "manual_skip").length,
+    source_traffic_light: pendingItems.filter((i) => i.sourceTag === "traffic_light").length,
+    source_end_of_day_sweep: pendingItems.filter((i) => i.sourceTag === "end_of_day_sweep").length,
+    source_block_overrun_2245: pendingItems.filter((i) => i.sourceTag === "block_overrun_2245").length,
+    all_pending: pendingItems.length,
+  };
+
   return {
     todayDate,
     todayDayNumber,
     summary: getBacklogSummary(userState),
     counts: getBacklogStatusCounts(userState),
-    items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort, store.referenceData),
+    items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort, store.referenceData, todayDayNumber),
+    tierGroups,
+    dismissedItems,
+    phaseClosedItems,
+    bulkDismissCounts,
     revision: buildRevisionOverview(userState, userState.settings, todayDate, store.referenceData),
   };
 }
