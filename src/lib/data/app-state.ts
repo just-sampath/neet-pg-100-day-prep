@@ -786,7 +786,7 @@ export function moveVisibleBlocksToBacklog(
   }
 }
 
-export function runLateNightSweep(
+export function runBlockOverrunCutoff(
   userState: UserState,
   settings: AppSettings,
   todayDate: string,
@@ -801,12 +801,126 @@ export function runLateNightSweep(
     return;
   }
 
+  const day = getScheduleDay(todayDayNumber, userState, referenceData);
+  if (!day) {
+    return;
+  }
+
   const trafficLight = getDayState(userState, todayDayNumber).trafficLight;
-  moveVisibleBlocksToBacklog(userState, todayDayNumber, trafficLight, {
-    note: "Moved to recovery by wind-down prompt.",
-  }, referenceData);
+  const visibleBlocks = new Set(getVisibleBlockKeys(trafficLight, day));
+
+  for (const block of day.blocks) {
+    const blockKey = block.timeSlotKey as BlockKey;
+    if (!visibleBlocks.has(blockKey)) {
+      continue;
+    }
+
+    if (block.semanticBlockKey === "morning_revision") {
+      const mappedDate = getMappedDate(todayDayNumber, userState);
+      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
+      if (revisionPlan && revisionPlan.morningSessionPlanned > 0) {
+        for (const item of block.items) {
+          const progress = getTopicProgress(userState, item, todayDayNumber, blockKey);
+          if (progress.status === "pending") {
+            markTopicForRecovery(userState, todayDayNumber, blockKey, item.itemId, "block_overrun_2245", "missed", null, referenceData);
+          }
+        }
+      }
+      continue;
+    }
+
+    if (!shouldCreateBacklogItem(todayDayNumber, blockKey, "block_overrun_2245", referenceData)) {
+      continue;
+    }
+
+    releaseAssignedRecoveryForTarget(userState, todayDayNumber, blockKey);
+
+    for (const item of block.items) {
+      const progress = getTopicProgress(userState, item, todayDayNumber, blockKey);
+      if (progress.status !== "pending") {
+        continue;
+      }
+      markTopicForRecovery(userState, todayDayNumber, blockKey, item.itemId, "block_overrun_2245", "missed", null, referenceData);
+      upsertBacklogItem(userState, todayDayNumber, blockKey, item.itemId, "block_overrun_2245", referenceData);
+    }
+  }
 
   userState.processedDates.lateNightSweepDates.push(todayDate);
+}
+
+export function runEndOfDaySweep(
+  userState: UserState,
+  settings: AppSettings,
+  todayDate: string,
+  todayDayNumber: number,
+  nowMinutes: number,
+  referenceData?: LocalStore["referenceData"],
+) {
+  if (!settings.dayOneDate || todayDayNumber < 1 || todayDayNumber > 105 || nowMinutes < 23 * 60 + 15) {
+    return;
+  }
+  if (userState.processedDates.endOfDaySweepDates.includes(todayDate)) {
+    return;
+  }
+
+  const day = getScheduleDay(todayDayNumber, userState, referenceData);
+  if (!day) {
+    return;
+  }
+
+  const trafficLight = getDayState(userState, todayDayNumber).trafficLight;
+  const visibleBlocks = new Set(getVisibleBlockKeys(trafficLight, day));
+
+  for (const block of day.blocks) {
+    const blockKey = block.timeSlotKey as BlockKey;
+    if (!visibleBlocks.has(blockKey)) {
+      continue;
+    }
+
+    if (block.semanticBlockKey === "morning_revision") {
+      const mappedDate = getMappedDate(todayDayNumber, userState);
+      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
+      if (revisionPlan && revisionPlan.morningSessionPlanned > 0) {
+        for (const item of block.items) {
+          const progress = getTopicProgress(userState, item, todayDayNumber, blockKey);
+          if (progress.status === "pending") {
+            markTopicForRecovery(userState, todayDayNumber, blockKey, item.itemId, "end_of_day_sweep", "missed", null, referenceData);
+          }
+        }
+      }
+      continue;
+    }
+
+    if (!shouldCreateBacklogItem(todayDayNumber, blockKey, "end_of_day_sweep", referenceData)) {
+      continue;
+    }
+
+    releaseAssignedRecoveryForTarget(userState, todayDayNumber, blockKey);
+
+    for (const item of block.items) {
+      const progress = getTopicProgress(userState, item, todayDayNumber, blockKey);
+      if (progress.status !== "pending") {
+        continue;
+      }
+      markTopicForRecovery(userState, todayDayNumber, blockKey, item.itemId, "end_of_day_sweep", "missed", null, referenceData);
+      upsertBacklogItem(userState, todayDayNumber, blockKey, item.itemId, "end_of_day_sweep", referenceData);
+    }
+  }
+
+  userState.processedDates.endOfDaySweepDates.push(todayDate);
+}
+
+/** @deprecated Use runBlockOverrunCutoff + runEndOfDaySweep. Kept for backward compat with wrapUpDayAction / midnight rollover. */
+export function runLateNightSweep(
+  userState: UserState,
+  settings: AppSettings,
+  todayDate: string,
+  todayDayNumber: number,
+  nowMinutes: number,
+  referenceData?: LocalStore["referenceData"],
+) {
+  runBlockOverrunCutoff(userState, settings, todayDate, todayDayNumber, nowMinutes, referenceData);
+  runEndOfDaySweep(userState, settings, todayDate, todayDayNumber, nowMinutes, referenceData);
 }
 
 function buildOverrunSlots(userState: UserState, dayNumber: number, referenceData?: LocalStore["referenceData"]) {
@@ -1342,7 +1456,8 @@ export function applyAutomations(store: LocalStore, userId: string) {
   const todayDayNumber = getCurrentDayNumber(userState, todayDate);
   const minutes = getMinutesInTimeZone(now, IST_TIME_ZONE);
 
-  runLateNightSweep(userState, settings, todayDate, todayDayNumber, minutes, store.referenceData);
+  runBlockOverrunCutoff(userState, settings, todayDate, todayDayNumber, minutes, store.referenceData);
+  runEndOfDaySweep(userState, settings, todayDate, todayDayNumber, minutes, store.referenceData);
 
   if (getRuntimeMode() === "local") {
     runMidnightRollover(userState, settings, todayDate, todayDayNumber, store.referenceData);

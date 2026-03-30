@@ -24,7 +24,8 @@ import {
   getOrCreateProgress,
   moveBlockToBacklog,
   moveVisibleBlocksToBacklog,
-  runLateNightSweep,
+  runBlockOverrunCutoff,
+  runEndOfDaySweep,
   skipTopicItem,
   upsertWeeklySummary,
 } from "@/lib/data/app-state";
@@ -471,7 +472,8 @@ export async function runLateNightSweepAction() {
     const todayDayNumber = getCurrentDayNumber(userState, todayDate);
     const minutes = getMinutesInTimeZone(now, IST_TIME_ZONE);
 
-    runLateNightSweep(userState, userState.settings, todayDate, todayDayNumber, minutes, store.referenceData);
+    runBlockOverrunCutoff(userState, userState.settings, todayDate, todayDayNumber, minutes, store.referenceData);
+    runEndOfDaySweep(userState, userState.settings, todayDate, todayDayNumber, minutes, store.referenceData);
   });
   refresh();
 }

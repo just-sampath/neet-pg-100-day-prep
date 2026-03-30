@@ -68,6 +68,7 @@ function emptyProcessedDates(): UserState["processedDates"] {
     lateNightSweepDates: [],
     midnightDates: [],
     weeklySummaryDates: [],
+    endOfDaySweepDates: [],
   };
 }
 
@@ -277,6 +278,7 @@ function normalizeProcessedDates(value: unknown): UserState["processedDates"] {
     lateNightSweepDates: Array.isArray(candidate.lateNightSweepDates) ? candidate.lateNightSweepDates : [],
     midnightDates: Array.isArray(candidate.midnightDates) ? candidate.midnightDates : [],
     weeklySummaryDates: Array.isArray(candidate.weeklySummaryDates) ? candidate.weeklySummaryDates : [],
+    endOfDaySweepDates: Array.isArray(candidate.endOfDaySweepDates) ? candidate.endOfDaySweepDates : [],
   };
 }
 

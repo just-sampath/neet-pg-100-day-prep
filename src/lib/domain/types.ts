@@ -39,7 +39,9 @@ export type BacklogSourceTag =
   | "overrun_cascade"
   | "manual_skip"
   | "manual_missed"
-  | "traffic_light";
+  | "traffic_light"
+  | "end_of_day_sweep"
+  | "block_overrun_2245";
 
 export type BacklogStatus = "pending" | "rescheduled" | "completed" | "dismissed";
 export type BacklogViewFilter = BacklogStatus | "all";
@@ -499,6 +501,7 @@ export interface UserState {
     lateNightSweepDates: string[];
     midnightDates: string[];
     weeklySummaryDates: string[];
+    endOfDaySweepDates: string[];
   };
 }
 

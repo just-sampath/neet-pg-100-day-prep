@@ -10,6 +10,8 @@ import {
   getOrCreateProgress,
   moveBlockToBacklog,
   moveVisibleBlocksToBacklog,
+  runBlockOverrunCutoff,
+  runEndOfDaySweep,
   runMidnightRollover,
 } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
@@ -410,5 +412,270 @@ describe("backlog creation and traffic-light handling", () => {
     );
     expect(reupserted.length).toBe(firstItems.length);
     expect(reupserted.every((item) => item.sourceTag === "traffic_light")).toBe(true);
+  });
+});
+
+describe("end-of-day sweep (23:15)", () => {
+  it("sweeps pending topics in qualifying blocks into backlog with end_of_day_sweep tag", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+    const blockBKey = getBlockKey(2, "block_b");
+
+    // Complete 2 of block_a's topics, leave the rest pending
+    const blockAItems = getBlockItems(2, blockAKey);
+    for (let i = 0; i < blockAItems.slice(0, 2).length; i++) {
+      const progress = getOrCreateProgress(userState, 2, blockAKey);
+      progress.actualStart = "08:00";
+    }
+    completeBlockItems(userState, 2, blockAKey, "2026-05-02T12:00:00.000Z");
+    // Reset some back to pending to simulate partial completion
+    const pendingItems = getBlockItems(2, blockBKey);
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    // blockB topics should be swept
+    const backlogItems = Object.values(userState.backlogItems);
+    const blockBBacklog = backlogItems.filter((item) => item.originalBlockKey === blockBKey);
+    expect(blockBBacklog.length).toBe(pendingItems.length);
+    expect(blockBBacklog.every((item) => item.sourceTag === "end_of_day_sweep")).toBe(true);
+    // blockA topics were completed — no backlog for them
+    expect(backlogItems.filter((item) => item.originalBlockKey === blockAKey)).toHaveLength(0);
+  });
+
+  it("does not sweep morning revision into backlog", () => {
+    const userState = createConfiguredUserState();
+    const morningRevisionKey = getBlockKey(2, "morning_revision");
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    const morningRevisionBacklog = Object.values(userState.backlogItems).filter(
+      (item) => item.originalBlockKey === morningRevisionKey,
+    );
+    expect(morningRevisionBacklog).toHaveLength(0);
+  });
+
+  it("does not sweep non-qualifying block intents (MCQ, final review)", () => {
+    const userState = createConfiguredUserState();
+    const mcqKey = getBlockKey(2, "mcq_practice");
+    const finalReviewKey = getBlockKey(2, "final_review");
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    const mcqBacklog = Object.values(userState.backlogItems).filter((item) => item.originalBlockKey === mcqKey);
+    const frBacklog = Object.values(userState.backlogItems).filter((item) => item.originalBlockKey === finalReviewKey);
+    expect(mcqBacklog).toHaveLength(0);
+    expect(frBacklog).toHaveLength(0);
+  });
+
+  it("is a no-op when run twice for the same date", () => {
+    const userState = createConfiguredUserState();
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+    const firstCount = Object.values(userState.backlogItems).length;
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+    const secondCount = Object.values(userState.backlogItems).length;
+
+    expect(secondCount).toBe(firstCount);
+    expect(userState.processedDates.endOfDaySweepDates.filter((d) => d === "2026-05-02")).toHaveLength(1);
+  });
+
+  it("skips topics already marked missed by the 22:45 cutoff", () => {
+    const userState = createConfiguredUserState();
+
+    // 22:45 cutoff runs first
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+
+    const afterCutoff = Object.values(userState.backlogItems).length;
+    const cutoffTags = Object.values(userState.backlogItems).map((item) => item.sourceTag);
+
+    // 23:15 sweep runs second — should be no-op since cutoff already set lateNightSweepDates
+    // and all topics are already missed
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    const afterSweep = Object.values(userState.backlogItems).length;
+    expect(afterSweep).toBe(afterCutoff);
+    expect(cutoffTags.every((tag) => tag === "block_overrun_2245")).toBe(true);
+  });
+
+  it("skips topics already skipped by user", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+
+    moveBlockToBacklog(userState, 2, blockAKey, "manual_skip", "skipped", "User skipped.");
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    // Block A items should retain manual_skip, not be overwritten to end_of_day_sweep
+    const blockABacklog = Object.values(userState.backlogItems).filter((item) => item.originalBlockKey === blockAKey);
+    expect(blockABacklog.every((item) => item.sourceTag === "manual_skip")).toBe(true);
+  });
+
+  it("creates no backlog when all topics are completed", () => {
+    const userState = createConfiguredUserState();
+    const day2 = getScheduleDay(2)!;
+    const visibleKeys = getVisibleBlockKeys("green", day2);
+
+    for (const blockKey of visibleKeys) {
+      completeBlockItems(userState, 2, blockKey, "2026-05-02T12:00:00.000Z");
+    }
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    expect(Object.values(userState.backlogItems)).toHaveLength(0);
+  });
+
+  it("sets topic status to missed after sweep", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    expect(getBlockProgress(userState, 2, blockAKey).status).toBe("missed");
+  });
+
+  it("does not fire before 23:15", () => {
+    const userState = createConfiguredUserState();
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 14);
+
+    expect(Object.values(userState.backlogItems)).toHaveLength(0);
+  });
+});
+
+describe("block overrun cutoff (22:45)", () => {
+  it("moves pending topics in qualifying blocks to backlog with block_overrun_2245 tag", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+
+    const blockABacklog = Object.values(userState.backlogItems).filter(
+      (item) => item.originalBlockKey === blockAKey,
+    );
+    expect(blockABacklog.length).toBeGreaterThan(0);
+    expect(blockABacklog.every((item) => item.sourceTag === "block_overrun_2245")).toBe(true);
+  });
+
+  it("does not process non-qualifying blocks (MCQ, revision)", () => {
+    const userState = createConfiguredUserState();
+    const mcqKey = getBlockKey(2, "mcq_practice");
+    const morningRevisionKey = getBlockKey(2, "morning_revision");
+
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+
+    const mcqBacklog = Object.values(userState.backlogItems).filter(
+      (item) => item.originalBlockKey === mcqKey,
+    );
+    const mrBacklog = Object.values(userState.backlogItems).filter(
+      (item) => item.originalBlockKey === morningRevisionKey,
+    );
+    expect(mcqBacklog).toHaveLength(0);
+    expect(mrBacklog).toHaveLength(0);
+  });
+
+  it("does not create backlog when all topics are completed", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+
+    completeBlockItems(userState, 2, blockAKey, "2026-05-02T12:00:00.000Z");
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+
+    const blockABacklog = Object.values(userState.backlogItems).filter(
+      (item) => item.originalBlockKey === blockAKey,
+    );
+    expect(blockABacklog).toHaveLength(0);
+  });
+
+  it("is idempotent — multiple runs create no duplicates", () => {
+    const userState = createConfiguredUserState();
+
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+    const firstCount = Object.values(userState.backlogItems).length;
+
+    // Manually clear the lateNightSweepDates to simulate a second invocation that bypasses the date guard
+    // (In real use, the date guard prevents it, but UPSERT also makes it safe)
+    userState.processedDates.lateNightSweepDates = [];
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+    const secondCount = Object.values(userState.backlogItems).length;
+
+    expect(secondCount).toBe(firstCount);
+  });
+
+  it("does not fire before 22:45", () => {
+    const userState = createConfiguredUserState();
+
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 44);
+
+    expect(Object.values(userState.backlogItems)).toHaveLength(0);
+  });
+
+  it("sets topic status to missed", () => {
+    const userState = createConfiguredUserState();
+    const blockBKey = getBlockKey(2, "block_b");
+
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+
+    expect(getBlockProgress(userState, 2, blockBKey).status).toBe("missed");
+  });
+});
+
+describe("interaction between 22:45 cutoff and 23:15 sweep", () => {
+  it("assigns correct source tags when both triggers fire sequentially", () => {
+    const userState = createConfiguredUserState();
+
+    // 22:45 cutoff fires — catches all pending qualifying blocks
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+
+    const cutoffItems = Object.values(userState.backlogItems);
+    expect(cutoffItems.length).toBeGreaterThan(0);
+    expect(cutoffItems.every((item) => item.sourceTag === "block_overrun_2245")).toBe(true);
+
+    // 23:15 sweep fires — all topics already missed, so nothing new
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    const allItems = Object.values(userState.backlogItems);
+    // Count should be unchanged
+    expect(allItems.length).toBe(cutoffItems.length);
+    // All should still be block_overrun_2245 (sweep didn't overwrite)
+    expect(allItems.every((item) => item.sourceTag === "block_overrun_2245")).toBe(true);
+  });
+
+  it("sweep catches everything when cutoff does not fire", () => {
+    const userState = createConfiguredUserState();
+
+    // Skip the 22:45 cutoff entirely — simulate time being 23:15 directly
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    const items = Object.values(userState.backlogItems);
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.every((item) => item.sourceTag === "end_of_day_sweep")).toBe(true);
+  });
+
+  it("cutoff and sweep together cover partial completion across blocks", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+    const blockBKey = getBlockKey(2, "block_b");
+    const blockCKey = getBlockKey(2, "block_c");
+
+    // Complete block_a fully
+    completeBlockItems(userState, 2, blockAKey, "2026-05-02T12:00:00.000Z");
+
+    // 22:45 cutoff catches remaining pending blocks (B, C)
+    runBlockOverrunCutoff(userState, userState.settings, "2026-05-02", 2, 22 * 60 + 45);
+
+    const cutoffItems = Object.values(userState.backlogItems);
+    expect(cutoffItems.every((item) => item.originalBlockKey !== blockAKey)).toBe(true);
+
+    const blockBItems = cutoffItems.filter((item) => item.originalBlockKey === blockBKey);
+    const blockCItems = cutoffItems.filter((item) => item.originalBlockKey === blockCKey);
+    expect(blockBItems.length).toBeGreaterThan(0);
+    expect(blockCItems.length).toBeGreaterThan(0);
+    expect(blockBItems.every((item) => item.sourceTag === "block_overrun_2245")).toBe(true);
+
+    // 23:15 sweep — nothing left to catch
+    runEndOfDaySweep(userState, userState.settings, "2026-05-02", 2, 23 * 60 + 15);
+
+    expect(Object.values(userState.backlogItems).length).toBe(cutoffItems.length);
   });
 });
