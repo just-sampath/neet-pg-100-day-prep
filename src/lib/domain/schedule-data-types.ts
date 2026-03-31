@@ -73,6 +73,9 @@ export interface ScheduleDayBlockItem {
   revisionType?: ScheduleItemRevisionType | null;
   referenceLabel?: string | null;
   referenceDayNumber?: number | null;
+  isRecovery?: boolean;
+  originalDayNumber?: number | null;
+  originalBlockKey?: string | null;
 }
 
 export interface ScheduleDayBlock {

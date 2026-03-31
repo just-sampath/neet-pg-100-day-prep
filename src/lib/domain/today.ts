@@ -1,9 +1,10 @@
 import {
   getBlockProgress,
   getDisplayBlockDescription,
+  getTopicProgress,
   getVisibleBlockKeys,
 } from "@/lib/domain/schedule";
-import type { ScheduleDayPlan } from "@/lib/domain/schedule-data-types";
+import type { ScheduleDayPlan, ScheduleBlockIntent } from "@/lib/domain/schedule-data-types";
 import type {
   BlockKey,
   BlockProgress,
@@ -12,53 +13,54 @@ import type {
   TrafficLight,
   UserState,
 } from "@/lib/domain/types";
+import { getMinutesInTimeZone, IST_TIME_ZONE, timeValue } from "@/lib/utils/date";
 
 export type TodayTimelineEntry =
   | {
-      kind: "separator";
-      id: string;
-      slotKey: string;
-      label: string;
-      slotKind: Exclude<TimelineSlotKind, "study">;
-      start: string;
-      end: string;
-    }
+    kind: "separator";
+    id: string;
+    slotKey: string;
+    label: string;
+    slotKind: Exclude<TimelineSlotKind, "study">;
+    start: string;
+    end: string;
+  }
   | {
-      kind: "block";
-      id: string;
-      blockKey: BlockKey;
-      label: string;
-      start: string;
-      end: string;
-      mode: "visible" | "hidden";
-      progress: BlockProgress;
-      displayDescription: string;
-    };
+    kind: "block";
+    id: string;
+    blockKey: BlockKey;
+    label: string;
+    start: string;
+    end: string;
+    mode: "visible" | "hidden";
+    progress: BlockProgress;
+    displayDescription: string;
+  };
 
 export type WindDownState =
   | {
-      kind: "none";
-    }
+    kind: "none";
+  }
   | {
-      kind: "wrap_up";
-      label: "21:45 Check" | "22:00 Check";
-      message: string;
-    }
+    kind: "wrap_up";
+    label: "21:45 Check" | "22:00 Check";
+    message: string;
+  }
   | {
-      kind: "final_review";
-      label: "22:15 Check";
-      message: string;
-    }
+    kind: "final_review";
+    label: "22:15 Check";
+    message: string;
+  }
   | {
-      kind: "auto_move_due";
-      label: "22:45 Safety Net";
-      message: string;
-    }
+    kind: "auto_move_due";
+    label: "22:45 Safety Net";
+    message: string;
+  }
   | {
-      kind: "auto_move_done";
-      label: "22:45 Safety Net";
-      message: string;
-    };
+    kind: "auto_move_done";
+    label: "22:45 Safety Net";
+    message: string;
+  };
 
 export function buildTodayTimeline(
   day: ScheduleDayPlan,
@@ -180,4 +182,169 @@ export function getRevisionMinutesLabel(morningMinutesPerItem: number) {
 
 export function getBacklogIndicatorLabel(backlogCount: number) {
   return `${backlogCount} ${backlogCount === 1 ? "block" : "blocks"} in backlog`;
+}
+
+// ---------------------------------------------------------------------------
+// Early Finish Suggestion
+// ---------------------------------------------------------------------------
+
+const EARLY_FINISH_MIN_MINUTES = 10;
+
+const EARLY_FINISH_ELIGIBLE_INTENTS: ReadonlySet<ScheduleBlockIntent> = new Set([
+  "core_study",
+  "consolidation",
+]);
+
+export interface EarlyFinishSuggestion {
+  sourceItemId: string;
+  label: string;
+  subject: string;
+  plannedMinutes: number;
+  remainingMinutes: number;
+  sourceDayNumber: number;
+  sourceBlockKey: BlockKey;
+  isRecovery: boolean;
+  originalDayNumber: number | null;
+}
+
+export function getEarlyFinishSuggestion({
+  block,
+  blockKey,
+  blockEndTime,
+  effectiveNowIso,
+  todayDayNumber,
+  todayScheduleDay,
+  tomorrowScheduleDay,
+  userState,
+  referenceData,
+}: {
+  block: ScheduleDayPlan["blocks"][number];
+  blockKey: BlockKey;
+  blockEndTime: string;
+  effectiveNowIso: string;
+  todayDayNumber: number;
+  todayScheduleDay: ScheduleDayPlan;
+  tomorrowScheduleDay: ScheduleDayPlan | null;
+  userState: UserState;
+  referenceData?: RuntimeReferenceData;
+}): EarlyFinishSuggestion | null {
+  // Guard: only for theory study blocks
+  if (!EARLY_FINISH_ELIGIBLE_INTENTS.has(block.blockIntent)) {
+    return null;
+  }
+
+  // Guard: all items in the block must be completed
+  const allCompleted = block.items.length > 0 && block.items.every((item) => {
+    const progress = getTopicProgress(userState, item, todayDayNumber, blockKey);
+    return progress.status === "completed";
+  });
+  if (!allCompleted) {
+    return null;
+  }
+
+  // Calculate remaining time
+  const nowMinutes = getMinutesInTimeZone(effectiveNowIso, IST_TIME_ZONE);
+  const blockEndMinutes = timeValue(blockEndTime);
+
+  // Guard: block end time is in the past
+  if (blockEndMinutes <= nowMinutes) {
+    return null;
+  }
+
+  const remainingMinutes = blockEndMinutes - nowMinutes;
+
+  // Guard: not enough time
+  if (remainingMinutes < EARLY_FINISH_MIN_MINUTES) {
+    return null;
+  }
+
+  // Build candidate list: later blocks today + tomorrow's blocks
+  const candidates = collectEarlyFinishCandidates(
+    todayScheduleDay,
+    tomorrowScheduleDay,
+    blockKey,
+    userState,
+    referenceData,
+  );
+
+  // Find first fitting topic
+  for (const candidate of candidates) {
+    if (candidate.plannedMinutes <= remainingMinutes) {
+      return {
+        ...candidate,
+        remainingMinutes,
+      };
+    }
+  }
+
+  return null;
+}
+
+interface EarlyFinishCandidate {
+  sourceItemId: string;
+  label: string;
+  subject: string;
+  plannedMinutes: number;
+  sourceDayNumber: number;
+  sourceBlockKey: BlockKey;
+  isRecovery: boolean;
+  originalDayNumber: number | null;
+}
+
+function collectEarlyFinishCandidates(
+  todayScheduleDay: ScheduleDayPlan,
+  tomorrowScheduleDay: ScheduleDayPlan | null,
+  currentBlockKey: BlockKey,
+  userState: UserState,
+  referenceData?: RuntimeReferenceData,
+): EarlyFinishCandidate[] {
+  const candidates: EarlyFinishCandidate[] = [];
+
+  // Collect from today's later blocks
+  const currentBlockIndex = todayScheduleDay.blocks.findIndex(
+    (b) => b.timeSlotKey === currentBlockKey,
+  );
+  for (let i = currentBlockIndex + 1; i < todayScheduleDay.blocks.length; i++) {
+    const laterBlock = todayScheduleDay.blocks[i];
+    if (!laterBlock.trackable) continue;
+    if (!EARLY_FINISH_ELIGIBLE_INTENTS.has(laterBlock.blockIntent)) continue;
+    addPendingItems(candidates, laterBlock, todayScheduleDay.dayNumber, userState, referenceData);
+  }
+
+  // Collect from tomorrow's blocks
+  if (tomorrowScheduleDay) {
+    for (const tomorrowBlock of tomorrowScheduleDay.blocks) {
+      if (!tomorrowBlock.trackable) continue;
+      if (!EARLY_FINISH_ELIGIBLE_INTENTS.has(tomorrowBlock.blockIntent)) continue;
+      addPendingItems(candidates, tomorrowBlock, tomorrowScheduleDay.dayNumber, userState, referenceData);
+    }
+  }
+
+  return candidates;
+}
+
+function addPendingItems(
+  candidates: EarlyFinishCandidate[],
+  block: ScheduleDayPlan["blocks"][number],
+  dayNumber: number,
+  userState: UserState,
+  referenceData?: RuntimeReferenceData,
+): void {
+  const blockKey = block.timeSlotKey as BlockKey;
+  for (const item of block.items) {
+    const progress = getTopicProgress(userState, item, dayNumber, blockKey);
+    if (progress.status !== "pending") continue;
+    const subjectLabel =
+      item.subjectIds.length > 0 ? item.subjectIds[0] : "";
+    candidates.push({
+      sourceItemId: item.itemId,
+      label: item.label,
+      subject: subjectLabel,
+      plannedMinutes: item.plannedMinutes,
+      sourceDayNumber: dayNumber,
+      sourceBlockKey: blockKey,
+      isRecovery: item.isRecovery === true,
+      originalDayNumber: item.originalDayNumber ?? null,
+    });
+  }
 }

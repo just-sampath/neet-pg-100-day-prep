@@ -206,6 +206,9 @@ function buildRuntimeDayBlock(
       revisionType: entry.revisionType,
       referenceLabel: entry.referenceLabel,
       referenceDayNumber: entry.referenceDayNumber,
+      isRecovery: entry.isRecovery || undefined,
+      originalDayNumber: entry.isRecovery ? entry.originalDayNumber : undefined,
+      originalBlockKey: entry.isRecovery ? entry.originalBlockKey : undefined,
     }))
     : cloneTemplateItems(templateBlock?.items ?? []);
 

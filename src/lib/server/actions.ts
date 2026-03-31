@@ -24,6 +24,7 @@ import {
   getOrCreateProgress,
   moveBlockToBacklog,
   moveVisibleBlocksToBacklog,
+  pullTopicForward,
   runBlockOverrunCutoff,
   runEndOfDaySweep,
   runMidnightRepack,
@@ -671,6 +672,25 @@ export async function runRepackAction() {
   });
   refresh();
   return result;
+}
+
+export async function acceptEarlyFinishAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const sourceItemId = asString(formData.get("sourceItemId"));
+  const targetDayNumber = Number(asString(formData.get("targetDayNumber")));
+  const targetBlockKey = asString(formData.get("targetBlockKey")) as BlockKey;
+
+  if (!sourceItemId || !targetDayNumber || !targetBlockKey) {
+    return;
+  }
+
+  await mutateStore((store) => {
+    const userState = store.userState[user.id];
+    ensureUserScheduleSeeded(userState);
+    pullTopicForward(userState, sourceItemId, targetDayNumber, targetBlockKey);
+  });
+
+  refresh();
 }
 
 export async function setSimulatedNowAction(formData: FormData) {

@@ -561,6 +561,58 @@ export function skipTopicItem(
   }
 }
 
+/**
+ * Move a pending topic from its current block into a target block (early finish pull-forward).
+ * The topic is appended after the last existing item in the target block, and the
+ * source block's items are re-indexed to fill the gap.
+ */
+export function pullTopicForward(
+  userState: UserState,
+  sourceItemId: string,
+  targetDayNumber: number,
+  targetBlockKey: BlockKey,
+) {
+  const row = userState.schedule.topicAssignments[sourceItemId];
+  if (!row) {
+    throw new Error(`Missing topic assignment ${sourceItemId}`);
+  }
+
+  if (row.status !== "pending") {
+    return;
+  }
+
+  const sourceDayNumber = row.dayNumber;
+  const sourceBlockKey = row.blockKey as BlockKey;
+
+  // Find the max itemOrder in the target block to append after it
+  let maxOrder = -1;
+  for (const entry of Object.values(userState.schedule.topicAssignments)) {
+    if (entry.dayNumber === targetDayNumber && entry.blockKey === targetBlockKey) {
+      if (entry.itemOrder > maxOrder) {
+        maxOrder = entry.itemOrder;
+      }
+    }
+  }
+
+  // Move the topic to the target block
+  row.dayNumber = targetDayNumber;
+  row.blockKey = targetBlockKey;
+  row.itemOrder = maxOrder + 1;
+  row.updatedAt = new Date().toISOString();
+
+  // Re-index remaining items in the source block to fill the gap
+  const sourceItems = Object.values(userState.schedule.topicAssignments)
+    .filter((entry) => entry.dayNumber === sourceDayNumber && entry.blockKey === sourceBlockKey)
+    .sort((a, b) => a.itemOrder - b.itemOrder);
+
+  for (let i = 0; i < sourceItems.length; i++) {
+    sourceItems[i].itemOrder = i;
+    sourceItems[i].updatedAt = new Date().toISOString();
+  }
+
+  invalidateRuntimeScheduleIndex(userState);
+}
+
 export function upsertBacklogItem(
   userState: UserState,
   dayNumber: number,

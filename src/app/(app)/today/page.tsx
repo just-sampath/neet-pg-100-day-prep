@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { DevToolbar } from "@/components/app/dev-toolbar";
+import { EarlyFinishSuggestionCard } from "@/components/app/early-finish-suggestion";
 import { MorningPlanPanel } from "@/components/app/morning-plan-panel";
 import { ScheduleShiftPanel } from "@/components/app/schedule-shift-panel";
 import { TimeEditor } from "@/components/app/time-editor";
@@ -12,11 +13,13 @@ import type { BlockKey, BlockStatus, ScheduledRecoveryItem } from "@/lib/domain/
 import {
   buildTodayTimeline,
   getBacklogIndicatorLabel,
+  getEarlyFinishSuggestion,
 } from "@/lib/domain/today";
 import {
   getBlockProgress,
   getDisplayBlockDescription,
   getHiddenBlockKeys,
+  getScheduleDay,
   getTopicProgress,
   getVisibleBlockKeys,
 } from "@/lib/domain/schedule";
@@ -161,6 +164,7 @@ export default async function TodayPage() {
     map.set(item.targetBlockKey, entries);
     return map;
   }, new Map<BlockKey, ScheduledRecoveryItem[]>());
+  const tomorrowScheduleDay = getScheduleDay(data.todayDayNumber + 1, userState, referenceData) ?? null;
   const timelineEntries = buildTodayTimeline(todayScheduleDay, userState, todayState.trafficLight, referenceData);
   const morningBlock = todayScheduleDay.blocks.find((block) => block.semanticBlockKey === "morning_revision") ?? null;
   const timeEditorSlots = todayScheduleDay.blocks
@@ -291,6 +295,14 @@ export default async function TodayPage() {
                 </article>
               ))}
             </div>
+
+            {data.backlogCount > 0 ? (
+              <div className="mt-4">
+                <Link href="/backlog" className="status-badge" data-tone="neutral">
+                  {data.backlogCount} pending
+                </Link>
+              </div>
+            ) : null}
 
             {todayState.trafficLight === "red" ? (
               <div className="note-card mt-6 p-5">
@@ -440,8 +452,8 @@ export default async function TodayPage() {
             })) ?? [];
 
             if (entry.mode === "hidden") {
-            return (
-              <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
+              return (
+                <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <div className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
@@ -519,8 +531,11 @@ export default async function TodayPage() {
                           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                             <div className="min-w-0">
                               <div className="font-medium leading-7">{item.label}</div>
-                              <div className="mt-1 text-sm text-[var(--muted)]">
-                                ~{item.plannedMinutes} min · {item.progress.status === "completed" ? "Done" : item.progress.status === "skipped" ? "Skipped" : item.progress.status === "missed" ? "Missed" : item.progress.status === "rescheduled" ? "Recovery" : "Pending"}
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
+                                <span>~{item.plannedMinutes} min · {item.progress.status === "completed" ? "Done" : item.progress.status === "skipped" ? "Skipped" : item.progress.status === "missed" ? "Missed" : item.progress.status === "rescheduled" ? "Recovery" : "Pending"}</span>
+                                {item.isRecovery && item.originalDayNumber != null ? (
+                                  <span className="status-badge" data-tone="neutral">Recovery · Day {item.originalDayNumber}</span>
+                                ) : null}
                               </div>
                             </div>
                             {item.progress.status !== "completed" ? (
@@ -554,33 +569,26 @@ export default async function TodayPage() {
                       ))}
                     </div>
                   ) : null}
-                  {assignedRecovery.length ? (
-                    <div className="note-card mt-5 p-4">
-                      <div className="eyebrow">Recovery inside this block</div>
-                      <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
-                        These items are no longer floating in backlog. They now belong to this block&apos;s plan.
-                      </p>
-                      <div className="mt-4 grid gap-3">
-                        {assignedRecovery.map((item) => (
-                          <article key={item.id} className="rounded-2xl border border-[var(--border)] p-3">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="status-badge" data-tone="neutral">
-                                {item.subject}
-                              </span>
-                              <span className="status-badge" data-tone="neutral">
-                                from Day {item.sourceDay}
-                              </span>
-                            </div>
-                            <div className="mt-3 font-medium">{item.topicDescription}</div>
-                            <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
-                              {item.sourceMappedDate ? `${formatDateLabel(item.sourceMappedDate)} origin. ` : ""}
-                              {getRecoveryWaitLabel(item.daysInBacklog)}
-                            </p>
-                          </article>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
+                  {(() => {
+                    const earlyFinishSuggestion = block ? getEarlyFinishSuggestion({
+                      block,
+                      blockKey: entry.blockKey,
+                      blockEndTime: entry.end,
+                      effectiveNowIso: data.nowIso,
+                      todayDayNumber: todayScheduleDay.dayNumber,
+                      todayScheduleDay,
+                      tomorrowScheduleDay,
+                      userState,
+                      referenceData,
+                    }) : null;
+                    return earlyFinishSuggestion ? (
+                      <EarlyFinishSuggestionCard
+                        suggestion={earlyFinishSuggestion}
+                        targetDayNumber={todayScheduleDay.dayNumber}
+                        targetBlockKey={entry.blockKey}
+                      />
+                    ) : null;
+                  })()}
                   <div className="mt-5 flex flex-wrap gap-2">
                     <form action={updateBlockAction}>
                       <input type="hidden" name="dayNumber" value={todayScheduleDay.dayNumber} />
@@ -628,14 +636,14 @@ export default async function TodayPage() {
       ) : null}
 
       <WindDownPrompts
-      key={`${todayScheduleDay.dayNumber}:${data.nowIso}`}
-      nowIso={data.nowIso}
-      dayNumber={todayScheduleDay.dayNumber}
-      trafficLight={todayState.trafficLight}
-      incompleteVisibleBlocks={incompleteVisibleBlocks}
-      finalReviewBlockKey={finalReviewBlockKey}
-      lateNightSweepProcessed={data.lateNightSweepProcessed}
-    />
+        key={`${todayScheduleDay.dayNumber}:${data.nowIso}`}
+        nowIso={data.nowIso}
+        dayNumber={todayScheduleDay.dayNumber}
+        trafficLight={todayState.trafficLight}
+        incompleteVisibleBlocks={incompleteVisibleBlocks}
+        finalReviewBlockKey={finalReviewBlockKey}
+        lateNightSweepProcessed={data.lateNightSweepProcessed}
+      />
 
       {process.env.NODE_ENV !== "production" ? <DevToolbar simulatedNow={data.nowIso} /> : null}
     </div>
