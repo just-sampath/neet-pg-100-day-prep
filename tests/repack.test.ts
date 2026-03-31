@@ -19,10 +19,11 @@ import {
 } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import { getStaticReferenceData } from "@/lib/data/reference-data";
-import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
+import { applyScheduleMappingsFromSettings, buildExtensionDayRows, ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getScheduleDay } from "@/lib/domain/schedule";
 import { getCurrentDayNumber } from "@/lib/domain/schedule";
 import type { BlockKey, SubjectTier } from "@/lib/domain/types";
+import { addDaysToDateOnly } from "@/lib/utils/date";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -933,6 +934,95 @@ describe("runRepackAlgorithm with extensionContext", () => {
 // ---------------------------------------------------------------------------
 
 describe("runMidnightRepack extension integration", () => {
+    it("keeps inserted extension days from rendering workbook template topics after reload", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const now = "2026-07-03T00:00:00.000Z";
+        const insertionPoint = 63;
+
+        const newDays = {} as typeof userState.schedule.days;
+        for (const [key, day] of Object.entries(userState.schedule.days)) {
+            if (day.dayNumber > insertionPoint) {
+                day.dayNumber += 1;
+                day.mappedDate = addDaysToDateOnly(day.mappedDate, 1);
+                day.updatedAt = now;
+                newDays[String(day.dayNumber)] = day;
+            } else {
+                newDays[key] = day;
+            }
+        }
+        userState.schedule.days = newDays;
+
+        const newBlocks = {} as typeof userState.schedule.blocks;
+        for (const block of Object.values(userState.schedule.blocks)) {
+            if (block.dayNumber > insertionPoint) {
+                block.dayNumber += 1;
+                block.updatedAt = now;
+            }
+            newBlocks[`${block.dayNumber}:${block.blockKey}`] = block;
+        }
+        userState.schedule.blocks = newBlocks;
+
+        for (const topic of Object.values(userState.schedule.topicAssignments)) {
+            if (topic.dayNumber > insertionPoint) {
+                topic.dayNumber += 1;
+                topic.updatedAt = now;
+            }
+
+            if (topic.originalDayNumber && topic.originalDayNumber > insertionPoint) {
+                topic.originalDayNumber += 1;
+            }
+        }
+
+        for (const phase of Object.values(userState.schedule.phaseConfig)) {
+            if (phase.currentStartDay > insertionPoint) {
+                phase.currentStartDay += 1;
+                phase.updatedAt = now;
+            }
+            if (phase.currentEndDay > insertionPoint) {
+                phase.currentEndDay += 1;
+                phase.updatedAt = now;
+            }
+        }
+
+        const extMappedDate = addDaysToDateOnly(userState.schedule.days[String(insertionPoint)]!.mappedDate, 1);
+        const { dayRow, blockRows } = buildExtensionDayRows(
+            insertionPoint + 1,
+            "phase_1",
+            "phase_1",
+            "Phase 1",
+            extMappedDate,
+            now,
+        );
+
+        userState.schedule.days[String(insertionPoint + 1)] = dayRow;
+        for (const block of blockRows) {
+            userState.schedule.blocks[`${block.dayNumber}:${block.blockKey}`] = block;
+        }
+
+        userState.schedule.phaseConfig["1"]!.currentEndDay = insertionPoint + 1;
+        userState.schedule.phaseConfig["1"]!.extensionsUsed = 1;
+        userState.schedule.phaseConfig["1"]!.updatedAt = now;
+
+        // Simulate a fresh load from disk/network so mapping is recalculated on a new object.
+        userState.schedule = structuredClone(userState.schedule);
+        applyScheduleMappingsFromSettings(userState.schedule, userState.settings, now);
+
+        expect(userState.schedule.days["64"]!.isExtensionDay).toBe(true);
+
+        const extensionDay = getScheduleDay(64, userState, refData)!;
+        const studyBlocks = extensionDay.blocks.filter((block) =>
+            ["block_a", "block_b", "block_c"].includes(block.semanticBlockKey),
+        );
+
+        expect(studyBlocks).toHaveLength(3);
+        expect(studyBlocks.every((block) => block.items.length === 0)).toBe(true);
+        expect(
+            extensionDay.blocks.flatMap((block) => block.items.map((item) => item.label)),
+        ).not.toContain("Pathology: General pathology");
+    });
+
     it("creates extension days and renumbers subsequent phases", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);

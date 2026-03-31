@@ -185,7 +185,7 @@ export function applyScheduleMappingsFromSettings(
     row.mappedDate = computeMappedDate(row.dayNumber, settings) ?? row.mappedDate;
     row.shiftHiddenReason = getShiftHiddenReason(row.dayNumber, settings);
     row.mergedPartnerDay = getMergedPartnerDay(row.dayNumber, settings);
-    row.isExtensionDay = row.dayNumber > 100;
+    row.isExtensionDay = row.isExtensionDay || row.dayNumber > 100;
     row.updatedAt = updatedAt;
   }
 }

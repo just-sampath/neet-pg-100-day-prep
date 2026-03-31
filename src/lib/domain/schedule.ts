@@ -285,7 +285,9 @@ function buildRuntimeScheduleDay(
     return null;
   }
 
-  const templateBlocks = getReferenceScheduleIndex(referenceData).dayByNumber.get(dayNumber)?.blocks ?? [];
+  const templateBlocks = dayRow.isExtensionDay
+    ? []
+    : getReferenceScheduleIndex(referenceData).dayByNumber.get(dayNumber)?.blocks ?? [];
   const runtimeBlockRows = runtimeIndex.blockRowsByDay.get(dayNumber) ?? [];
   const runtimeBlockRowsByKey = new Map(runtimeBlockRows.map((entry) => [entry.blockKey, entry] as const));
   const blocks = templateBlocks.map((templateBlock) =>
