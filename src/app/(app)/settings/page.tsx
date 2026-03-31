@@ -58,7 +58,7 @@ export default async function SettingsPage() {
         </div>
         <div className="metric-slab">
           <div className="metric-label">Hard Boundary</div>
-          <div className="metric-value text-2xl">August 20, 2026</div>
+          <div className="metric-value text-2xl">August 28, 2026</div>
           <p className="mt-2 text-sm text-(--text-secondary)">{HARD_BOUNDARY_DATE}</p>
         </div>
         <div className="metric-slab">

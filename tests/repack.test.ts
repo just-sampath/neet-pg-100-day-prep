@@ -336,8 +336,8 @@ describe("runRepackAlgorithm", () => {
         // Only one fits — b1 is placed (backlog-first for same tier), f1 overflows as topic
         expect(result.stats.placed).toBe(1);
         expect(result.placements[0]!.sourceItemId).toBe("b1");
-        expect(result.overflowTopicSourceItemIds).toEqual(["f1"]);
-        expect(result.overflowBacklogSourceItemIds).toEqual([]);
+        expect(result.phaseClosedTopicSourceItemIds).toEqual(["f1"]);
+        expect(result.phaseClosedBacklogSourceItemIds).toEqual([]);
     });
 
     it("handles scenario with only backlog overflow", () => {
@@ -349,13 +349,13 @@ describe("runRepackAlgorithm", () => {
         const result = runRepackAlgorithm(backlog, [], [makeCapacity(5, "08:00-11:00" as BlockKey, 90, 1)], []);
 
         expect(result.stats.placed).toBe(1);
-        expect(result.overflowBacklogSourceItemIds).toEqual(["b2"]);
-        expect(result.overflowTopicSourceItemIds).toEqual([]);
+        expect(result.phaseClosedBacklogSourceItemIds).toEqual(["b2"]);
+        expect(result.phaseClosedTopicSourceItemIds).toEqual([]);
     });
 
     it("returns empty output when all inputs are empty", () => {
         const result = runRepackAlgorithm([], [], [], []);
-        expect(result.stats).toEqual({ placed: 0, overflowBacklog: 0, overflowTopics: 0 });
+        expect(result.stats).toEqual({ placed: 0, extensionDaysCreated: 0, phaseClosed: 0 });
         expect(result.placements).toEqual([]);
     });
 });
@@ -433,14 +433,15 @@ describe("runMidnightRepack integration", () => {
         expect(rescheduled.length).toBeGreaterThan(0);
     });
 
-    it("marks overflow topic assignments as missed with repack_overflow source tag", () => {
+    it("marks phase_closed topic assignments as missed with phase_closed source tag", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
 
         // Sabotage: reduce all block capacities to near-zero for phase 1 to force overflow
-        // First find the phase end day
+        // Also exhaust extension budget so items become phase_closed
         const phase1Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 1)!;
         const phaseEndDay = phase1Config.currentEndDay;
+        phase1Config.extensionsUsed = phase1Config.extensionBudget; // exhaust budget
 
         // Set day one date so that day 60 maps to a specific date
         const todayDate = "2026-06-29"; // day 60 maps to this date when dayOneDate = 2026-05-01
@@ -455,20 +456,20 @@ describe("runMidnightRepack integration", () => {
 
         const result = runMidnightRepack(userState, userState.settings, todayDate, calculatedDayNumber, refData);
 
-        // With severely limited capacity, we expect overflow
-        if (result.overflowTopics > 0) {
-            // Find overflow topic assignments
-            const overflowTopics = Object.values(userState.schedule.topicAssignments).filter(
-                (ta) => ta.sourceTag === "repack_overflow" && ta.status === "missed",
+        // With severely limited capacity and no extension budget, we expect phase_closed
+        if (result.phaseClosed > 0) {
+            // Find phase_closed topic assignments
+            const closedTopics = Object.values(userState.schedule.topicAssignments).filter(
+                (ta) => ta.sourceTag === "phase_closed" && ta.status === "missed",
             );
-            expect(overflowTopics.length).toBeGreaterThan(0);
+            expect(closedTopics.length).toBeGreaterThan(0);
 
-            // Backlog entries should exist for overflow topics
-            for (const ot of overflowTopics) {
-                const backlogEntry = userState.backlogItems[ot.sourceItemId];
+            // Backlog entries should exist for phase_closed topics
+            for (const ct of closedTopics) {
+                const backlogEntry = userState.backlogItems[ct.sourceItemId];
                 expect(backlogEntry).toBeDefined();
-                expect(backlogEntry!.sourceTag).toBe("repack_overflow");
-                expect(backlogEntry!.status).toBe("pending");
+                expect(backlogEntry!.sourceTag).toBe("phase_closed");
+                expect(backlogEntry!.status).toBe("phase_closed");
             }
         }
     });
@@ -635,11 +636,16 @@ describe("repack edge cases", () => {
         const todayDate = "2026-05-01";
         const todayDayNumber = getCurrentDayNumber(userState, todayDate);
 
-        // Should run without error — no capacity means everything overflows
+        // Exhaust extension budget so that overflow becomes phase_closed
+        for (const phase of Object.values(userState.schedule.phaseConfig)) {
+            phase.extensionsUsed = phase.extensionBudget;
+        }
+
+        // Should run without error — no capacity means everything overflows to phase_closed
         const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
         expect(result.skipped).toBe(false);
-        // With no blocks, all topics overflow
-        expect(result.overflowTopics + result.overflowBacklog).toBeGreaterThanOrEqual(result.placed);
+        // With no blocks and no extension budget, all topics become phase_closed
+        expect(result.phaseClosed).toBeGreaterThanOrEqual(result.placed);
     });
 
     it("records repack date in processedDates for idempotency tracking", () => {
@@ -734,6 +740,380 @@ describe("repack algorithm with multi-day capacity", () => {
         // Only one slot — backlog gets priority
         expect(result.stats.placed).toBe(1);
         expect(result.placements[0]!.sourceItemId).toBe("b1");
-        expect(result.overflowTopicSourceItemIds).toEqual(["f1"]);
+        expect(result.phaseClosedTopicSourceItemIds).toEqual(["f1"]);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Extension Loop — Pure Algorithm Tests
+// ---------------------------------------------------------------------------
+
+describe("runRepackAlgorithm with extensionContext", () => {
+    it("uses extension days to place items that overflow base capacity", () => {
+        const future: UnifiedQueueItem[] = [
+            makeQueueItem({ sourceItemId: "t1", plannedMinutes: 60, subjectTier: "A", dateKey: 5 }),
+            makeQueueItem({ sourceItemId: "t2", plannedMinutes: 60, subjectTier: "A", dateKey: 5 }),
+        ];
+        // Only 60 minutes of base capacity — t2 overflows
+        const raw: BlockCapacity[] = [
+            makeCapacity(5, "08:00-11:00" as BlockKey, 60, 1),
+        ];
+
+        const context: import("@/lib/domain/repack").ExtensionContext = {
+            remainingBudget: 2,
+            phaseEndDay: 5,
+            phaseEndMappedDate: "2026-06-30",
+            hardStopDate: "2026-08-28",
+            phaseNumber: 1,
+            extensionDayBlockCapacities: [
+                makeCapacity(0, "08:00-11:00" as BlockKey, 180, 3),
+                makeCapacity(0, "11:15-14:15" as BlockKey, 180, 5),
+            ],
+        };
+
+        const result = runRepackAlgorithm([], future, raw, [], context);
+
+        expect(result.stats.placed).toBe(2);
+        expect(result.extensionDaysUsed).toBe(1);
+        expect(result.stats.extensionDaysCreated).toBe(1);
+        expect(result.stats.phaseClosed).toBe(0);
+
+        // t1 placed in base day, t2 in extension day 6
+        expect(result.placements[0]).toMatchObject({ sourceItemId: "t1", dayNumber: 5 });
+        expect(result.placements[1]).toMatchObject({ sourceItemId: "t2", dayNumber: 6 });
+    });
+
+    it("respects extension budget limit", () => {
+        // 3 items, 1 per day capacity, budget of 1 extension day → 1 item phase_closed
+        const future: UnifiedQueueItem[] = [
+            makeQueueItem({ sourceItemId: "t1", plannedMinutes: 60, subjectTier: "A", dateKey: 5 }),
+            makeQueueItem({ sourceItemId: "t2", plannedMinutes: 60, subjectTier: "A", dateKey: 5 }),
+            makeQueueItem({ sourceItemId: "t3", plannedMinutes: 60, subjectTier: "B", dateKey: 5 }),
+        ];
+        const raw: BlockCapacity[] = [
+            makeCapacity(5, "08:00-11:00" as BlockKey, 60, 1),
+        ];
+
+        const context: import("@/lib/domain/repack").ExtensionContext = {
+            remainingBudget: 1,
+            phaseEndDay: 5,
+            phaseEndMappedDate: "2026-06-30",
+            hardStopDate: "2026-08-28",
+            phaseNumber: 1,
+            extensionDayBlockCapacities: [
+                makeCapacity(0, "08:00-11:00" as BlockKey, 60, 3),
+            ],
+        };
+
+        const result = runRepackAlgorithm([], future, raw, [], context);
+
+        expect(result.stats.placed).toBe(2); // t1 base + t2 extension
+        expect(result.extensionDaysUsed).toBe(1);
+        expect(result.stats.phaseClosed).toBe(1); // t3 can't fit
+        expect(result.phaseClosedTopicSourceItemIds).toEqual(["t3"]);
+    });
+
+    it("respects hard stop date", () => {
+        const future: UnifiedQueueItem[] = [
+            makeQueueItem({ sourceItemId: "t1", plannedMinutes: 60, subjectTier: "A", dateKey: 5 }),
+            makeQueueItem({ sourceItemId: "t2", plannedMinutes: 60, subjectTier: "A", dateKey: 5 }),
+        ];
+        const raw: BlockCapacity[] = [
+            makeCapacity(5, "08:00-11:00" as BlockKey, 60, 1),
+        ];
+
+        // Hard stop is tomorrow — only one extension day possible
+        const context: import("@/lib/domain/repack").ExtensionContext = {
+            remainingBudget: 5,
+            phaseEndDay: 5,
+            phaseEndMappedDate: "2026-08-27",
+            hardStopDate: "2026-08-28",
+            phaseNumber: 3,
+            extensionDayBlockCapacities: [
+                makeCapacity(0, "08:00-11:00" as BlockKey, 60, 3),
+            ],
+        };
+
+        const result = runRepackAlgorithm([], future, raw, [], context);
+
+        // t1 base, t2 extension on 2026-08-28 (on hard stop, allowed)
+        expect(result.stats.placed).toBe(2);
+        expect(result.extensionDaysUsed).toBe(1);
+    });
+
+    it("stops extending when mapped date exceeds hard stop", () => {
+        const future: UnifiedQueueItem[] = [
+            makeQueueItem({ sourceItemId: "t1", plannedMinutes: 60 }),
+            makeQueueItem({ sourceItemId: "t2", plannedMinutes: 60 }),
+            makeQueueItem({ sourceItemId: "t3", plannedMinutes: 60 }),
+        ];
+        const raw: BlockCapacity[] = [
+            makeCapacity(5, "08:00-11:00" as BlockKey, 60, 1),
+        ];
+
+        // Phase end is 2026-08-27, hard stop 2026-08-28 → only 1 extension day (2026-08-28)
+        const context: import("@/lib/domain/repack").ExtensionContext = {
+            remainingBudget: 10,
+            phaseEndDay: 5,
+            phaseEndMappedDate: "2026-08-27",
+            hardStopDate: "2026-08-28",
+            phaseNumber: 3,
+            extensionDayBlockCapacities: [
+                makeCapacity(0, "08:00-11:00" as BlockKey, 60, 3),
+            ],
+        };
+
+        const result = runRepackAlgorithm([], future, raw, [], context);
+
+        expect(result.stats.placed).toBe(2); // t1 base, t2 on 2026-08-28
+        expect(result.extensionDaysUsed).toBe(1);
+        expect(result.stats.phaseClosed).toBe(1); // t3 can't fit
+    });
+
+    it("does not create extension days when no overflow", () => {
+        const future: UnifiedQueueItem[] = [
+            makeQueueItem({ sourceItemId: "t1", plannedMinutes: 60, subjectTier: "A", dateKey: 5 }),
+        ];
+        const raw: BlockCapacity[] = [
+            makeCapacity(5, "08:00-11:00" as BlockKey, 180, 1),
+        ];
+
+        const context: import("@/lib/domain/repack").ExtensionContext = {
+            remainingBudget: 3,
+            phaseEndDay: 5,
+            phaseEndMappedDate: "2026-06-30",
+            hardStopDate: "2026-08-28",
+            phaseNumber: 1,
+            extensionDayBlockCapacities: [
+                makeCapacity(0, "08:00-11:00" as BlockKey, 180, 3),
+            ],
+        };
+
+        const result = runRepackAlgorithm([], future, raw, [], context);
+
+        expect(result.stats.placed).toBe(1);
+        expect(result.extensionDaysUsed).toBe(0);
+        expect(result.stats.extensionDaysCreated).toBe(0);
+        expect(result.stats.phaseClosed).toBe(0);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Integration: Extension + Renumber + Phase Closed
+// ---------------------------------------------------------------------------
+
+describe("runMidnightRepack extension integration", () => {
+    it("creates extension days and renumbers subsequent phases", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const phase1Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 1)!;
+        const phase2Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 2)!;
+        const originalPhase2Start = phase2Config.currentStartDay;
+        const originalPhase1End = phase1Config.currentEndDay;
+
+        // Pick a day near end of phase 1 to trigger repack
+        const todayDayNumber = originalPhase1End - 2;
+        const todayDate = "2026-07-01";
+        userState.settings.dayOneDate = "2026-05-01";
+
+        // Sabotage: shrink remaining blocks to force overflow into extension
+        for (const block of Object.values(userState.schedule.blocks)) {
+            if (block.dayNumber >= todayDayNumber && block.dayNumber <= originalPhase1End) {
+                block.durationMinutes = 1;
+            }
+        }
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(result.skipped).toBe(false);
+
+        if (result.extensionDaysCreated > 0) {
+            const extCount = result.extensionDaysCreated;
+
+            // Phase 1 end day should have increased
+            expect(phase1Config.currentEndDay).toBe(originalPhase1End + extCount);
+            expect(phase1Config.extensionsUsed).toBe(extCount);
+
+            // Phase 2 start day should have shifted
+            expect(phase2Config.currentStartDay).toBe(originalPhase2Start + extCount);
+
+            // Extension days should exist in the schedule
+            for (let i = 1; i <= extCount; i++) {
+                const extDay = userState.schedule.days[String(originalPhase1End + i)];
+                expect(extDay).toBeDefined();
+                expect(extDay!.isExtensionDay).toBe(true);
+            }
+        }
+    });
+
+    it("closes stale backlog items from prior phases", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        // Create a fake backlog item from phase 1
+        userState.backlogItems["stale-item"] = {
+            id: "stale-item",
+            sourceItemId: "stale-item",
+            originalDay: 5,
+            originalBlockKey: "08:00-11:00" as BlockKey,
+            originalStart: null,
+            originalEnd: null,
+            priorityOrder: 1,
+            topicDescription: "Stale topic",
+            subject: "Anatomy",
+            subjectIds: [],
+            subjectTier: "A",
+            plannedMinutes: 60,
+            sourceTag: "missed",
+            recoveryLane: "core_recovery",
+            phaseFence: "same_phase_only",
+            phase: 1,
+            manualSortOverride: null,
+            status: "pending",
+            suggestedDay: null,
+            suggestedBlockKey: null,
+            suggestedNote: null,
+            rescheduledToDay: null,
+            rescheduledToBlockKey: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            completedAt: null,
+            dismissedAt: null,
+        };
+
+        // Run repack from phase 2
+        const phase2Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 2)!;
+        const todayDayNumber = phase2Config.currentStartDay;
+        const todayDate = "2026-07-15";
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(result.skipped).toBe(false);
+        expect(result.phaseTransitionClosed).toBeGreaterThanOrEqual(1);
+
+        // The stale item should be phase_closed
+        expect(userState.backlogItems["stale-item"]!.status).toBe("phase_closed");
+    });
+
+    it("fully exhausts extension budget before marking phase_closed", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const phase1Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 1)!;
+        const originalBudget = phase1Config.extensionBudget;
+        const phaseEndDay = phase1Config.currentEndDay;
+
+        // Pick a day near end of phase with heavy sabotage
+        const todayDayNumber = phaseEndDay - 1;
+        const todayDate = "2026-07-02";
+
+        // Extreme sabotage: zero-out remaining capacity
+        for (const block of Object.values(userState.schedule.blocks)) {
+            if (block.dayNumber >= todayDayNumber && block.dayNumber <= phaseEndDay) {
+                block.durationMinutes = 0;
+            }
+        }
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(result.skipped).toBe(false);
+
+        // Should have used extension days (up to budget)
+        // Items remaining after extension become phase_closed
+        if (result.extensionDaysCreated > 0) {
+            expect(result.extensionDaysCreated).toBeLessThanOrEqual(originalBudget);
+        }
+    });
+
+    it("shifts mapped_dates forward on all days after the extension insertion point", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const phase1Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 1)!;
+        const phase2Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 2)!;
+        const phaseEndDay = phase1Config.currentEndDay;
+        const phase2StartDay = phase2Config.currentStartDay;
+
+        // Capture the original mapped_date of the first Phase 2 day (right after insertion point)
+        const firstPhase2DayBefore = userState.schedule.days[String(phase2StartDay)]!;
+        const originalMappedDate = firstPhase2DayBefore.mappedDate;
+
+        // Pick a day near end of phase 1 to trigger repack
+        const todayDayNumber = phaseEndDay - 2;
+        const todayDate = "2026-07-01";
+
+        // Sabotage: shrink remaining blocks to force overflow into extension
+        for (const block of Object.values(userState.schedule.blocks)) {
+            if (block.dayNumber >= todayDayNumber && block.dayNumber <= phaseEndDay) {
+                block.durationMinutes = 1;
+            }
+        }
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        if (result.extensionDaysCreated > 0) {
+            const extCount = result.extensionDaysCreated;
+
+            // The old first Phase 2 day is now at phase2StartDay + extCount
+            const shiftedPhase2Day = userState.schedule.days[String(phase2StartDay + extCount)]!;
+            expect(shiftedPhase2Day).toBeDefined();
+
+            // Its mapped_date must be shifted forward by extCount days
+            const expectedDate = new Date(originalMappedDate);
+            expectedDate.setDate(expectedDate.getDate() + extCount);
+            const expectedStr = expectedDate.toISOString().slice(0, 10);
+            expect(shiftedPhase2Day.mappedDate).toBe(expectedStr);
+
+            // originalMappedDate should be unchanged (it records the workbook origin)
+            expect(shiftedPhase2Day.originalMappedDate).toBe(firstPhase2DayBefore.originalMappedDate);
+        }
+    });
+
+    it("migrates legacy repack_overflow backlog items from prior phases to phase_closed", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        // Create a legacy repack_overflow item from Phase 1
+        userState.backlogItems["legacy-overflow"] = {
+            id: "legacy-overflow",
+            sourceItemId: "legacy-overflow",
+            originalDay: 10,
+            originalBlockKey: "08:00-11:00" as BlockKey,
+            originalStart: null,
+            originalEnd: null,
+            priorityOrder: 1,
+            topicDescription: "Legacy overflowed topic",
+            subject: "Anatomy",
+            subjectIds: [],
+            subjectTier: "B",
+            plannedMinutes: 60,
+            sourceTag: "repack_overflow",
+            recoveryLane: "core_recovery",
+            phaseFence: "same_phase_only",
+            phase: 1,
+            manualSortOverride: null,
+            status: "pending",
+            suggestedDay: null,
+            suggestedBlockKey: null,
+            suggestedNote: null,
+            rescheduledToDay: null,
+            rescheduledToBlockKey: null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            completedAt: null,
+            dismissedAt: null,
+        };
+
+        // Run repack from Phase 2 — the stale Phase 1 item should be closed
+        const phase2Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 2)!;
+        const todayDayNumber = phase2Config.currentStartDay;
+        const todayDate = "2026-07-15";
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(result.skipped).toBe(false);
+        expect(result.phaseTransitionClosed).toBeGreaterThanOrEqual(1);
+        expect(userState.backlogItems["legacy-overflow"]!.status).toBe("phase_closed");
     });
 });

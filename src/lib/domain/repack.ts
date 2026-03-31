@@ -66,15 +66,37 @@ export interface TopicPlacement {
 /** Full output of the repack algorithm. */
 export interface RepackOutput {
     placements: TopicPlacement[];
-    /** Backlog items that could not be placed (remain pending in backlog). */
-    overflowBacklogSourceItemIds: string[];
-    /** Original topic assignments that could not be placed (create new backlog). */
-    overflowTopicSourceItemIds: string[];
+    /** Backlog items that could not be placed and are terminally closed. */
+    phaseClosedBacklogSourceItemIds: string[];
+    /** Original topic assignments that could not be placed and are terminally closed. */
+    phaseClosedTopicSourceItemIds: string[];
+    /** Number of extension days consumed (0 if no extension needed). */
+    extensionDaysUsed: number;
     stats: {
         placed: number;
-        overflowBacklog: number;
-        overflowTopics: number;
+        extensionDaysCreated: number;
+        phaseClosed: number;
     };
+}
+
+/** Context needed for phase extension when overflow occurs. */
+export interface ExtensionContext {
+    /** How many more extension days the current phase is allowed. */
+    remainingBudget: number;
+    /** The current phase's last day_number (pre-extension). */
+    phaseEndDay: number;
+    /** The mapped_date of the phase's last original day. */
+    phaseEndMappedDate: string;
+    /** The absolute latest allowed mapped_date for any schedule day. */
+    hardStopDate: string;
+    /** Phase number (1, 2, or 3). */
+    phaseNumber: number;
+    /**
+     * Template block capacities for one extension day (Block A, B, C).
+     * dayNumber in these entries is a placeholder (0) — the algorithm
+     * replaces it with the actual extension day number during the loop.
+     */
+    extensionDayBlockCapacities: BlockCapacity[];
 }
 
 // ---------------------------------------------------------------------------
@@ -261,11 +283,29 @@ export function walkAndAssign(
 }
 
 // ---------------------------------------------------------------------------
+// Helpers — date arithmetic (pure, no side effects)
+// ---------------------------------------------------------------------------
+
+/**
+ * Add N calendar days to an ISO date string (YYYY-MM-DD).
+ * Lightweight pure version — only handles date-only strings.
+ */
+function addDaysIso(dateStr: string, n: number): string {
+    const [y, m, d] = dateStr.split("-").map(Number) as [number, number, number];
+    const dt = new Date(Date.UTC(y, m - 1, d + n));
+    const yy = dt.getUTCFullYear();
+    const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(dt.getUTCDate()).padStart(2, "0");
+    return `${yy}-${mm}-${dd}`;
+}
+
+// ---------------------------------------------------------------------------
 // Step 8: Orchestrator
 // ---------------------------------------------------------------------------
 
 /**
- * Run the full repack algorithm: merge → compute capacities → walk → classify overflow.
+ * Run the full repack algorithm: merge → compute capacities → walk →
+ * extension loop (if context provided) → classify phase_closed.
  *
  * Pure function. No side effects.
  */
@@ -274,30 +314,71 @@ export function runRepackAlgorithm(
     futureTopics: UnifiedQueueItem[],
     rawCapacities: BlockCapacity[],
     pinnedTopics: PinnedTopic[],
+    extensionContext?: ExtensionContext,
 ): RepackOutput {
     const unified = mergeUnifiedQueue(backlogQueue, futureTopics);
     const capacities = computeBlockCapacities(rawCapacities, pinnedTopics);
     const { placed, unplaced } = walkAndAssign(unified, capacities);
 
-    // Classify unplaced items
-    const overflowBacklogSourceItemIds: string[] = [];
-    const overflowTopicSourceItemIds: string[] = [];
-    for (const item of unplaced) {
+    const allPlaced = [...placed];
+    let remaining = unplaced;
+    let extensionDaysUsed = 0;
+
+    // --- Extension loop ---
+    if (remaining.length > 0 && extensionContext) {
+        let budgetLeft = extensionContext.remainingBudget;
+
+        while (remaining.length > 0 && budgetLeft > 0) {
+            // Compute the next extension day's mapped_date
+            const nextMappedDate = addDaysIso(
+                extensionContext.phaseEndMappedDate,
+                extensionDaysUsed + 1,
+            );
+
+            // Hard stop check: mapped_date must be on or before the hard stop
+            if (nextMappedDate > extensionContext.hardStopDate) {
+                break;
+            }
+
+            // The new extension day's number (post-renumber position)
+            const extDayNumber = extensionContext.phaseEndDay + extensionDaysUsed + 1;
+
+            // Build capacities for this extension day from the template
+            const extRawCapacities: BlockCapacity[] = extensionContext.extensionDayBlockCapacities.map(
+                (cap) => ({ ...cap, dayNumber: extDayNumber }),
+            );
+
+            // Walk the remaining items over the extension day's blocks
+            const extCapacities = computeBlockCapacities(extRawCapacities, []);
+            const extResult = walkAndAssign(remaining, extCapacities);
+
+            allPlaced.push(...extResult.placed);
+            remaining = extResult.unplaced;
+            extensionDaysUsed++;
+            budgetLeft--;
+        }
+    }
+
+    // --- Classify remaining unplaced items as phase_closed ---
+    const phaseClosedBacklogSourceItemIds: string[] = [];
+    const phaseClosedTopicSourceItemIds: string[] = [];
+    for (const item of remaining) {
         if (item.isFromBacklog) {
-            overflowBacklogSourceItemIds.push(item.sourceItemId);
+            phaseClosedBacklogSourceItemIds.push(item.sourceItemId);
         } else {
-            overflowTopicSourceItemIds.push(item.sourceItemId);
+            phaseClosedTopicSourceItemIds.push(item.sourceItemId);
         }
     }
 
     return {
-        placements: placed,
-        overflowBacklogSourceItemIds,
-        overflowTopicSourceItemIds,
+        placements: allPlaced,
+        phaseClosedBacklogSourceItemIds,
+        phaseClosedTopicSourceItemIds,
+        extensionDaysUsed,
         stats: {
-            placed: placed.length,
-            overflowBacklog: overflowBacklogSourceItemIds.length,
-            overflowTopics: overflowTopicSourceItemIds.length,
+            placed: allPlaced.length,
+            extensionDaysCreated: extensionDaysUsed,
+            phaseClosed: phaseClosedBacklogSourceItemIds.length + phaseClosedTopicSourceItemIds.length,
         },
     };
 }

@@ -42,7 +42,8 @@ export type BacklogSourceTag =
   | "traffic_light"
   | "end_of_day_sweep"
   | "block_overrun_2245"
-  | "repack_overflow";
+  | "repack_overflow"
+  | "phase_closed";
 
 export type BacklogStatus = "pending" | "rescheduled" | "completed" | "dismissed" | "phase_closed";
 export type BacklogViewFilter = BacklogStatus | "all";

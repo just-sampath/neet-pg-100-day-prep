@@ -2,7 +2,7 @@ import type { RevisionAssignedSlot, RevisionType } from "@/lib/domain/types";
 
 export const APP_NAME = "Beside You";
 export const EXAM_DATE = "2026-08-30";
-export const HARD_BOUNDARY_DATE = "2026-08-20";
+export const HARD_BOUNDARY_DATE = "2026-08-28";
 
 export const REVISION_INTERVALS: Record<RevisionType, number> = {
   "D+1": 1,

@@ -171,9 +171,9 @@ describe("schedule shift mechanism", () => {
     expect(getMappedDate(90, userState)).toBe(getMappedDate(93, originalSettings));
   });
 
-  it("flags previews that would push the schedule past the August 20 hard boundary", () => {
+  it("flags previews that would push the schedule past the hard boundary", () => {
     const userState = createConfiguredState();
-    userState.settings.dayOneDate = "2026-05-15";
+    userState.settings.dayOneDate = "2026-05-22";
 
     const preview = getShiftPreview(userState.settings, [38, 39]);
 

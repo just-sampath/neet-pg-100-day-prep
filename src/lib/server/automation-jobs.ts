@@ -150,6 +150,8 @@ export async function runMidnightCronJob(runAt = new Date()): Promise<JobResult>
         repackSkipped: repack.skipped,
         repackPlaced: repack.placed,
         repackOverflow: repack.overflowBacklog + repack.overflowTopics,
+        repackExtensionDays: repack.extensionDaysCreated,
+        repackPhaseClosed: repack.phaseClosed + repack.phaseTransitionClosed,
         repackBacklogRescheduled: repack.backlogRescheduled,
       });
     }

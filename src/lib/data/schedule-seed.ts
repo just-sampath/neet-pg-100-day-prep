@@ -301,3 +301,137 @@ export function getReferenceSeedRows() {
     phaseConfig: scheduleData.phaseConfig.phases,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Extension Day Builder
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a full extension day (ScheduleDayRow + all 12 ScheduleBlockRows).
+ *
+ * Extension days are structurally identical to regular study days — same
+ * blocks, same times, same traffic-light defaults. The only differences:
+ * - `isExtensionDay = true`
+ * - No workbook content (primary_focus_raw etc. are empty/null)
+ * - Topics are placed entirely by the repack engine
+ *
+ * Block attributes are cloned from Day 1 of the generated schedule to
+ * guarantee consistency with the slot catalog.
+ */
+export function buildExtensionDayRows(
+  dayNumber: number,
+  phaseId: string,
+  phaseGroup: "phase_1" | "phase_2" | "phase_3",
+  phaseName: string,
+  mappedDate: string,
+  seededAt = new Date().toISOString(),
+): { dayRow: ScheduleDayRow; blockRows: ScheduleBlockRow[] } {
+  const referenceDay = scheduleData.daywisePlan.days[0]!;
+
+  const dayRow: ScheduleDayRow = {
+    dayNumber,
+    phaseId,
+    phaseName,
+    phaseGroup,
+    primaryFocusRaw: "",
+    primaryFocusParts: [],
+    primaryFocusSubjectIds: [],
+    resourceRaw: "",
+    resourceParts: [],
+    deliverableRaw: "",
+    notesRaw: null,
+    sourceMinutes: null,
+    bufferMinutes: null,
+    plannedStudyMinutes: null,
+    totalStudyHours: null,
+    gtTestType: "No",
+    gtPlanRef: null,
+    mappedDate,
+    originalMappedDate: mappedDate,
+    trafficLight: "green",
+    trafficLightUpdatedAt: seededAt,
+    isExtensionDay: true,
+    shiftHiddenReason: null,
+    mergedPartnerDay: null,
+    createdAt: seededAt,
+    updatedAt: seededAt,
+  };
+
+  const blockRows: ScheduleBlockRow[] = [];
+
+  for (const refBlock of referenceDay.blocks) {
+    const slot = scheduleData.daywisePlan.slotCatalog.find(
+      (entry) => entry.timeSlotKey === refBlock.timeSlotKey,
+    );
+
+    blockRows.push({
+      dayNumber,
+      blockKey: refBlock.timeSlotKey,
+      slotOrder: slot?.order ?? 0,
+      startTime: slot?.start ?? refBlock.timeSlotKey.split("-")[0] ?? "",
+      endTime: slot?.end ?? refBlock.timeSlotKey.split("-")[1] ?? "",
+      durationMinutes: slot?.durationMinutes ?? 0,
+      timelineKind: slot?.timelineKind ?? "study",
+      displayLabel: refBlock.displayLabel,
+      semanticBlockKey: refBlock.semanticBlockKey,
+      blockIntent: refBlock.blockIntent,
+      trackable: refBlock.trackable,
+      rawText: "Extension day — topics placed by repack",
+      recoveryLane: refBlock.recoveryLane,
+      phaseFence: refBlock.phaseFence,
+      defaultRevisionEligible: refBlock.defaultRevisionEligible,
+      reschedulable: refBlock.reschedulable,
+      trafficLightGreen: refBlock.trafficLightPolicy.green,
+      trafficLightYellow: refBlock.trafficLightPolicy.yellow,
+      trafficLightRed: refBlock.trafficLightPolicy.red,
+      backlogWhenHidden: refBlock.trafficLightPolicy.backlogWhenHidden,
+      actualStart: null,
+      actualEnd: null,
+      timingNote: null,
+      timingUpdatedAt: null,
+      createdAt: seededAt,
+      updatedAt: seededAt,
+    });
+  }
+
+  return { dayRow, blockRows };
+}
+
+/**
+ * Returns the number of blocks (all slot types) that a reference day has.
+ * Derived from seed data, not hardcoded.
+ */
+export function getReferenceDayBlockCount(): number {
+  return scheduleData.daywisePlan.days[0]!.blocks.length;
+}
+
+/**
+ * Returns the block capacity template for a single extension day.
+ * Only core_study and consolidation blocks (Block A, B, C) are included
+ * since those are the only blocks the repack algorithm fills.
+ *
+ * dayNumber is set to 0 as a placeholder — the algorithm replaces it.
+ */
+export function getExtensionDayCapacityTemplate(): import("@/lib/domain/repack").BlockCapacity[] {
+  const referenceDay = scheduleData.daywisePlan.days[0]!;
+  const REPACK_INTENTS = new Set(["core_study", "consolidation"]);
+  const template: import("@/lib/domain/repack").BlockCapacity[] = [];
+
+  for (const refBlock of referenceDay.blocks) {
+    const slot = scheduleData.daywisePlan.slotCatalog.find(
+      (entry) => entry.timeSlotKey === refBlock.timeSlotKey,
+    );
+    if (!slot) continue;
+    if (!REPACK_INTENTS.has(refBlock.blockIntent)) continue;
+
+    template.push({
+      dayNumber: 0,
+      blockKey: refBlock.timeSlotKey as import("@/lib/domain/types").BlockKey,
+      durationMinutes: slot.durationMinutes,
+      slotOrder: slot.order,
+    });
+  }
+
+  template.sort((a, b) => a.slotOrder - b.slotOrder);
+  return template;
+}

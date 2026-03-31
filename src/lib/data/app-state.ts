@@ -15,8 +15,9 @@ import {
   TIER_LABELS,
 } from "@/lib/domain/backlog-queue";
 import { getTrafficLightBacklogSourceTag, previewOverrunCascade, resolvePhase, resolveSubjectTier, shouldCreateBacklogItem } from "@/lib/domain/backlog";
-import { MORNING_REVISION_SLOT_PLAN, NO_DUE_MORNING_REVISION_NOTE } from "@/lib/domain/constants";
+import { HARD_BOUNDARY_DATE, MORNING_REVISION_SLOT_PLAN, NO_DUE_MORNING_REVISION_NOTE } from "@/lib/domain/constants";
 import { runRepackAlgorithm } from "@/lib/domain/repack";
+import type { ExtensionContext } from "@/lib/domain/repack";
 import {
   buildGtComparisonSummary,
   buildGtDashboardSummary,
@@ -83,6 +84,8 @@ import type {
   GtLog,
   LocalStore,
   RevisionType,
+  ScheduleBlockRow,
+  ScheduleDayRow,
   SubjectTier,
   TopicProgress,
   TopicStatus,
@@ -100,7 +103,7 @@ import {
   toDateOnlyInTimeZone,
   weekBounds,
 } from "@/lib/utils/date";
-import { applyScheduleMappingsFromSettings, ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
+import { applyScheduleMappingsFromSettings, buildExtensionDayRows, ensureUserScheduleSeeded, getExtensionDayCapacityTemplate } from "@/lib/data/schedule-seed";
 
 function timingKey(dayNumber: number, blockKey: BlockKey) {
   return `${dayNumber}:${blockKey}`;
@@ -1465,6 +1468,9 @@ export interface RepackResult {
   overflowBacklog: number;
   overflowTopics: number;
   backlogRescheduled: number;
+  extensionDaysCreated: number;
+  phaseClosed: number;
+  phaseTransitionClosed: number;
 }
 
 /**
@@ -1648,17 +1654,17 @@ function applyRepackResult(
     }
   }
 
-  // --- Handle overflow original topics ---
-  for (const sourceItemId of output.overflowTopicSourceItemIds) {
+  // --- Handle phase_closed original topics ---
+  for (const sourceItemId of output.phaseClosedTopicSourceItemIds) {
     const row = schedule.topicAssignments[sourceItemId];
     if (!row) continue;
 
-    // Mark the topic as missed with repack_overflow tag
+    // Mark the topic as missed with phase_closed tag
     row.status = "missed";
-    row.sourceTag = "repack_overflow";
+    row.sourceTag = "phase_closed";
     row.updatedAt = now;
 
-    // Create or update a backlog item for this overflowed topic
+    // Create or update a backlog item with terminal phase_closed status
     const { subject: resolvedSubject, subjectTier } = resolveSubjectTier(row.subjectIds, referenceData);
     const phase = resolvePhaseFromConfig(row.dayNumber, userState);
 
@@ -1676,12 +1682,12 @@ function applyRepackResult(
       subjectIds: [...row.subjectIds],
       subjectTier,
       plannedMinutes: row.plannedMinutes,
-      sourceTag: "repack_overflow",
+      sourceTag: "phase_closed",
       recoveryLane: row.recoveryLane,
       phaseFence: row.phaseFence,
       phase,
       manualSortOverride: existing?.manualSortOverride ?? null,
-      status: "pending",
+      status: "phase_closed",
       suggestedDay: null,
       suggestedBlockKey: null,
       suggestedNote: null,
@@ -1694,7 +1700,15 @@ function applyRepackResult(
     };
   }
 
-  // Overflow backlog items: left as-is (status='pending')
+  // Phase-closed backlog items: mark terminal
+  for (const sourceItemId of output.phaseClosedBacklogSourceItemIds) {
+    const item = userState.backlogItems[sourceItemId];
+    if (item && item.status === "pending") {
+      item.status = "phase_closed";
+      item.sourceTag = "phase_closed";
+      item.updatedAt = now;
+    }
+  }
 
   return backlogRescheduled;
 }
@@ -1708,12 +1722,149 @@ function resolvePhaseFromConfig(dayNumber: number, userState: UserState): number
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Extension Day Capacity Template
+// ---------------------------------------------------------------------------
+
+// Provided by getExtensionDayCapacityTemplate() from schedule-seed.ts
+
+// ---------------------------------------------------------------------------
+// Renumber Cascade
+// ---------------------------------------------------------------------------
+
+/**
+ * Shift all days after `insertionPoint` forward by `count` positions.
+ *
+ * This maintains contiguous day_number sequences when extension days are
+ * inserted at the end of a phase. All references in days, blocks,
+ * topicAssignments, backlogItems, and downstream phases are updated.
+ * Mapped dates on shifted days are also pushed forward by `count` days
+ * so the schedule browser shows correct calendar dates.
+ *
+ * Operates in-place on userState for efficiency. Rebuilds the Record maps
+ * with new string keys so lookups remain correct.
+ */
+function applyRenumberCascade(
+  userState: UserState,
+  insertionPoint: number,
+  count: number,
+  now: string,
+): void {
+  if (count <= 0) return;
+
+  const schedule = userState.schedule;
+
+  // --- 1) Rebuild days: shift keys > insertionPoint forward by count ---
+  //     Also shift mapped_date forward by count calendar days.
+  const newDays: Record<string, ScheduleDayRow> = {};
+  for (const [key, day] of Object.entries(schedule.days)) {
+    if (day.dayNumber > insertionPoint) {
+      day.dayNumber += count;
+      day.mappedDate = addDaysToDateOnly(day.mappedDate, count);
+      day.updatedAt = now;
+      newDays[String(day.dayNumber)] = day;
+    } else {
+      newDays[key] = day;
+    }
+  }
+  schedule.days = newDays;
+
+  // --- 2) Rebuild blocks: shift dayNumber > insertionPoint ---
+  const newBlocks: Record<string, ScheduleBlockRow> = {};
+  for (const block of Object.values(schedule.blocks)) {
+    if (block.dayNumber > insertionPoint) {
+      block.dayNumber += count;
+      block.updatedAt = now;
+    }
+    newBlocks[`${block.dayNumber}:${block.blockKey}`] = block;
+  }
+  schedule.blocks = newBlocks;
+
+  // --- 3) Update topicAssignments: shift dayNumber > insertionPoint ---
+  for (const topic of Object.values(schedule.topicAssignments)) {
+    if (topic.dayNumber > insertionPoint) {
+      topic.dayNumber += count;
+      topic.updatedAt = now;
+    }
+    // Also shift originalDayNumber if it pointed past the insertion
+    if (topic.originalDayNumber && topic.originalDayNumber > insertionPoint) {
+      topic.originalDayNumber += count;
+    }
+  }
+
+  // --- 4) Update backlogItems: shift day references ---
+  for (const item of Object.values(userState.backlogItems)) {
+    if (item.originalDay > insertionPoint) {
+      item.originalDay += count;
+      item.updatedAt = now;
+    }
+    if (item.suggestedDay && item.suggestedDay > insertionPoint) {
+      item.suggestedDay += count;
+    }
+    if (item.rescheduledToDay && item.rescheduledToDay > insertionPoint) {
+      item.rescheduledToDay += count;
+    }
+  }
+
+  // --- 5) Update phaseConfig: shift start/end day boundaries ---
+  for (const phase of Object.values(schedule.phaseConfig)) {
+    if (phase.currentStartDay > insertionPoint) {
+      phase.currentStartDay += count;
+      phase.updatedAt = now;
+    }
+    if (phase.currentEndDay > insertionPoint) {
+      phase.currentEndDay += count;
+      phase.updatedAt = now;
+    }
+  }
+
+  invalidateRuntimeScheduleIndex(userState);
+}
+
+// ---------------------------------------------------------------------------
+// Phase Transition Backlog Cleanup
+// ---------------------------------------------------------------------------
+
+/**
+ * When a repack runs, close any pending backlog items that belong to a
+ * phase earlier than the current one. These items can never be placed
+ * because phase fencing prevents cross-phase movement.
+ *
+ * This also migrates legacy `repack_overflow` backlog items from prior
+ * Chunk 4 repacks — they'll be caught here and terminally closed.
+ */
+function closeStalePhaseBacklog(
+  userState: UserState,
+  currentPhaseNumber: number,
+  now: string,
+): number {
+  let closed = 0;
+  for (const item of Object.values(userState.backlogItems)) {
+    if (
+      item.status === "pending" &&
+      item.phase !== null &&
+      item.phase < currentPhaseNumber
+    ) {
+      item.status = "phase_closed";
+      item.sourceTag = "phase_closed";
+      item.updatedAt = now;
+      closed++;
+    }
+  }
+  return closed;
+}
+
 /**
  * Full midnight repack orchestrator.
  *
  * Idempotent: if the repack has already run for the given date, it's a no-op.
  * Run after midnight rollover (which creates backlog items) so the repack
  * can redistribute them.
+ *
+ * Phase extension: when the unified queue overflows the current phase, the
+ * engine adds full study days at the end of the phase (up to the phase's
+ * extension budget), renumbers all subsequent days to keep day_numbers
+ * contiguous, and marks truly unplaceable items as terminal phase_closed.
  */
 export function runMidnightRepack(
   userState: UserState,
@@ -1722,31 +1873,43 @@ export function runMidnightRepack(
   todayDayNumber: number,
   referenceData?: LocalStore["referenceData"],
 ): RepackResult {
+  const emptyResult = (reason: string): RepackResult => ({
+    skipped: true, reason, date: todayDate,
+    placed: 0, overflowBacklog: 0, overflowTopics: 0, backlogRescheduled: 0,
+    extensionDaysCreated: 0, phaseClosed: 0, phaseTransitionClosed: 0,
+  });
+
   // --- Guard: nothing to do if schedule hasn't started ---
   if (!settings.dayOneDate || todayDayNumber < 1) {
-    return { skipped: true, reason: "no_schedule", date: todayDate, placed: 0, overflowBacklog: 0, overflowTopics: 0, backlogRescheduled: 0 };
+    return emptyResult("no_schedule");
   }
 
   // --- Idempotency: already ran for this date? ---
   if (userState.processedDates.repackDates.includes(todayDate)) {
-    return { skipped: true, reason: "already_processed", date: todayDate, placed: 0, overflowBacklog: 0, overflowTopics: 0, backlogRescheduled: 0 };
+    return emptyResult("already_processed");
   }
 
   ensureUserScheduleSeeded(userState);
 
+  const now = new Date().toISOString();
+
   // --- Find current phase ---
-  let phaseEndDay: number | null = null;
+  let currentPhase: typeof userState.schedule.phaseConfig[string] | null = null;
   for (const phase of Object.values(userState.schedule.phaseConfig)) {
     if (todayDayNumber >= phase.currentStartDay && todayDayNumber <= phase.currentEndDay) {
-      phaseEndDay = phase.currentEndDay;
+      currentPhase = phase;
       break;
     }
   }
 
-  if (phaseEndDay === null) {
-    // Today is not within any phase — no repack needed
-    return { skipped: true, reason: "no_phase", date: todayDate, placed: 0, overflowBacklog: 0, overflowTopics: 0, backlogRescheduled: 0 };
+  if (!currentPhase) {
+    return emptyResult("no_phase");
   }
+
+  const phaseEndDay = currentPhase.currentEndDay;
+
+  // --- Close stale backlog from prior phases ---
+  const phaseTransitionClosed = closeStalePhaseBacklog(userState, currentPhase.phaseNumber, now);
 
   // --- Collect inputs ---
   const { pinnedTopics, pendingBacklog, futureTopics, rawCapacities } = collectRepackInputs(
@@ -1756,10 +1919,65 @@ export function runMidnightRepack(
     referenceData,
   );
 
-  // --- Run pure algorithm ---
-  const output = runRepackAlgorithm(pendingBacklog, futureTopics, rawCapacities, pinnedTopics);
+  // --- Build extension context ---
+  const remainingBudget = currentPhase.extensionBudget - currentPhase.extensionsUsed;
+  let extensionContext: ExtensionContext | undefined;
 
-  // --- Apply result ---
+  if (remainingBudget > 0) {
+    // Resolve the mapped_date of the current phase end day
+    const phaseEndDayRow = userState.schedule.days[String(phaseEndDay)];
+    const phaseEndMappedDate = phaseEndDayRow?.mappedDate ?? addDaysToDateOnly(settings.dayOneDate, phaseEndDay - 1);
+
+    extensionContext = {
+      remainingBudget,
+      phaseEndDay,
+      phaseEndMappedDate,
+      hardStopDate: HARD_BOUNDARY_DATE,
+      phaseNumber: currentPhase.phaseNumber,
+      extensionDayBlockCapacities: getExtensionDayCapacityTemplate(),
+    };
+  }
+
+  // --- Run pure algorithm ---
+  const output = runRepackAlgorithm(pendingBacklog, futureTopics, rawCapacities, pinnedTopics, extensionContext);
+
+  // --- If extension days were used, apply renumber cascade + insert extension days ---
+  if (output.extensionDaysUsed > 0) {
+    // 1) Renumber: shift everything after phaseEndDay forward
+    applyRenumberCascade(userState, phaseEndDay, output.extensionDaysUsed, now);
+
+    // 2) Insert extension day rows
+    const phaseEndDayRow = userState.schedule.days[String(phaseEndDay)];
+    const phaseEndMappedDate = phaseEndDayRow?.mappedDate ?? addDaysToDateOnly(settings.dayOneDate, phaseEndDay - 1);
+
+    for (let i = 1; i <= output.extensionDaysUsed; i++) {
+      const extDayNumber = phaseEndDay + i;
+      const extMappedDate = addDaysToDateOnly(phaseEndMappedDate, i);
+
+      const { dayRow, blockRows } = buildExtensionDayRows(
+        extDayNumber,
+        currentPhase.phaseId,
+        `phase_${currentPhase.phaseNumber}` as "phase_1" | "phase_2" | "phase_3",
+        `Phase ${currentPhase.phaseNumber}`,
+        extMappedDate,
+        now,
+      );
+
+      userState.schedule.days[String(extDayNumber)] = dayRow;
+      for (const block of blockRows) {
+        userState.schedule.blocks[`${extDayNumber}:${block.blockKey}`] = block;
+      }
+    }
+
+    // 3) Update phase config: extend end day and record usage
+    currentPhase.currentEndDay = phaseEndDay + output.extensionDaysUsed;
+    currentPhase.extensionsUsed += output.extensionDaysUsed;
+    currentPhase.updatedAt = now;
+
+    invalidateRuntimeScheduleIndex(userState);
+  }
+
+  // --- Apply placements + phase_closed ---
   const backlogRescheduled = applyRepackResult(userState, output, referenceData);
 
   // --- Record idempotency ---
@@ -1769,9 +1987,12 @@ export function runMidnightRepack(
     skipped: false,
     date: todayDate,
     placed: output.stats.placed,
-    overflowBacklog: output.stats.overflowBacklog,
-    overflowTopics: output.stats.overflowTopics,
+    overflowBacklog: 0,
+    overflowTopics: 0,
     backlogRescheduled,
+    extensionDaysCreated: output.stats.extensionDaysCreated,
+    phaseClosed: output.stats.phaseClosed,
+    phaseTransitionClosed,
   };
 }
 
