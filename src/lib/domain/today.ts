@@ -4,7 +4,7 @@ import {
   getTopicProgress,
   getVisibleBlockKeys,
 } from "@/lib/domain/schedule";
-import type { ScheduleDayPlan, ScheduleBlockIntent } from "@/lib/domain/schedule-data-types";
+import type { ScheduleDayPlan } from "@/lib/domain/schedule-data-types";
 import type {
   BlockKey,
   BlockProgress,
@@ -190,10 +190,8 @@ export function getBacklogIndicatorLabel(backlogCount: number) {
 
 const EARLY_FINISH_MIN_MINUTES = 10;
 
-const EARLY_FINISH_ELIGIBLE_INTENTS: ReadonlySet<ScheduleBlockIntent> = new Set([
-  "core_study",
-  "consolidation",
-]);
+/** Only Block A, Block B, and Block C may trigger or supply early-finish suggestions. */
+const EARLY_FINISH_ELIGIBLE_BLOCKS = new Set(["block_a", "block_b", "block_c"]);
 
 export interface EarlyFinishSuggestion {
   sourceItemId: string;
@@ -228,8 +226,8 @@ export function getEarlyFinishSuggestion({
   userState: UserState;
   referenceData?: RuntimeReferenceData;
 }): EarlyFinishSuggestion | null {
-  // Guard: only for theory study blocks
-  if (!EARLY_FINISH_ELIGIBLE_INTENTS.has(block.blockIntent)) {
+  // Guard: only for theory study blocks (Block A, B, C)
+  if (!EARLY_FINISH_ELIGIBLE_BLOCKS.has(block.semanticBlockKey)) {
     return null;
   }
 
@@ -307,7 +305,7 @@ function collectEarlyFinishCandidates(
   for (let i = currentBlockIndex + 1; i < todayScheduleDay.blocks.length; i++) {
     const laterBlock = todayScheduleDay.blocks[i];
     if (!laterBlock.trackable) continue;
-    if (!EARLY_FINISH_ELIGIBLE_INTENTS.has(laterBlock.blockIntent)) continue;
+    if (!EARLY_FINISH_ELIGIBLE_BLOCKS.has(laterBlock.semanticBlockKey)) continue;
     addPendingItems(candidates, laterBlock, todayScheduleDay.dayNumber, userState, referenceData);
   }
 
@@ -315,7 +313,7 @@ function collectEarlyFinishCandidates(
   if (tomorrowScheduleDay) {
     for (const tomorrowBlock of tomorrowScheduleDay.blocks) {
       if (!tomorrowBlock.trackable) continue;
-      if (!EARLY_FINISH_ELIGIBLE_INTENTS.has(tomorrowBlock.blockIntent)) continue;
+      if (!EARLY_FINISH_ELIGIBLE_BLOCKS.has(tomorrowBlock.semanticBlockKey)) continue;
       addPendingItems(candidates, tomorrowBlock, tomorrowScheduleDay.dayNumber, userState, referenceData);
     }
   }

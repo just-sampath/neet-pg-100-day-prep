@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
@@ -130,14 +130,19 @@ async function ensureStoreFile() {
 
 async function persistLocalStoreFiles(store: LocalStore) {
   await mkdir(dataDir, { recursive: true });
-  const serialized = JSON.stringify(store, null, 2);
+  // Strip referenceData — it is static build-time data reloaded from
+  // generated files on every read; persisting it wastes ~1.2 MB per write.
+  const { referenceData: _ref, ...persistable } = store;
+  const serialized = JSON.stringify(persistable);
   await writeFile(tempStorePath, serialized);
 
   // On Windows, rename can fail with EPERM when another process briefly
-  // holds the target file (antivirus, editor watcher, concurrent request).
-  // Retry a few times, then fall back to a direct overwrite.
+  // holds the target file (antivirus, editor watcher). Retry with generous
+  // backoff. We intentionally do NOT fall back to a non-atomic direct write
+  // because that causes corruption when a concurrent read hits the half-
+  // written file.
   let renamed = false;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     try {
       await rename(tempStorePath, storePath);
       renamed = true;
@@ -145,17 +150,17 @@ async function persistLocalStoreFiles(store: LocalStore) {
     } catch (err: unknown) {
       const code = (err as NodeJS.ErrnoException).code;
       if (code === "EPERM" || code === "EACCES") {
-        await sleep(50 * (attempt + 1));
+        await sleep(100 * (attempt + 1)); // 100, 200, 300, 400, 500ms
       } else {
         throw err;
       }
     }
   }
   if (!renamed) {
-    // Fallback: write directly (not atomic, but avoids the EPERM wall)
-    await writeFile(storePath, serialized);
-    // Clean up the temp file we couldn't rename
-    try { await unlink(tempStorePath); } catch { /* ignore */ }
+    // All rename attempts failed. The data is safely in the temp file
+    // and will be recovered on next read via backup. Do not fall back
+    // to a non-atomic writeFile — that causes the JSON corruption.
+    console.warn("Local store rename failed after 5 attempts; data preserved in temp and backup files.");
   }
 
   await writeFile(backupStorePath, serialized);
@@ -165,7 +170,7 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function parseLocalStoreFile(path: string, attempts = 3): Promise<LocalStore> {
+async function parseLocalStoreFile(path: string, attempts = 4): Promise<LocalStore> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt < attempts; attempt += 1) {
@@ -178,7 +183,7 @@ async function parseLocalStoreFile(path: string, attempts = 3): Promise<LocalSto
     } catch (error) {
       lastError = error;
       if (attempt < attempts - 1) {
-        await sleep(15 * (attempt + 1));
+        await sleep(50 * (attempt + 1)); // 50, 100, 150ms — more breathing room on Windows
       }
     }
   }
@@ -2596,8 +2601,9 @@ function reconcileStoreScheduleState(store: LocalStore) {
 
   for (const userState of Object.values(store.userState)) {
     if (userState.settings.dayOneDate) {
+      // ensureUserScheduleSeeded already calls applyScheduleMappingsFromSettings
+      // at the end, so no separate mapping call is needed here.
       ensureUserScheduleSeeded(userState, userState.settings.scheduleSeededAt ?? updatedAt);
-      applyScheduleMappingsFromSettings(userState.schedule, userState.settings, updatedAt);
       continue;
     }
 
@@ -2606,7 +2612,10 @@ function reconcileStoreScheduleState(store: LocalStore) {
 }
 
 export async function readStore(): Promise<LocalStore> {
-  return getRuntimeMode() === "supabase" ? loadSupabaseStore() : readLocalStore();
+  if (getRuntimeMode() === "supabase") return loadSupabaseStore();
+  // Local reads go through the mutation lock so they never race against an
+  // in-flight write (which caused "Unexpected end of JSON input" on Windows).
+  return withLocalMutationLock(() => readLocalStore());
 }
 
 export async function writeStore(store: LocalStore) {
@@ -2671,7 +2680,36 @@ async function runScopedScheduleReader<T>(
   reader: (store: LocalStore) => T | Promise<T>,
 ) {
   if (getRuntimeMode() !== "supabase") {
-    return mutateStore(reader);
+    // Read-oriented path: run the reader (which may trigger automations)
+    // but only write back if automations actually mutated the store.
+    return withLocalMutationLock(async () => {
+      const store = await readLocalStore();
+      // Snapshot the lightweight dirty markers that automations append to.
+      const markers = Object.values(store.userState).map((us) => ({
+        midnight: us.processedDates.midnightDates.length,
+        sweep: us.processedDates.lateNightSweepDates.length,
+        endOfDay: us.processedDates.endOfDaySweepDates.length,
+        weekly: us.processedDates.weeklySummaryDates.length,
+        repack: us.processedDates.repackDates.length,
+      }));
+      const result = await reader(store);
+      // Check if any automation appended a processed date.
+      const dirty = Object.values(store.userState).some((us, i) => {
+        const m = markers[i];
+        return (
+          us.processedDates.midnightDates.length !== m.midnight ||
+          us.processedDates.lateNightSweepDates.length !== m.sweep ||
+          us.processedDates.endOfDaySweepDates.length !== m.endOfDay ||
+          us.processedDates.weeklySummaryDates.length !== m.weekly ||
+          us.processedDates.repackDates.length !== m.repack
+        );
+      });
+      if (dirty) {
+        reconcileStoreScheduleState(store);
+        await writeLocalStore(store);
+      }
+      return result;
+    });
   }
 
   const store = await loader();

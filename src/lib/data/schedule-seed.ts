@@ -21,6 +21,28 @@ const quotesData = staticReferenceData.quotes;
 
 export const SCHEDULE_SEED_VERSION = scheduleData.seedVersion;
 
+/** Total number of template items across all days/blocks — used for fast repair short-circuit. */
+const templateItemCount = scheduleData.daywisePlan.days.reduce(
+  (sum, day) => sum + day.blocks.reduce((bSum, block) => bSum + block.items.length, 0),
+  0,
+);
+const REPACK_ELIGIBLE_BLOCK_INTENTS = new Set(["core_study", "consolidation"]);
+const templateItemPlacementById = new Map(
+  scheduleData.daywisePlan.days.flatMap((day) =>
+    day.blocks.flatMap((block) =>
+      block.items.map((item) => [
+        item.itemId,
+        {
+          dayNumber: day.dayNumber,
+          blockKey: block.timeSlotKey,
+          itemOrder: item.order,
+          blockIntent: block.blockIntent,
+        },
+      ] as const),
+    ),
+  ),
+);
+
 export function createEmptyScheduleState(): UserScheduleState {
   return {
     days: {},
@@ -135,6 +157,13 @@ export function applyLegacyScheduleStateToSchedule(
   }
 }
 
+/** Fingerprint of the inputs that drive schedule mappings. */
+function scheduleMappingFingerprint(settings: AppSettings): string {
+  return `${settings.dayOneDate}:${(settings.shiftEvents ?? []).length}:${(settings.shiftEvents ?? []).map((e) => e.appliedAt).join(",")}`;
+}
+
+const mappingFingerprintCache = new WeakMap<UserScheduleState, string>();
+
 export function applyScheduleMappingsFromSettings(
   schedule: UserScheduleState,
   settings: AppSettings,
@@ -143,6 +172,12 @@ export function applyScheduleMappingsFromSettings(
   if (!settings.dayOneDate) {
     return;
   }
+
+  const fp = scheduleMappingFingerprint(settings);
+  if (mappingFingerprintCache.get(schedule) === fp) {
+    return;
+  }
+  mappingFingerprintCache.set(schedule, fp);
 
   for (const row of Object.values(schedule.days)) {
     const originalMappedDate = row.dayNumber <= 100 ? addDaysToDateOnly(settings.dayOneDate, row.dayNumber - 1) : row.originalMappedDate;
@@ -275,6 +310,89 @@ export function buildSeededScheduleState(dayOneDate: string, seededAt = new Date
   return schedule;
 }
 
+/** Fill in any topicAssignment rows that exist in the template but are missing from the store. Idempotent — never overwrites existing rows. */
+function repairMissingTopicAssignments(schedule: UserScheduleState, seededAt: string) {
+  // Quick check: if the count matches, skip the expensive iteration.
+  if (Object.keys(schedule.topicAssignments).length >= templateItemCount) {
+    return 0;
+  }
+  let repaired = 0;
+  for (const day of scheduleData.daywisePlan.days) {
+    for (const block of day.blocks) {
+      for (const item of block.items) {
+        if (schedule.topicAssignments[item.itemId]) continue;
+        schedule.topicAssignments[item.itemId] = {
+          sourceItemId: item.itemId,
+          dayNumber: day.dayNumber,
+          blockKey: block.timeSlotKey,
+          itemOrder: item.order,
+          kind: item.kind,
+          label: item.label,
+          rawText: item.rawText,
+          plannedMinutes: item.plannedMinutes,
+          subjectIds: [...item.subjectIds],
+          revisionEligible: item.revisionEligible,
+          recoveryLane: item.recoveryLane,
+          phaseFence: item.phaseFence,
+          notes: item.notes,
+          revisionType: item.revisionType ?? null,
+          referenceLabel: item.referenceLabel ?? null,
+          referenceDayNumber: item.referenceDayNumber ?? null,
+          status: "pending",
+          completedAt: null,
+          sourceTag: null,
+          note: null,
+          isPinned: false,
+          isRecovery: false,
+          originalDayNumber: null,
+          originalBlockKey: null,
+          createdAt: seededAt,
+          updatedAt: seededAt,
+        };
+        repaired++;
+      }
+    }
+  }
+  return repaired;
+}
+
+/** Restore anchored non-study topic assignments to their template slot if prior repack logic displaced them. */
+function repairAnchoredTopicAssignments(schedule: UserScheduleState, seededAt: string) {
+  let repaired = 0;
+
+  for (const row of Object.values(schedule.topicAssignments)) {
+    const templatePlacement = templateItemPlacementById.get(row.sourceItemId);
+    if (!templatePlacement) {
+      continue;
+    }
+
+    if (REPACK_ELIGIBLE_BLOCK_INTENTS.has(templatePlacement.blockIntent)) {
+      continue;
+    }
+
+    const placementChanged =
+      row.dayNumber !== templatePlacement.dayNumber ||
+      row.blockKey !== templatePlacement.blockKey ||
+      row.itemOrder !== templatePlacement.itemOrder;
+    const recoveryMetadataChanged = row.isRecovery || row.originalDayNumber !== null || row.originalBlockKey !== null;
+
+    if (!placementChanged && !recoveryMetadataChanged) {
+      continue;
+    }
+
+    row.dayNumber = templatePlacement.dayNumber;
+    row.blockKey = templatePlacement.blockKey;
+    row.itemOrder = templatePlacement.itemOrder;
+    row.isRecovery = false;
+    row.originalDayNumber = null;
+    row.originalBlockKey = null;
+    row.updatedAt = seededAt;
+    repaired += 1;
+  }
+
+  return repaired;
+}
+
 export function ensureUserScheduleSeeded(userState: UserState, seededAt = new Date().toISOString()) {
   if (!userState.settings.dayOneDate) {
     return false;
@@ -286,6 +404,13 @@ export function ensureUserScheduleSeeded(userState: UserState, seededAt = new Da
     userState.settings.scheduleSeedVersion = SCHEDULE_SEED_VERSION;
     userState.settings.scheduleSeededAt = seededAt;
     invalidateRuntimeScheduleIndex(userState);
+  } else {
+    // Repair missing topicAssignments (e.g. corrupted store recovered from backup)
+    const repairedMissingAssignments = repairMissingTopicAssignments(userState.schedule, seededAt);
+    const repairedAnchoredAssignments = repairAnchoredTopicAssignments(userState.schedule, seededAt);
+    if (repairedMissingAssignments > 0 || repairedAnchoredAssignments > 0) {
+      invalidateRuntimeScheduleIndex(userState);
+    }
   }
 
   applyScheduleMappingsFromSettings(userState.schedule, userState.settings, seededAt);

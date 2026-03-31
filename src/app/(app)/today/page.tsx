@@ -22,6 +22,7 @@ import {
   getScheduleDay,
   getTopicProgress,
   getVisibleBlockKeys,
+  withRevisionCache,
 } from "@/lib/domain/schedule";
 import {
   setDayOneDateAction,
@@ -91,7 +92,7 @@ export default async function TodayPage() {
   const user = await requireCurrentUser();
   const { data, userState, referenceData } = await readTodayStore((store) => ({
     data: getHomeData(store, user.id),
-    userState: structuredClone(store.userState[user.id]),
+    userState: store.userState[user.id],
     referenceData: store.referenceData,
   }));
 
@@ -146,6 +147,11 @@ export default async function TodayPage() {
   const todayScheduleDay = data.todayScheduleDay;
   const todayState = data.todayState!;
   const phase = data.phase;
+
+  // Wrap the render‐phase computation in a revision cache scope so the
+  // multiple getBlockProgress / buildTodayTimeline calls share one
+  // buildRevisionInventory + buildDailyRevisionPlan computation.
+  return withRevisionCache(() => {
   const visibleBlocks = getVisibleBlockKeys(todayState.trafficLight, todayScheduleDay);
   const hiddenBlocks = getHiddenBlockKeys(todayState.trafficLight, todayScheduleDay);
   const completedVisibleCount = visibleBlocks.filter((blockKey) => {
@@ -648,4 +654,5 @@ export default async function TodayPage() {
       {process.env.NODE_ENV !== "production" ? <DevToolbar simulatedNow={data.nowIso} /> : null}
     </div>
   );
+  });
 }

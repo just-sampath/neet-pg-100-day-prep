@@ -8,8 +8,12 @@ import type { AppRuntimeMode } from "@/lib/runtime/mode";
 export function AutoRefresh({ runtimeMode }: { runtimeMode: AppRuntimeMode }) {
   const router = useRouter();
   const refreshRoute = useEffectEvent(() => {
-    startTransition(() => {
-      router.refresh();
+    startTransition(async () => {
+      try {
+        router.refresh();
+      } catch {
+        // Transient network failures during background polling are expected
+      }
     });
   });
 
@@ -30,7 +34,7 @@ export function AutoRefresh({ runtimeMode }: { runtimeMode: AppRuntimeMode }) {
 
     const interval = window.setInterval(() => {
       refreshRoute();
-    }, 5000);
+    }, 15_000);
 
     return () => {
       window.clearInterval(interval);

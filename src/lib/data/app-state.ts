@@ -44,6 +44,7 @@ import { getTodayQuoteSelection } from "@/lib/domain/quotes";
 import {
   buildDailyRevisionPlan,
   buildRevisionInventory,
+  withRevisionCache,
   groupRevisionItemsForDisplay,
   getBacklogCount,
   getBlockProgress,
@@ -86,6 +87,7 @@ import type {
   RevisionType,
   ScheduleBlockRow,
   ScheduleDayRow,
+  ScheduleTopicAssignmentRow,
   SubjectTier,
   TopicProgress,
   TopicStatus,
@@ -110,6 +112,7 @@ function timingKey(dayNumber: number, blockKey: BlockKey) {
 }
 
 const MORNING_REVISION_MAX_MINUTES = MORNING_REVISION_SLOT_PLAN.reduce((sum, slot) => sum + slot.durationMinutes, 0);
+const REPACK_ELIGIBLE_BLOCK_INTENTS = new Set(["core_study", "consolidation"]);
 
 function parseRevisionTypeFromRevisionId(revisionId: string): RevisionType | null {
   const revisionType = revisionId.split(":").at(-1);
@@ -280,9 +283,40 @@ function setTopicProgress(
     throw new Error(`Missing schedule item ${itemId} for ${dayNumber}:${blockKey}`);
   }
 
-  const row = userState.schedule.topicAssignments[itemId];
+  let row = userState.schedule.topicAssignments[itemId];
   if (!row) {
-    throw new Error(`Missing schedule assignment ${itemId}`);
+    // Lazily create assignment from template item (recovery from corrupted/partial store)
+    const now = new Date().toISOString();
+    row = {
+      sourceItemId: item.itemId,
+      dayNumber,
+      blockKey,
+      itemOrder: item.order,
+      kind: item.kind,
+      label: item.label,
+      rawText: item.rawText,
+      plannedMinutes: item.plannedMinutes,
+      subjectIds: [...item.subjectIds],
+      revisionEligible: item.revisionEligible,
+      recoveryLane: item.recoveryLane,
+      phaseFence: item.phaseFence,
+      notes: item.notes,
+      revisionType: item.revisionType ?? null,
+      referenceLabel: item.referenceLabel ?? null,
+      referenceDayNumber: item.referenceDayNumber ?? null,
+      status: "pending",
+      completedAt: null,
+      sourceTag: null,
+      note: null,
+      isPinned: false,
+      isRecovery: item.isRecovery ?? false,
+      originalDayNumber: item.originalDayNumber ?? null,
+      originalBlockKey: (item.originalBlockKey as BlockKey) ?? null,
+      createdAt: now,
+      updatedAt: now,
+    } satisfies ScheduleTopicAssignmentRow;
+    userState.schedule.topicAssignments[itemId] = row;
+    invalidateRuntimeScheduleIndex(userState);
   }
 
   if (row.dayNumber !== dayNumber || row.blockKey !== blockKey) {
@@ -465,8 +499,19 @@ export function completeBlockItems(
   referenceData?: LocalStore["referenceData"],
 ) {
   const unresolvedItems = getUnresolvedItems(userState, dayNumber, blockKey, referenceData);
-  for (const item of unresolvedItems) {
-    completeTopicItem(userState, dayNumber, blockKey, item.itemId, completedAt, note, referenceData);
+  // Snapshot IDs before iterating — the runtime index may be invalidated
+  // during the loop (e.g. by setTopicProgress fixing a stale assignment),
+  // causing items to disappear from getBlockItems on subsequent iterations.
+  const itemIds = unresolvedItems.map((item) => item.itemId);
+  for (const itemId of itemIds) {
+    const row = userState.schedule.topicAssignments[itemId];
+    // Skip items whose assignment no longer points to this block
+    // (e.g. moved by pullTopicForward or already completed in a prior iteration).
+    // Missing rows (!row) are allowed through — setTopicProgress will lazily create them.
+    if (row && (row.status === "completed" || row.dayNumber !== dayNumber || row.blockKey !== blockKey)) {
+      continue;
+    }
+    completeTopicItem(userState, dayNumber, blockKey, itemId, completedAt, note, referenceData);
   }
 
   completeAssignedRecoveryForTarget(userState, dayNumber, blockKey, completedAt);
@@ -1581,11 +1626,14 @@ function collectRepackInputs(
   // 'completed', 'rescheduled' are excluded — they've been handled elsewhere.
   const futureTopicRows: Array<{ row: typeof schedule.topicAssignments[string]; tier: SubjectTier | null }> = [];
   for (const row of Object.values(schedule.topicAssignments)) {
+    const sourceEntry = getScheduleItemById(row.sourceItemId, undefined, referenceData);
     if (
       row.dayNumber >= todayDayNumber &&
       row.dayNumber <= phaseEndDay &&
       row.status === "pending" &&
-      !row.isPinned
+      !row.isPinned &&
+      sourceEntry !== null &&
+      REPACK_ELIGIBLE_BLOCK_INTENTS.has(sourceEntry.block.blockIntent)
     ) {
       const { subjectTier } = resolveSubjectTier(row.subjectIds, referenceData);
       futureTopicRows.push({ row, tier: subjectTier });
@@ -1615,13 +1663,12 @@ function collectRepackInputs(
 
   // --- Block capacities ---
   // Only core_study and consolidation blocks participate
-  const REPACK_INTENTS = new Set(["core_study", "consolidation"]);
   const rawCapacities: import("@/lib/domain/repack").BlockCapacity[] = [];
   for (const blockRow of Object.values(schedule.blocks)) {
     if (
       blockRow.dayNumber >= todayDayNumber &&
       blockRow.dayNumber <= phaseEndDay &&
-      REPACK_INTENTS.has(blockRow.blockIntent)
+      REPACK_ELIGIBLE_BLOCK_INTENTS.has(blockRow.blockIntent)
     ) {
       rawCapacities.push({
         dayNumber: blockRow.dayNumber,
@@ -2075,7 +2122,9 @@ export function applyAutomations(store: LocalStore, userId: string) {
 export function getHomeData(store: LocalStore, userId: string) {
   applyAutomations(store, userId);
 
+  return withRevisionCache(() => {
   const userState = store.userState[userId];
+
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const settings = userState.settings;
@@ -2136,6 +2185,7 @@ export function getHomeData(store: LocalStore, userId: string) {
         ) ?? null
         : null,
   };
+  });
 }
 
 function buildRevisionOverview(
@@ -2164,6 +2214,7 @@ function buildRevisionOverview(
 export function getRevisionQueuePageData(store: LocalStore, userId: string) {
   applyAutomations(store, userId);
 
+  return withRevisionCache(() => {
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
@@ -2184,6 +2235,7 @@ export function getRevisionQueuePageData(store: LocalStore, userId: string) {
     waitingSessions,
     revision: buildRevisionOverview(userState, settings, todayDate, store.referenceData),
   };
+  });
 }
 
 export interface BacklogTierGroup {
@@ -2384,7 +2436,7 @@ export function getScheduleListData(store: LocalStore, userId: string) {
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const todayDayNumber = getCurrentDayNumber(userState, todayDate);
 
-  return getScheduleDays(userState, store.referenceData).map((day) => {
+  return withRevisionCache(() => getScheduleDays(userState, store.referenceData).map((day) => {
     const mappedDate = getMappedDate(day.dayNumber, userState);
     const originalPlannedDate = getOriginalPlannedDate(day.dayNumber, userState);
     const dayState = getDayState(userState, day.dayNumber);
@@ -2412,7 +2464,7 @@ export function getScheduleListData(store: LocalStore, userId: string) {
               ? "missed"
               : "upcoming",
     };
-  });
+  }));
 }
 
 export function getDayDetailData(store: LocalStore, userId: string, dayNumber: number) {
@@ -2425,6 +2477,7 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
     return null;
   }
 
+  return withRevisionCache(() => {
   const state = getDayState(userState, dayNumber);
   const mappedDate = getMappedDate(dayNumber, userState);
   const originalPlannedDate = getOriginalPlannedDate(dayNumber, userState);
@@ -2462,4 +2515,5 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
       };
     }),
   };
+  });
 }

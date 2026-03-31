@@ -60,6 +60,41 @@ type ReferenceScheduleIndex = {
 
 const referenceScheduleIndexCache = new WeakMap<RuntimeReferenceData["scheduleData"], ReferenceScheduleIndex>();
 
+// ---------------------------------------------------------------------------
+// Scoped revision memoization
+// ---------------------------------------------------------------------------
+// buildRevisionInventory and the plan builders are called many times per
+// page render (getScheduleHealth alone triggers ~7 buildDailyRevisionPlan
+// calls).  A scope-based cache keeps results within an explicit
+// `withRevisionCache()` call and is discarded when the scope exits.
+//
+// Outside a scope (e.g. in unit tests) no caching occurs, so mutations
+// between calls are always visible.
+// ---------------------------------------------------------------------------
+type RevisionCacheScope = {
+  inventory: RevisionQueueItem[] | null;
+  planBase: Map<string, Omit<DailyRevisionPlan, "overflowStreakDays" | "overflowSuggestion">>;
+  plan: Map<string, DailyRevisionPlan>;
+};
+
+let _revisionCacheScope: RevisionCacheScope | null = null;
+
+/**
+ * Execute `fn` with a revision-computation cache active.  All calls to
+ * `buildRevisionInventory`, `buildRevisionPlanBase`, and
+ * `buildDailyRevisionPlan` inside `fn` share cached results.  The cache
+ * is discarded when `fn` returns.
+ */
+export function withRevisionCache<T>(fn: () => T): T {
+  const prev = _revisionCacheScope;
+  _revisionCacheScope = { inventory: null, planBase: new Map(), plan: new Map() };
+  try {
+    return fn();
+  } finally {
+    _revisionCacheScope = prev;
+  }
+}
+
 function getReferenceData(referenceData?: RuntimeReferenceData) {
   if (referenceData) {
     return referenceData;
@@ -1298,6 +1333,9 @@ export function buildRevisionInventory(
     return [];
   }
 
+  const scope = _revisionCacheScope;
+  if (scope?.inventory) return scope.inventory;
+
   const items: RevisionQueueItem[] = [];
   for (const entry of getRevisionEligibleItems(userState, referenceData)) {
     const progress = getItemCompletion(userState, entry.item, entry.day.dayNumber, entry.block.timeSlotKey);
@@ -1338,7 +1376,7 @@ export function buildRevisionInventory(
     }
   }
 
-  return items.sort((left, right) => {
+  items.sort((left, right) => {
     if (left.scheduledDate === right.scheduledDate) {
       const priorityDelta = getRevisionPriority(left.revisionType) - getRevisionPriority(right.revisionType);
       if (priorityDelta !== 0) {
@@ -1352,6 +1390,9 @@ export function buildRevisionInventory(
 
     return left.scheduledDate.localeCompare(right.scheduledDate);
   });
+
+  if (_revisionCacheScope) _revisionCacheScope.inventory = items;
+  return items;
 }
 
 export function groupRevisionItemsForDisplay(items: RevisionQueueItem[]): RevisionDisplayGroup[] {
@@ -1489,6 +1530,21 @@ function getSecondaryLaneForBucket(bucket: RevisionSessionBucket): Exclude<Revis
 }
 
 function buildRevisionPlanBase(
+  targetDate: string,
+  userState: UserState,
+  settings: AppSettings,
+  referenceData?: RuntimeReferenceData,
+): Omit<DailyRevisionPlan, "overflowStreakDays" | "overflowSuggestion"> {
+  const scope = _revisionCacheScope;
+  if (scope?.planBase.has(targetDate)) return scope.planBase.get(targetDate)!;
+
+  const result = buildRevisionPlanBaseUncached(targetDate, userState, settings, referenceData);
+
+  if (scope) scope.planBase.set(targetDate, result);
+  return result;
+}
+
+function buildRevisionPlanBaseUncached(
   targetDate: string,
   userState: UserState,
   settings: AppSettings,
@@ -1642,10 +1698,13 @@ export function buildDailyRevisionPlan(
   settings: AppSettings,
   referenceData?: RuntimeReferenceData,
 ): DailyRevisionPlan {
+  const scope = _revisionCacheScope;
+  if (scope?.plan.has(targetDate)) return scope.plan.get(targetDate)!;
+
   const basePlan = buildRevisionPlanBase(targetDate, userState, settings, referenceData);
   const overflowStreakDays = getOverflowStreakDays(targetDate, userState, settings, referenceData);
 
-  return {
+  const plan: DailyRevisionPlan = {
     ...basePlan,
     overflowStreakDays,
     overflowSuggestion:
@@ -1653,6 +1712,9 @@ export function buildDailyRevisionPlan(
         ? "The revision queue is spilling past the 75-minute morning window. Clear one extra topic when possible."
         : null,
   };
+
+  if (scope) scope.plan.set(targetDate, plan);
+  return plan;
 }
 
 export function getMorningRevisionStatsForDate(

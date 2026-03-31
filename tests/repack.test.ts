@@ -385,6 +385,33 @@ describe("runMidnightRepack integration", () => {
         }
     });
 
+    it("keeps mcq_practice, final_review, and wrap_up_log assignments anchored in their native slots", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const anchoredPlacements = ["mcq_practice", "final_review", "wrap_up_log"].flatMap((semanticBlockKey) => {
+            const block = getScheduleDay(2, userState)!.blocks.find((entry) => entry.semanticBlockKey === semanticBlockKey)!;
+            return block.items.map((item) => ({
+                itemId: item.itemId,
+                dayNumber: 2,
+                blockKey: block.timeSlotKey,
+            }));
+        });
+
+        const todayDate = "2026-05-01";
+        const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(result.skipped).toBe(false);
+
+        for (const placement of anchoredPlacements) {
+            const row = userState.schedule.topicAssignments[placement.itemId]!;
+            expect(row.dayNumber).toBe(placement.dayNumber);
+            expect(row.blockKey).toBe(placement.blockKey);
+        }
+    });
+
     it("is idempotent — second run for same date is a no-op", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
@@ -478,10 +505,13 @@ describe("runMidnightRepack integration", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
 
-        // Mark a topic assignment as already-recovered from a prior repack
-        const targetRow = Object.values(userState.schedule.topicAssignments).find(
-            (ta) => ta.dayNumber >= 2 && ta.status === "pending",
+        // Mark a study-block topic assignment as already-recovered from a prior repack.
+        // Special blocks are anchored and repaired back to their native slot now.
+        const day2 = getScheduleDay(2, userState)!;
+        const targetBlock = day2.blocks.find(
+            (block) => ["block_a", "block_b", "block_c"].includes(block.semanticBlockKey) && block.items.length > 0,
         );
+        const targetRow = targetBlock ? userState.schedule.topicAssignments[targetBlock.items[0]!.itemId] : null;
         if (targetRow) {
             targetRow.isRecovery = true;
             targetRow.originalDayNumber = 1;
