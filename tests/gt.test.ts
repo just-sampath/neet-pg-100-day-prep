@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { generateWeeklySummary } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
+import { applyScheduleMappingsFromSettings, buildExtensionDayRows, ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import {
   buildGtComparisonSummary,
   buildGtDashboardSummary,
@@ -16,6 +17,78 @@ import {
   normalizeStoredGtLog,
   validateGtDraft,
 } from "@/lib/domain/gt";
+import { addDaysToDateOnly } from "@/lib/utils/date";
+
+function insertExtensionDayAfter(userState: ReturnType<typeof createEmptyUserState>, insertionPoint: number, now = "2026-07-03T00:00:00.000Z") {
+  ensureUserScheduleSeeded(userState);
+
+  const newDays = {} as typeof userState.schedule.days;
+  for (const [key, day] of Object.entries(userState.schedule.days)) {
+    if (day.dayNumber > insertionPoint) {
+      day.dayNumber += 1;
+      day.mappedDate = addDaysToDateOnly(day.mappedDate, 1);
+      day.updatedAt = now;
+      newDays[String(day.dayNumber)] = day;
+    } else {
+      newDays[key] = day;
+    }
+  }
+  userState.schedule.days = newDays;
+
+  const newBlocks = {} as typeof userState.schedule.blocks;
+  for (const block of Object.values(userState.schedule.blocks)) {
+    if (block.dayNumber > insertionPoint) {
+      block.dayNumber += 1;
+      block.updatedAt = now;
+    }
+    newBlocks[`${block.dayNumber}:${block.blockKey}`] = block;
+  }
+  userState.schedule.blocks = newBlocks;
+
+  for (const topic of Object.values(userState.schedule.topicAssignments)) {
+    if (topic.dayNumber > insertionPoint) {
+      topic.dayNumber += 1;
+      topic.updatedAt = now;
+    }
+
+    if (topic.originalDayNumber && topic.originalDayNumber > insertionPoint) {
+      topic.originalDayNumber += 1;
+    }
+  }
+
+  for (const phase of Object.values(userState.schedule.phaseConfig)) {
+    if (phase.currentStartDay > insertionPoint) {
+      phase.currentStartDay += 1;
+      phase.updatedAt = now;
+    }
+    if (phase.currentEndDay > insertionPoint) {
+      phase.currentEndDay += 1;
+      phase.updatedAt = now;
+    }
+  }
+
+  const extMappedDate = addDaysToDateOnly(userState.schedule.days[String(insertionPoint)]!.mappedDate, 1);
+  const { dayRow, blockRows } = buildExtensionDayRows(
+    insertionPoint + 1,
+    "phase_1",
+    "phase_1",
+    "Phase 1",
+    extMappedDate,
+    now,
+  );
+
+  userState.schedule.days[String(insertionPoint + 1)] = dayRow;
+  for (const block of blockRows) {
+    userState.schedule.blocks[`${block.dayNumber}:${block.blockKey}`] = block;
+  }
+
+  userState.schedule.phaseConfig["1"]!.currentEndDay = insertionPoint + 1;
+  userState.schedule.phaseConfig["1"]!.extensionsUsed = 1;
+  userState.schedule.phaseConfig["1"]!.updatedAt = now;
+
+  userState.schedule = structuredClone(userState.schedule);
+  applyScheduleMappingsFromSettings(userState.schedule, userState.settings, now);
+}
 
 describe("gt tracker and analytics", () => {
   it("validates GT form fields, attempt context, section structure, and weakest-subject tags", () => {
@@ -193,6 +266,21 @@ describe("gt tracker and analytics", () => {
     });
     expect(mappedSchedule.find((item) => item.dayNumber === 95)?.label).toBe("120Q half-simulation");
     expect(getSuggestedGtPlanItem(userState.settings, "2026-07-06")?.dayNumber).toBe(66);
+  });
+
+  it("keeps GT plan day numbers stable when an extension day is inserted before them", () => {
+    const userState = createEmptyUserState();
+    userState.settings.dayOneDate = "2026-05-01";
+    insertExtensionDayAfter(userState, 63);
+
+    const mappedSchedule = getMappedGtSchedule(userState, "2026-07-06");
+
+    expect(mappedSchedule.find((item) => item.dayNumber === 66)).toMatchObject({
+      label: "GT-1",
+      mappedDate: "2026-07-06",
+      isToday: true,
+    });
+    expect(getSuggestedGtPlanItem(userState, "2026-07-06")?.dayNumber).toBe(66);
   });
 
   it("builds GT analytics for score trend, section patterns, comparison, wrapper trend, and weakness repetition", () => {

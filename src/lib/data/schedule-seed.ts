@@ -180,7 +180,21 @@ export function applyScheduleMappingsFromSettings(
   mappingFingerprintCache.set(schedule, fp);
 
   for (const row of Object.values(schedule.days)) {
-    const originalMappedDate = row.dayNumber <= 100 ? addDaysToDateOnly(settings.dayOneDate, row.dayNumber - 1) : row.originalMappedDate;
+    const inferredOriginalDayNumber = row.originalDayNumber ?? (
+      row.isExtensionDay
+        ? null
+        : scheduleData.daywisePlan.days.find(
+          (day) =>
+            day.phaseId === row.phaseId &&
+            day.primaryFocusRaw === row.primaryFocusRaw &&
+            day.resourceRaw === row.resourceRaw &&
+            day.deliverableRaw === row.deliverableRaw,
+        )?.dayNumber ?? (row.dayNumber <= 100 ? row.dayNumber : null)
+    );
+    const originalMappedDate = inferredOriginalDayNumber
+      ? addDaysToDateOnly(settings.dayOneDate, inferredOriginalDayNumber - 1)
+      : row.originalMappedDate;
+    row.originalDayNumber = inferredOriginalDayNumber;
     row.originalMappedDate = originalMappedDate;
     row.mappedDate = computeMappedDate(row.dayNumber, settings) ?? row.mappedDate;
     row.shiftHiddenReason = getShiftHiddenReason(row.dayNumber, settings);
@@ -213,6 +227,7 @@ export function buildSeededScheduleState(dayOneDate: string, seededAt = new Date
     const mappedDate = addDaysToDateOnly(dayOneDate, day.dayNumber - 1);
     const dayRow: ScheduleDayRow = {
       dayNumber: day.dayNumber,
+      originalDayNumber: day.dayNumber,
       phaseId: day.phaseId,
       phaseName: day.phaseName,
       phaseGroup: scheduleData.daywisePlan.phaseCatalog.find((entry) => entry.phaseId === day.phaseId)?.phaseGroup ?? "phase_1",
@@ -455,6 +470,7 @@ export function buildExtensionDayRows(
 
   const dayRow: ScheduleDayRow = {
     dayNumber,
+    originalDayNumber: null,
     phaseId,
     phaseName,
     phaseGroup,

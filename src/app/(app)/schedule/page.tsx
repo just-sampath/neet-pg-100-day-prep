@@ -50,7 +50,7 @@ export default async function SchedulePage() {
     <div className="grid gap-4">
       <section className="panel p-6">
         <div className="eyebrow">Schedule Browser</div>
-        <h1 className="display mt-3 text-3xl">All 100 days, with the current mapping.</h1>
+        <h1 className="display mt-3 text-3xl">Current mapped schedule, day by day.</h1>
         <p className="mt-3 max-w-3xl text-sm leading-7 text-(--text-secondary)">
           Opens around today by default. Past days can be corrected from here, while future days stay view-only until their mapped date arrives.
         </p>
@@ -72,7 +72,7 @@ export default async function SchedulePage() {
                 Day {day.dayNumber} · {day.phaseName}
               </div>
               <h2 className="mt-2 text-xl font-semibold">{day.primaryFocusRaw}</h2>
-              <p className="mt-1 text-sm text-[var(--muted)]">
+              <p className="mt-1 text-sm text-(--muted)">
                 {day.mappedDate ? `Now ${formatDateLabel(day.mappedDate)}` : "Day 1 not set"}
                 {day.originalPlannedDate && day.originalPlannedDate !== day.mappedDate
                   ? ` · originally ${formatDateLabel(day.originalPlannedDate)}`
@@ -88,7 +88,7 @@ export default async function SchedulePage() {
                 </p>
               ) : null}
             </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-(--muted)">
               <span className="status-badge" data-tone={getStatusTone(day.status)}>
                 {getStatusLabel(day.status)}
               </span>

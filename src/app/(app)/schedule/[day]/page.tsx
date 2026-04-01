@@ -99,7 +99,7 @@ export default async function ScheduleDayPage({
           <div className="mt-4 grid grid-cols-3 gap-2">
             {(["green", "yellow", "red"] as const).map((trafficLight) => (
               <form key={trafficLight} action={setTrafficLightAction}>
-                <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                <input type="hidden" name="dayNumber" value={detail.runtimeDayNumber} />
                 <input type="hidden" name="trafficLight" value={trafficLight} />
                 <button
                   className={`w-full rounded-full px-4 py-3 text-sm font-semibold ${detail.state.trafficLight === trafficLight ? "bg-[var(--accent)] text-[#20160a]" : "bg-[var(--surface-muted)]"}`}
@@ -164,7 +164,7 @@ export default async function ScheduleDayPage({
                 {detail.editState.canAdjustToday ? (
                   <div className="flex gap-2">
                     <form action={updateBlockAction}>
-                      <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                      <input type="hidden" name="dayNumber" value={detail.runtimeDayNumber} />
                       <input type="hidden" name="blockKey" value={block.timeSlotKey} />
                       <input type="hidden" name="intent" value="complete" />
                       <button className="button-primary" type="submit">
@@ -172,7 +172,7 @@ export default async function ScheduleDayPage({
                       </button>
                     </form>
                     <form action={updateBlockAction}>
-                      <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                      <input type="hidden" name="dayNumber" value={detail.runtimeDayNumber} />
                       <input type="hidden" name="blockKey" value={block.timeSlotKey} />
                       <input type="hidden" name="intent" value="skip" />
                       <button className="button-secondary" type="submit">
@@ -197,7 +197,7 @@ export default async function ScheduleDayPage({
                         {!detail.editState.isReadOnly && item.progress.status !== "completed" ? (
                           <div className="flex flex-wrap gap-2">
                             <form action={updateTopicAction}>
-                              <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                              <input type="hidden" name="dayNumber" value={detail.runtimeDayNumber} />
                               <input type="hidden" name="blockKey" value={block.timeSlotKey} />
                               <input type="hidden" name="itemId" value={item.itemId} />
                               <input type="hidden" name="intent" value="complete" />
@@ -208,7 +208,7 @@ export default async function ScheduleDayPage({
                             </form>
                             {detail.editState.canAdjustToday ? (
                               <form action={updateTopicAction}>
-                                <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                                <input type="hidden" name="dayNumber" value={detail.runtimeDayNumber} />
                                 <input type="hidden" name="blockKey" value={block.timeSlotKey} />
                                 <input type="hidden" name="itemId" value={item.itemId} />
                                 <input type="hidden" name="intent" value="skip" />
@@ -269,7 +269,7 @@ export default async function ScheduleDayPage({
                       <input className="field" type="date" name="completionDate" defaultValue={defaultCompletionDate} max={detail.todayDate} />
                     </div>
                     <div className="flex gap-2">
-                      <input type="hidden" name="dayNumber" value={detail.day.dayNumber} />
+                      <input type="hidden" name="dayNumber" value={detail.runtimeDayNumber} />
                       <input type="hidden" name="blockKey" value={block.timeSlotKey} />
                       <input type="hidden" name="intent" value="complete" />
                       <button className="button-secondary" type="submit">
@@ -282,7 +282,7 @@ export default async function ScheduleDayPage({
 
               {detail.editState.canAdjustToday ? (
                 <TimeEditor
-                  dayNumber={detail.day.dayNumber}
+                  dayNumber={detail.runtimeDayNumber}
                   blockKey={block.timeSlotKey as BlockKey}
                   start={block.start}
                   end={block.end}

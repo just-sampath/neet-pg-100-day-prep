@@ -1,14 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
-    mergeUnifiedQueue,
-    computeBlockCapacities,
     walkAndAssign,
     runRepackAlgorithm,
 } from "@/lib/domain/repack";
 import type {
     UnifiedQueueItem,
-    PinnedTopic,
     BlockCapacity,
 } from "@/lib/domain/repack";
 import {
@@ -75,100 +72,30 @@ function makeCapacity(
     return { dayNumber, blockKey, durationMinutes, slotOrder };
 }
 
+function makeWalkCapacity(
+    dayNumber: number,
+    blockKey: BlockKey,
+    durationMinutes: number,
+    slotOrder: number,
+) {
+    return {
+        ...makeCapacity(dayNumber, blockKey, durationMinutes, slotOrder),
+        availableMinutes: durationMinutes,
+    };
+}
+
+function runAlgorithm(
+    backlogQueue: UnifiedQueueItem[],
+    futureTopics: UnifiedQueueItem[],
+    rawCapacities: BlockCapacity[],
+    extensionContext?: import("@/lib/domain/repack").ExtensionContext,
+) {
+    return runRepackAlgorithm(backlogQueue, futureTopics, rawCapacities, extensionContext);
+}
+
 // ---------------------------------------------------------------------------
 // Pure Algorithm Tests
 // ---------------------------------------------------------------------------
-
-describe("mergeUnifiedQueue", () => {
-    it("merges by tier ASC, dateKey ASC, backlog-first within same tier+date", () => {
-        const backlog: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "b-A-3", subjectTier: "A", dateKey: 3, isFromBacklog: true }),
-            makeQueueItem({ sourceItemId: "b-B-1", subjectTier: "B", dateKey: 1, isFromBacklog: true }),
-        ];
-        const future: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "f-A-2", subjectTier: "A", dateKey: 2, isFromBacklog: false }),
-            makeQueueItem({ sourceItemId: "f-A-3", subjectTier: "A", dateKey: 3, isFromBacklog: false }),
-            makeQueueItem({ sourceItemId: "f-B-1", subjectTier: "B", dateKey: 1, isFromBacklog: false }),
-        ];
-
-        const merged = mergeUnifiedQueue(backlog, future);
-        const ids = merged.map((m) => m.sourceItemId);
-
-        // All A's first: f-A-2 (date 2), b-A-3 (date 3, backlog-first), f-A-3 (date 3, future)
-        // Then B's: b-B-1 (date 1, backlog-first), f-B-1 (date 1, future)
-        expect(ids).toEqual(["f-A-2", "b-A-3", "f-A-3", "b-B-1", "f-B-1"]);
-    });
-
-    it("handles empty backlog", () => {
-        const future: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "f1", subjectTier: "C", dateKey: 5 }),
-        ];
-        const merged = mergeUnifiedQueue([], future);
-        expect(merged).toHaveLength(1);
-        expect(merged[0]!.sourceItemId).toBe("f1");
-    });
-
-    it("handles empty future topics", () => {
-        const backlog: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "b1", subjectTier: "A", dateKey: 2, isFromBacklog: true }),
-        ];
-        const merged = mergeUnifiedQueue(backlog, []);
-        expect(merged).toHaveLength(1);
-        expect(merged[0]!.sourceItemId).toBe("b1");
-    });
-
-    it("handles both empty", () => {
-        expect(mergeUnifiedQueue([], [])).toEqual([]);
-    });
-
-    it("places null-tier items after C-tier items", () => {
-        const backlog: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "b-null", subjectTier: null, dateKey: 1, isFromBacklog: true }),
-        ];
-        const future: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "f-C", subjectTier: "C", dateKey: 1 }),
-        ];
-        const merged = mergeUnifiedQueue(backlog, future);
-        expect(merged.map((m) => m.sourceItemId)).toEqual(["f-C", "b-null"]);
-    });
-});
-
-describe("computeBlockCapacities", () => {
-    it("deducts pinned minutes from block capacity", () => {
-        const raw: BlockCapacity[] = [
-            makeCapacity(5, "08:00-11:00" as BlockKey, 180, 1),
-        ];
-        const pinned: PinnedTopic[] = [
-            { sourceItemId: "p1", dayNumber: 5, blockKey: "08:00-11:00" as BlockKey, plannedMinutes: 45, itemOrder: 1 },
-            { sourceItemId: "p2", dayNumber: 5, blockKey: "08:00-11:00" as BlockKey, plannedMinutes: 30, itemOrder: 2 },
-        ];
-
-        const result = computeBlockCapacities(raw, pinned);
-        expect(result).toHaveLength(1);
-        expect(result[0]!.availableMinutes).toBe(105); // 180 - 45 - 30
-        expect(result[0]!.pinnedMaxOrder).toBe(2);
-    });
-
-    it("returns full capacity when no pinned topics", () => {
-        const raw: BlockCapacity[] = [
-            makeCapacity(5, "08:00-11:00" as BlockKey, 180, 1),
-        ];
-        const result = computeBlockCapacities(raw, []);
-        expect(result[0]!.availableMinutes).toBe(180);
-        expect(result[0]!.pinnedMaxOrder).toBe(0);
-    });
-
-    it("clamps capacity to zero if pinned exceeds total", () => {
-        const raw: BlockCapacity[] = [
-            makeCapacity(5, "08:00-11:00" as BlockKey, 60, 1),
-        ];
-        const pinned: PinnedTopic[] = [
-            { sourceItemId: "p1", dayNumber: 5, blockKey: "08:00-11:00" as BlockKey, plannedMinutes: 90, itemOrder: 1 },
-        ];
-        const result = computeBlockCapacities(raw, pinned);
-        expect(result[0]!.availableMinutes).toBe(0);
-    });
-});
 
 describe("walkAndAssign", () => {
     it("assigns topics to blocks in order until capacity is exhausted", () => {
@@ -177,13 +104,10 @@ describe("walkAndAssign", () => {
             makeQueueItem({ sourceItemId: "t2", plannedMinutes: 60 }),
             makeQueueItem({ sourceItemId: "t3", plannedMinutes: 60 }),
         ];
-        const capacities = computeBlockCapacities(
-            [
-                makeCapacity(5, "08:00-11:00" as BlockKey, 120, 1),
-                makeCapacity(5, "11:15-14:15" as BlockKey, 180, 2),
-            ],
-            [],
-        );
+        const capacities = [
+            makeWalkCapacity(5, "08:00-11:00" as BlockKey, 120, 1),
+            makeWalkCapacity(5, "11:15-14:15" as BlockKey, 180, 2),
+        ];
 
         const { placed, unplaced } = walkAndAssign(queue, capacities);
 
@@ -200,13 +124,10 @@ describe("walkAndAssign", () => {
             makeQueueItem({ sourceItemId: "t1", plannedMinutes: 90 }),
             makeQueueItem({ sourceItemId: "t2", plannedMinutes: 90 }),
         ];
-        const capacities = computeBlockCapacities(
-            [
-                makeCapacity(5, "08:00-11:00" as BlockKey, 100, 1),
-                makeCapacity(5, "11:15-14:15" as BlockKey, 100, 2),
-            ],
-            [],
-        );
+        const capacities = [
+            makeWalkCapacity(5, "08:00-11:00" as BlockKey, 100, 1),
+            makeWalkCapacity(5, "11:15-14:15" as BlockKey, 100, 2),
+        ];
 
         const { placed, unplaced } = walkAndAssign(queue, capacities);
 
@@ -223,32 +144,13 @@ describe("walkAndAssign", () => {
             makeQueueItem({ sourceItemId: "t2", plannedMinutes: 60 }),
             makeQueueItem({ sourceItemId: "overflow", plannedMinutes: 60 }),
         ];
-        const capacities = computeBlockCapacities(
-            [makeCapacity(5, "08:00-11:00" as BlockKey, 120, 1)],
-            [],
-        );
+        const capacities = [makeWalkCapacity(5, "08:00-11:00" as BlockKey, 120, 1)];
 
         const { placed, unplaced } = walkAndAssign(queue, capacities);
 
         expect(placed).toHaveLength(2);
         expect(unplaced).toHaveLength(1);
         expect(unplaced[0]!.sourceItemId).toBe("overflow");
-    });
-
-    it("respects pinned itemOrder by starting after pinnedMaxOrder", () => {
-        const queue: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "t1", plannedMinutes: 30 }),
-        ];
-        const capacities = computeBlockCapacities(
-            [makeCapacity(5, "08:00-11:00" as BlockKey, 180, 1)],
-            [
-                { sourceItemId: "p1", dayNumber: 5, blockKey: "08:00-11:00" as BlockKey, plannedMinutes: 60, itemOrder: 3 },
-            ],
-        );
-
-        const { placed } = walkAndAssign(queue, capacities);
-
-        expect(placed[0]).toMatchObject({ sourceItemId: "t1", itemOrder: 4 });
     });
 
     it("preserves write-once recovery fields for already-recovered items", () => {
@@ -264,10 +166,7 @@ describe("walkAndAssign", () => {
                 backlogOriginalBlockKey: "08:00-11:00" as BlockKey,
             }),
         ];
-        const capacities = computeBlockCapacities(
-            [makeCapacity(10, "11:15-14:15" as BlockKey, 180, 1)],
-            [],
-        );
+        const capacities = [makeWalkCapacity(10, "11:15-14:15" as BlockKey, 180, 1)];
 
         const { placed } = walkAndAssign(queue, capacities);
 
@@ -289,10 +188,7 @@ describe("walkAndAssign", () => {
                 backlogOriginalBlockKey: "08:00-11:00" as BlockKey,
             }),
         ];
-        const capacities = computeBlockCapacities(
-            [makeCapacity(10, "11:15-14:15" as BlockKey, 180, 1)],
-            [],
-        );
+        const capacities = [makeWalkCapacity(10, "11:15-14:15" as BlockKey, 180, 1)];
 
         const { placed } = walkAndAssign(queue, capacities);
 
@@ -307,10 +203,7 @@ describe("walkAndAssign", () => {
         const queue: UnifiedQueueItem[] = [
             makeQueueItem({ sourceItemId: "original", plannedMinutes: 60, isFromBacklog: false }),
         ];
-        const capacities = computeBlockCapacities(
-            [makeCapacity(10, "08:00-11:00" as BlockKey, 180, 1)],
-            [],
-        );
+        const capacities = [makeWalkCapacity(10, "08:00-11:00" as BlockKey, 180, 1)];
 
         const { placed } = walkAndAssign(queue, capacities);
 
@@ -321,20 +214,145 @@ describe("walkAndAssign", () => {
 });
 
 describe("runRepackAlgorithm", () => {
-    it("classifies overflow correctly — backlog vs topic", () => {
+    it("is a no-op when backlog is empty and originals already fit the open blocks", () => {
+        const future: UnifiedQueueItem[] = Array.from({ length: 10 }, (_, index) =>
+            makeQueueItem({
+                sourceItemId: `t${index + 1}`,
+                plannedMinutes: 60,
+                subjectTier: index % 2 === 0 ? "A" : "C",
+                dateKey: 5 + Math.floor(index / 4),
+            }),
+        );
+        const raw: BlockCapacity[] = [
+            makeCapacity(5, "08:00-11:00" as BlockKey, 120, 1),
+            makeCapacity(5, "11:15-14:15" as BlockKey, 120, 2),
+            makeCapacity(6, "08:00-11:00" as BlockKey, 120, 1),
+            makeCapacity(6, "11:15-14:15" as BlockKey, 120, 2),
+            makeCapacity(7, "08:00-11:00" as BlockKey, 120, 1),
+        ];
+
+        const result = runAlgorithm([], future, raw);
+
+        expect(result.placements.map((placement) => placement.sourceItemId)).toEqual(
+            future.map((topic) => topic.sourceItemId),
+        );
+        expect(result.placements[0]).toMatchObject({ sourceItemId: "t1", dayNumber: 5, blockKey: "08:00-11:00", itemOrder: 1 });
+        expect(result.placements[3]).toMatchObject({ sourceItemId: "t4", dayNumber: 5, blockKey: "11:15-14:15", itemOrder: 2 });
+        expect(result.placements[9]).toMatchObject({ sourceItemId: "t10", dayNumber: 7, blockKey: "08:00-11:00", itemOrder: 2 });
+    });
+
+    it("inserts a single backlog item at the front and pushes originals forward", () => {
         const backlog: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "b1", plannedMinutes: 90, subjectTier: "A", dateKey: 1, isFromBacklog: true }),
+            makeQueueItem({
+                sourceItemId: "b1",
+                plannedMinutes: 45,
+                subjectTier: "A",
+                dateKey: 8,
+                isFromBacklog: true,
+                backlogOriginalDay: 4,
+                backlogOriginalBlockKey: "08:00-11:00" as BlockKey,
+            }),
+        ];
+        const future: UnifiedQueueItem[] = Array.from({ length: 10 }, (_, index) =>
+            makeQueueItem({
+                sourceItemId: `t${index + 1}`,
+                plannedMinutes: 60,
+                subjectTier: index % 3 === 0 ? "A" : index % 3 === 1 ? "C" : "B",
+                dateKey: 5 + Math.floor(index / 3),
+            }),
+        );
+        const raw: BlockCapacity[] = [
+            makeCapacity(5, "08:00-11:00" as BlockKey, 180, 1),
+            makeCapacity(5, "11:15-14:15" as BlockKey, 180, 2),
+            makeCapacity(5, "14:30-17:30" as BlockKey, 180, 3),
+            makeCapacity(6, "08:00-11:00" as BlockKey, 180, 1),
+        ];
+
+        const result = runAlgorithm(backlog, future, raw);
+        const originalPlacements = result.placements.filter((placement) => placement.sourceItemId.startsWith("t"));
+
+        expect(result.placements[0]).toMatchObject({ sourceItemId: "b1", dayNumber: 5, blockKey: "08:00-11:00", itemOrder: 1 });
+        expect(originalPlacements.map((placement) => placement.sourceItemId)).toEqual(
+            future.map((topic) => topic.sourceItemId),
+        );
+        expect(result.placements.slice(0, 4).map((placement) => placement.sourceItemId)).toEqual(["b1", "t1", "t2", "t3"]);
+        expect(result.placements[3]).toMatchObject({ sourceItemId: "t3", dayNumber: 5, blockKey: "11:15-14:15", itemOrder: 1 });
+    });
+
+    it("keeps sorted backlog items ahead of originals instead of interleaving by tier and date", () => {
+        const backlog: UnifiedQueueItem[] = [
+            makeQueueItem({ sourceItemId: "bA1", subjectTier: "A", dateKey: 7, isFromBacklog: true }),
+            makeQueueItem({ sourceItemId: "bA2", subjectTier: "A", dateKey: 9, isFromBacklog: true }),
+            makeQueueItem({ sourceItemId: "bC1", subjectTier: "C", dateKey: 6, isFromBacklog: true }),
         ];
         const future: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "f1", plannedMinutes: 90, subjectTier: "A", dateKey: 2, isFromBacklog: false }),
+            makeQueueItem({ sourceItemId: "t1", subjectTier: "A", dateKey: 5, isFromBacklog: false }),
+            makeQueueItem({ sourceItemId: "t2", subjectTier: "B", dateKey: 6, isFromBacklog: false }),
+            makeQueueItem({ sourceItemId: "t3", subjectTier: "C", dateKey: 7, isFromBacklog: false }),
+        ];
+        const raw: BlockCapacity[] = [
+            makeCapacity(5, "08:00-11:00" as BlockKey, 360, 1),
+        ];
+
+        const result = runAlgorithm(backlog, future, raw);
+
+        expect(result.placements.map((placement) => placement.sourceItemId)).toEqual([
+            "bA1",
+            "bA2",
+            "bC1",
+            "t1",
+            "t2",
+            "t3",
+        ]);
+    });
+
+    it("cascades overflow from block a to b to c and then the next day", () => {
+        const backlog: UnifiedQueueItem[] = [
+            makeQueueItem({ sourceItemId: "b1", plannedMinutes: 60, subjectTier: "A", dateKey: 7, isFromBacklog: true }),
+            makeQueueItem({ sourceItemId: "b2", plannedMinutes: 60, subjectTier: "A", dateKey: 8, isFromBacklog: true }),
+        ];
+        const future: UnifiedQueueItem[] = Array.from({ length: 6 }, (_, index) =>
+            makeQueueItem({
+                sourceItemId: `o${index + 1}`,
+                plannedMinutes: 60,
+                subjectTier: index % 2 === 0 ? "A" : "C",
+                dateKey: 5 + Math.floor(index / 3),
+            }),
+        );
+        const raw: BlockCapacity[] = [
+            makeCapacity(5, "08:00-11:00" as BlockKey, 180, 1),
+            makeCapacity(5, "11:15-14:15" as BlockKey, 120, 2),
+            makeCapacity(5, "14:30-17:30" as BlockKey, 120, 3),
+            makeCapacity(6, "08:00-11:00" as BlockKey, 120, 1),
+        ];
+
+        const result = runAlgorithm(backlog, future, raw);
+
+        expect(result.placements).toEqual([
+            expect.objectContaining({ sourceItemId: "b1", dayNumber: 5, blockKey: "08:00-11:00", itemOrder: 1 }),
+            expect.objectContaining({ sourceItemId: "b2", dayNumber: 5, blockKey: "08:00-11:00", itemOrder: 2 }),
+            expect.objectContaining({ sourceItemId: "o1", dayNumber: 5, blockKey: "08:00-11:00", itemOrder: 3 }),
+            expect.objectContaining({ sourceItemId: "o2", dayNumber: 5, blockKey: "11:15-14:15", itemOrder: 1 }),
+            expect.objectContaining({ sourceItemId: "o3", dayNumber: 5, blockKey: "11:15-14:15", itemOrder: 2 }),
+            expect.objectContaining({ sourceItemId: "o4", dayNumber: 5, blockKey: "14:30-17:30", itemOrder: 1 }),
+            expect.objectContaining({ sourceItemId: "o5", dayNumber: 5, blockKey: "14:30-17:30", itemOrder: 2 }),
+            expect.objectContaining({ sourceItemId: "o6", dayNumber: 6, blockKey: "08:00-11:00", itemOrder: 1 }),
+        ]);
+    });
+
+    it("classifies overflow correctly — backlog vs topic", () => {
+        const backlog: UnifiedQueueItem[] = [
+            makeQueueItem({ sourceItemId: "b1", plannedMinutes: 90, subjectTier: "A", dateKey: 8, isFromBacklog: true }),
+        ];
+        const future: UnifiedQueueItem[] = [
+            makeQueueItem({ sourceItemId: "f1", plannedMinutes: 90, subjectTier: "A", dateKey: 5, isFromBacklog: false }),
         ];
         const raw: BlockCapacity[] = [
             makeCapacity(5, "08:00-11:00" as BlockKey, 90, 1),
         ];
 
-        const result = runRepackAlgorithm(backlog, future, raw, []);
+        const result = runAlgorithm(backlog, future, raw);
 
-        // Only one fits — b1 is placed (backlog-first for same tier), f1 overflows as topic
         expect(result.stats.placed).toBe(1);
         expect(result.placements[0]!.sourceItemId).toBe("b1");
         expect(result.phaseClosedTopicSourceItemIds).toEqual(["f1"]);
@@ -343,11 +361,11 @@ describe("runRepackAlgorithm", () => {
 
     it("handles scenario with only backlog overflow", () => {
         const backlog: UnifiedQueueItem[] = [
-            makeQueueItem({ sourceItemId: "b1", plannedMinutes: 90, subjectTier: "A", dateKey: 1, isFromBacklog: true }),
-            makeQueueItem({ sourceItemId: "b2", plannedMinutes: 90, subjectTier: "B", dateKey: 1, isFromBacklog: true }),
+            makeQueueItem({ sourceItemId: "b1", plannedMinutes: 90, subjectTier: "A", dateKey: 7, isFromBacklog: true }),
+            makeQueueItem({ sourceItemId: "b2", plannedMinutes: 90, subjectTier: "B", dateKey: 8, isFromBacklog: true }),
         ];
 
-        const result = runRepackAlgorithm(backlog, [], [makeCapacity(5, "08:00-11:00" as BlockKey, 90, 1)], []);
+        const result = runAlgorithm(backlog, [], [makeCapacity(5, "08:00-11:00" as BlockKey, 90, 1)]);
 
         expect(result.stats.placed).toBe(1);
         expect(result.phaseClosedBacklogSourceItemIds).toEqual(["b2"]);
@@ -355,7 +373,7 @@ describe("runRepackAlgorithm", () => {
     });
 
     it("returns empty output when all inputs are empty", () => {
-        const result = runRepackAlgorithm([], [], [], []);
+        const result = runAlgorithm([], [], []);
         expect(result.stats).toEqual({ placed: 0, extensionDaysCreated: 0, phaseClosed: 0 });
         expect(result.placements).toEqual([]);
     });
@@ -434,6 +452,81 @@ describe("runMidnightRepack integration", () => {
         const result = runMidnightRepack(userState, userState.settings, "2026-05-01", 0, refData);
         expect(result.skipped).toBe(true);
         expect(result.reason).toBe("no_schedule");
+    });
+
+    it("keeps original workbook order when backlog is empty instead of re-sorting originals by tier", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const todayDate = "2026-05-05";
+        const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+        const day5BlockAItems = getBlockItems(todayDayNumber, "block_a");
+        const day6BlockAItems = getBlockItems(todayDayNumber + 1, "block_a");
+
+        expect(day5BlockAItems.length).toBeGreaterThanOrEqual(2);
+        expect(day6BlockAItems.length).toBeGreaterThanOrEqual(1);
+
+        const pharmRow = userState.schedule.topicAssignments[day5BlockAItems[0]!.itemId]!;
+        const entRow = userState.schedule.topicAssignments[day5BlockAItems[1]!.itemId]!;
+        const medicineRow = userState.schedule.topicAssignments[day6BlockAItems[0]!.itemId]!;
+        const trackedIds = new Set([pharmRow.sourceItemId, entRow.sourceItemId, medicineRow.sourceItemId]);
+        const day5BlockAKey = getBlockKey(todayDayNumber, "block_a");
+        const day5BlockBKey = getBlockKey(todayDayNumber, "block_b");
+        const day5BlockCKey = getBlockKey(todayDayNumber, "block_c");
+        const day6BlockAKey = getBlockKey(todayDayNumber + 1, "block_a");
+
+        for (const row of Object.values(userState.schedule.topicAssignments)) {
+            if (row.dayNumber >= todayDayNumber && row.status === "pending" && !trackedIds.has(row.sourceItemId)) {
+                row.status = "completed";
+            }
+        }
+
+        pharmRow.dayNumber = todayDayNumber;
+        pharmRow.blockKey = day5BlockAKey;
+        pharmRow.itemOrder = 1;
+        pharmRow.subjectIds = ["pharmacology"];
+        pharmRow.label = "Pharmacology";
+        pharmRow.plannedMinutes = 60;
+        pharmRow.status = "pending";
+
+        entRow.dayNumber = todayDayNumber;
+        entRow.blockKey = day5BlockAKey;
+        entRow.itemOrder = 2;
+        entRow.subjectIds = ["ent"];
+        entRow.label = "ENT";
+        entRow.plannedMinutes = 60;
+        entRow.status = "pending";
+
+        medicineRow.dayNumber = todayDayNumber + 1;
+        medicineRow.blockKey = day6BlockAKey;
+        medicineRow.itemOrder = 1;
+        medicineRow.subjectIds = ["medicine"];
+        medicineRow.label = "Medicine";
+        medicineRow.plannedMinutes = 60;
+        medicineRow.status = "pending";
+
+        userState.schedule.blocks[`${todayDayNumber}:${day5BlockAKey}`]!.durationMinutes = 120;
+        userState.schedule.blocks[`${todayDayNumber}:${day5BlockBKey}`]!.durationMinutes = 0;
+        userState.schedule.blocks[`${todayDayNumber}:${day5BlockCKey}`]!.durationMinutes = 0;
+        userState.schedule.blocks[`${todayDayNumber + 1}:${day6BlockAKey}`]!.durationMinutes = 60;
+
+        runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(userState.schedule.topicAssignments[pharmRow.sourceItemId]).toMatchObject({
+            dayNumber: todayDayNumber,
+            blockKey: day5BlockAKey,
+            itemOrder: 1,
+        });
+        expect(userState.schedule.topicAssignments[entRow.sourceItemId]).toMatchObject({
+            dayNumber: todayDayNumber,
+            blockKey: day5BlockAKey,
+            itemOrder: 2,
+        });
+        expect(userState.schedule.topicAssignments[medicineRow.sourceItemId]).toMatchObject({
+            dayNumber: todayDayNumber + 1,
+            blockKey: day6BlockAKey,
+            itemOrder: 1,
+        });
     });
 
     it("places backlog items back into schedule and marks them rescheduled", () => {
@@ -555,32 +648,6 @@ describe("runMidnightRepack integration", () => {
                     expect(row.status).toBe("completed");
                 }
             }
-        }
-    });
-
-    it("respects pinned topics — does not move them", () => {
-        const userState = createConfiguredUserState();
-        ensureUserScheduleSeeded(userState);
-
-        // Pin a specific topic
-        const pinnedRow = Object.values(userState.schedule.topicAssignments).find(
-            (ta) => ta.dayNumber >= 2 && ta.status === "pending",
-        );
-        if (pinnedRow) {
-            pinnedRow.isPinned = true;
-            const originalDay = pinnedRow.dayNumber;
-            const originalBlock = pinnedRow.blockKey;
-            const originalOrder = pinnedRow.itemOrder;
-
-            const todayDate = "2026-05-01";
-            const todayDayNumber = getCurrentDayNumber(userState, todayDate);
-
-            runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
-
-            // Pinned topic should not have moved
-            expect(pinnedRow.dayNumber).toBe(originalDay);
-            expect(pinnedRow.blockKey).toBe(originalBlock);
-            expect(pinnedRow.itemOrder).toBe(originalOrder);
         }
     });
 
@@ -732,7 +799,7 @@ describe("repack algorithm with multi-day capacity", () => {
             makeCapacity(5, "14:30-17:30" as BlockKey, 60, 3),   // block_c slot
         ];
 
-        const result = runRepackAlgorithm(queue, [], raw, []);
+        const result = runAlgorithm([], queue, raw);
 
         expect(result.placements[0]).toMatchObject({ sourceItemId: "t1", blockKey: "08:00-11:00" });
         expect(result.placements[1]).toMatchObject({ sourceItemId: "t2", blockKey: "11:15-14:15" });
@@ -749,7 +816,7 @@ describe("repack algorithm with multi-day capacity", () => {
             makeCapacity(6, "08:00-11:00" as BlockKey, 60, 1),
         ];
 
-        const result = runRepackAlgorithm(queue, [], raw, []);
+        const result = runAlgorithm([], queue, raw);
 
         expect(result.placements[0]).toMatchObject({ sourceItemId: "t1", dayNumber: 5 });
         expect(result.placements[1]).toMatchObject({ sourceItemId: "t2", dayNumber: 6 });
@@ -766,7 +833,7 @@ describe("repack algorithm with multi-day capacity", () => {
             makeCapacity(5, "08:00-11:00" as BlockKey, 60, 1),
         ];
 
-        const result = runRepackAlgorithm(backlog, future, raw, []);
+        const result = runAlgorithm(backlog, future, raw);
 
         // Only one slot — backlog gets priority
         expect(result.stats.placed).toBe(1);
@@ -802,7 +869,7 @@ describe("runRepackAlgorithm with extensionContext", () => {
             ],
         };
 
-        const result = runRepackAlgorithm([], future, raw, [], context);
+        const result = runAlgorithm([], future, raw, context);
 
         expect(result.stats.placed).toBe(2);
         expect(result.extensionDaysUsed).toBe(1);
@@ -836,7 +903,7 @@ describe("runRepackAlgorithm with extensionContext", () => {
             ],
         };
 
-        const result = runRepackAlgorithm([], future, raw, [], context);
+        const result = runAlgorithm([], future, raw, context);
 
         expect(result.stats.placed).toBe(2); // t1 base + t2 extension
         expect(result.extensionDaysUsed).toBe(1);
@@ -865,7 +932,7 @@ describe("runRepackAlgorithm with extensionContext", () => {
             ],
         };
 
-        const result = runRepackAlgorithm([], future, raw, [], context);
+        const result = runAlgorithm([], future, raw, context);
 
         // t1 base, t2 extension on 2026-08-28 (on hard stop, allowed)
         expect(result.stats.placed).toBe(2);
@@ -894,7 +961,7 @@ describe("runRepackAlgorithm with extensionContext", () => {
             ],
         };
 
-        const result = runRepackAlgorithm([], future, raw, [], context);
+        const result = runAlgorithm([], future, raw, context);
 
         expect(result.stats.placed).toBe(2); // t1 base, t2 on 2026-08-28
         expect(result.extensionDaysUsed).toBe(1);
@@ -920,7 +987,7 @@ describe("runRepackAlgorithm with extensionContext", () => {
             ],
         };
 
-        const result = runRepackAlgorithm([], future, raw, [], context);
+        const result = runAlgorithm([], future, raw, context);
 
         expect(result.stats.placed).toBe(1);
         expect(result.extensionDaysUsed).toBe(0);

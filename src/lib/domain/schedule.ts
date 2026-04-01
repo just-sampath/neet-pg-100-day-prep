@@ -225,8 +225,10 @@ function buildRuntimeDayBlock(
   templateBlock: ScheduleDayBlock | null,
   itemRows: RuntimeAssignmentRow[],
 ): ScheduleDayBlock {
-  const items = itemRows.length > 0
-    ? itemRows.map((entry) => ({
+  const visibleItemRows = itemRows.filter((entry) => entry.sourceTag !== "phase_closed");
+
+  const items = visibleItemRows.length > 0
+    ? visibleItemRows.map((entry) => ({
       itemId: entry.sourceItemId,
       order: entry.itemOrder,
       kind: entry.kind,
@@ -245,7 +247,9 @@ function buildRuntimeDayBlock(
       originalDayNumber: entry.isRecovery ? entry.originalDayNumber : undefined,
       originalBlockKey: entry.isRecovery ? entry.originalBlockKey : undefined,
     }))
-    : cloneTemplateItems(templateBlock?.items ?? []);
+    : itemRows.length > 0
+      ? []
+      : cloneTemplateItems(templateBlock?.items ?? []);
 
   if (!row && templateBlock) {
     return {
@@ -1038,6 +1042,50 @@ export function getOriginalPlannedDate(dayNumber: number, stateOrSettings: AppSe
   }
 
   return addDaysToDateOnly(stateOrSettings.dayOneDate, dayNumber - 1);
+}
+
+export function getDisplayDayNumber(runtimeDayNumber: number, userState: UserState): number | null {
+  const row = userState.schedule.days[String(runtimeDayNumber)];
+  if (!row || row.isExtensionDay) {
+    return null;
+  }
+
+  if (row.originalDayNumber !== null) {
+    return row.originalDayNumber;
+  }
+
+  if (!userState.settings.dayOneDate) {
+    return null;
+  }
+
+  return diffDays(row.originalMappedDate, userState.settings.dayOneDate) + 1;
+}
+
+export function getRuntimeDayNumberForDisplayDay(displayDayNumber: number, userState: UserState): number | null {
+  const match = Object.values(userState.schedule.days).find(
+    (row) => !row.isExtensionDay && row.originalDayNumber === displayDayNumber,
+  );
+  if (match) {
+    return match.dayNumber;
+  }
+
+  if (!userState.settings.dayOneDate) {
+    return null;
+  }
+
+  const originalPlannedDate = addDaysToDateOnly(userState.settings.dayOneDate, displayDayNumber - 1);
+  return Object.values(userState.schedule.days).find(
+    (row) => !row.isExtensionDay && row.originalMappedDate === originalPlannedDate,
+  )?.dayNumber ?? null;
+}
+
+export function getDisplayDayCountLabel(runtimeDayNumber: number, userState: UserState) {
+  if (runtimeDayNumber <= 0) {
+    return getSafeDayCountLabel(runtimeDayNumber);
+  }
+
+  const displayDayNumber = getDisplayDayNumber(runtimeDayNumber, userState);
+  return displayDayNumber === null ? "Extension day" : getSafeDayCountLabel(displayDayNumber);
 }
 
 export function getMappedDate(dayNumber: number, settings: AppSettings): string | null;

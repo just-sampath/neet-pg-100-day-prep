@@ -1,10 +1,10 @@
 /**
  * Midnight Repack Engine — Pure Algorithm
  *
- * Full forward schedule rebuild: collects ALL pending backlog items and ALL
- * uncompleted (pending) non-pinned future topic assignments, merges them into
- * one tier-priority-ordered queue, and redistributes across remaining phase
- * days filling Block A → Block B → Block C by capacity.
+ * Insertion + push rebuild: pending backlog items are placed at the front of
+ * the placement queue, then the remaining pending original topics follow in
+ * their existing workbook order. The walk redistributes that queue across the
+ * remaining phase days by filling Block A → Block B → Block C by capacity.
  *
  * This module contains ONLY pure functions with zero DB/store/side-effect
  * access. Input data in, assignment map out.
@@ -34,16 +34,7 @@ export interface UnifiedQueueItem {
     backlogOriginalBlockKey: BlockKey | null;
 }
 
-/** A pinned topic that the repack must work around. */
-export interface PinnedTopic {
-    sourceItemId: string;
-    dayNumber: number;
-    blockKey: BlockKey;
-    plannedMinutes: number;
-    itemOrder: number;
-}
-
-/** Capacity of a single block after pinned deductions. */
+/** Capacity of a single block available to the repack walk. */
 export interface BlockCapacity {
     dayNumber: number;
     blockKey: BlockKey;
@@ -103,71 +94,20 @@ export interface ExtensionContext {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const TIER_RANK: Record<string, number> = { A: 0, B: 1, C: 2 };
-
-function tierRank(tier: SubjectTier | null): number {
-    if (!tier) return 3;
-    return TIER_RANK[tier] ?? 3;
-}
-
 // ---------------------------------------------------------------------------
-// Step 5: Merge Unified Queue
+// Step 5: Build Placement Queue
 // ---------------------------------------------------------------------------
 
 /**
- * Two-pointer merge of pre-sorted backlog items and pre-sorted future topics.
- *
- * Sort key: tier ASC → dateKey ASC → backlog-first within same tier+date.
- *
- * Both inputs MUST already be sorted by (tier ASC, dateKey ASC).
+ * Build the placement queue as insertion + push:
+ * - pending backlog items first (already sorted by backlog priority)
+ * - pending original topics next (already ordered by current workbook position)
  */
-export function mergeUnifiedQueue(
+function buildPlacementQueue(
     backlogItems: UnifiedQueueItem[],
     futureTopics: UnifiedQueueItem[],
 ): UnifiedQueueItem[] {
-    const merged: UnifiedQueueItem[] = [];
-    let bi = 0;
-    let fi = 0;
-
-    while (bi < backlogItems.length && fi < futureTopics.length) {
-        const b = backlogItems[bi]!;
-        const f = futureTopics[fi]!;
-
-        const bTier = tierRank(b.subjectTier);
-        const fTier = tierRank(f.subjectTier);
-
-        if (bTier < fTier) {
-            merged.push(b);
-            bi++;
-        } else if (bTier > fTier) {
-            merged.push(f);
-            fi++;
-        } else {
-            // Same tier — compare dateKey
-            if (b.dateKey < f.dateKey) {
-                merged.push(b);
-                bi++;
-            } else if (b.dateKey > f.dateKey) {
-                merged.push(f);
-                fi++;
-            } else {
-                // Same tier AND same date — backlog first
-                merged.push(b);
-                bi++;
-            }
-        }
-    }
-
-    while (bi < backlogItems.length) {
-        merged.push(backlogItems[bi]!);
-        bi++;
-    }
-    while (fi < futureTopics.length) {
-        merged.push(futureTopics[fi]!);
-        fi++;
-    }
-
-    return merged;
+    return [...backlogItems, ...futureTopics];
 }
 
 // ---------------------------------------------------------------------------
@@ -175,38 +115,18 @@ export function mergeUnifiedQueue(
 // ---------------------------------------------------------------------------
 
 /**
- * Given raw block capacities and pinned topic positions, returns the
- * available minutes per block after pinned deductions, plus the highest
- * pinned itemOrder per block so the walk can start numbering after it.
+ * Returns the full available minutes for each repackable block.
+ *
+ * The corrected insertion model no longer deducts pinned topics or offsets
+ * item ordering inside the repack walk.
  */
 export function computeBlockCapacities(
     rawCapacities: BlockCapacity[],
-    pinnedTopics: PinnedTopic[],
-): Array<BlockCapacity & { availableMinutes: number; pinnedMaxOrder: number }> {
-    // Build a lookup: "dayNumber:blockKey" → total pinned minutes + max order
-    const pinnedByBlock = new Map<string, { minutes: number; maxOrder: number }>();
-    for (const p of pinnedTopics) {
-        const key = `${p.dayNumber}:${p.blockKey}`;
-        const existing = pinnedByBlock.get(key);
-        if (existing) {
-            existing.minutes += p.plannedMinutes;
-            existing.maxOrder = Math.max(existing.maxOrder, p.itemOrder);
-        } else {
-            pinnedByBlock.set(key, { minutes: p.plannedMinutes, maxOrder: p.itemOrder });
-        }
-    }
-
-    return rawCapacities.map((cap) => {
-        const key = `${cap.dayNumber}:${cap.blockKey}`;
-        const pinned = pinnedByBlock.get(key);
-        const deducted = pinned ? pinned.minutes : 0;
-        const maxOrder = pinned ? pinned.maxOrder : 0;
-        return {
-            ...cap,
-            availableMinutes: Math.max(0, cap.durationMinutes - deducted),
-            pinnedMaxOrder: maxOrder,
-        };
-    });
+): Array<BlockCapacity & { availableMinutes: number }> {
+    return rawCapacities.map((cap) => ({
+        ...cap,
+        availableMinutes: Math.max(0, cap.durationMinutes),
+    }));
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +135,7 @@ export function computeBlockCapacities(
 
 /**
  * Pointer-based distribution: for each block (ordered day ASC, slot ASC),
- * fit as many topics as possible from the unified queue.
+ * fit as many topics as possible from the placement queue.
  *
  * Topics are NEVER split: if the next topic doesn't fit in the remaining
  * capacity, move to the next block. Wasted minutes are expected.
@@ -231,7 +151,7 @@ export function walkAndAssign(
 
     for (const block of capacities) {
         let remaining = block.availableMinutes;
-        let orderCounter = block.pinnedMaxOrder + 1;
+        let orderCounter = 1;
 
         while (pointer < queue.length && remaining > 0) {
             const topic = queue[pointer]!;
@@ -313,12 +233,11 @@ export function runRepackAlgorithm(
     backlogQueue: UnifiedQueueItem[],
     futureTopics: UnifiedQueueItem[],
     rawCapacities: BlockCapacity[],
-    pinnedTopics: PinnedTopic[],
     extensionContext?: ExtensionContext,
 ): RepackOutput {
-    const unified = mergeUnifiedQueue(backlogQueue, futureTopics);
-    const capacities = computeBlockCapacities(rawCapacities, pinnedTopics);
-    const { placed, unplaced } = walkAndAssign(unified, capacities);
+    const placementQueue = buildPlacementQueue(backlogQueue, futureTopics);
+    const capacities = computeBlockCapacities(rawCapacities);
+    const { placed, unplaced } = walkAndAssign(placementQueue, capacities);
 
     const allPlaced = [...placed];
     let remaining = unplaced;
@@ -349,7 +268,7 @@ export function runRepackAlgorithm(
             );
 
             // Walk the remaining items over the extension day's blocks
-            const extCapacities = computeBlockCapacities(extRawCapacities, []);
+            const extCapacities = computeBlockCapacities(extRawCapacities);
             const extResult = walkAndAssign(remaining, extCapacities);
 
             allPlaced.push(...extResult.placed);

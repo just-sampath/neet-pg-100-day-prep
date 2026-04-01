@@ -149,6 +149,7 @@ export type ScheduleShiftHiddenReason = "buffer_absorbed" | "compression_merged"
 
 export interface ScheduleDayRow {
   dayNumber: number;
+  originalDayNumber: number | null;
   phaseId: string;
   phaseName: string;
   phaseGroup: "phase_1" | "phase_2" | "phase_3";

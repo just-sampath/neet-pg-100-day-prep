@@ -775,6 +775,7 @@ function buildScheduleDayRows(userId: string, schedule: UserState["schedule"]) {
   return Object.values(schedule.days).map((entry) => ({
     user_id: userId,
     day_number: entry.dayNumber,
+    original_day_number: entry.originalDayNumber,
     phase_id: entry.phaseId,
     phase_name: entry.phaseName,
     phase_group: entry.phaseGroup,
@@ -1074,6 +1075,7 @@ function applySupabaseScheduleDayRows(userState: UserState, rows: Array<Record<s
   for (const row of rows ?? []) {
     userState.schedule.days[String(row.day_number)] = {
       dayNumber: row.day_number as number,
+      originalDayNumber: (row.original_day_number as number | null | undefined) ?? null,
       phaseId: row.phase_id as string,
       phaseName: row.phase_name as string,
       phaseGroup: row.phase_group as UserState["schedule"]["days"][string]["phaseGroup"],
@@ -1351,6 +1353,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
   for (const row of scheduleDaysResult.data ?? []) {
     userState.schedule.days[String(row.day_number)] = {
       dayNumber: row.day_number,
+      originalDayNumber: row.original_day_number ?? null,
       phaseId: row.phase_id,
       phaseName: row.phase_name,
       phaseGroup: row.phase_group,
@@ -1658,6 +1661,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
   for (const row of scheduleDaysResult.data ?? []) {
     userState.schedule.days[String(row.day_number)] = {
       dayNumber: row.day_number,
+      originalDayNumber: row.original_day_number ?? null,
       phaseId: row.phase_id,
       phaseName: row.phase_name,
       phaseGroup: row.phase_group,

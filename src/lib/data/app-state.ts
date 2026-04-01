@@ -4,7 +4,6 @@ import { getQuotePools } from "@/lib/data/reference-data";
 import {
   completeAssignedRecoveryForTarget,
   getBacklogQueueItems,
-  getBacklogStatusCounts,
   getBacklogSummary,
   getBacklogSourceLabel,
   getNextBacklogPriorityOrder,
@@ -50,14 +49,15 @@ import {
   getBlockProgress,
   getCurrentDayNumber,
   getDayCompletionState,
+  getDisplayDayCountLabel,
+  getDisplayDayNumber,
   getDayState,
   getDisplayBlockDescription,
   getMappedDate,
   getMorningRevisionStatsForDate,
   getMergedPartner,
   getOriginalPlannedDate,
-  getPhaseDayStatus,
-  getSafeDayCountLabel,
+  getRuntimeDayNumberForDisplayDay,
   getScheduleDay,
   getScheduleDays,
   getScheduleDayEditState,
@@ -76,6 +76,7 @@ import {
 import { findWeeklySummaryByWeekKey, getWeeklyScheduleStatus, WEEKLY_AUTOMATION_MINUTES } from "@/lib/domain/weekly";
 import type {
   AppSettings,
+  BacklogItem,
   BacklogQueueViewItem,
   BacklogSourceTag,
   BacklogSortMode,
@@ -1573,8 +1574,9 @@ export interface RepackResult {
 /**
  * Collect inputs for the repack algorithm from UserState.
  *
- * Resolves subject tiers for topic assignments (using referenceData) so the
- * pure algorithm never needs reference data.
+ * Backlog items are collected in backlog-priority order and original pending
+ * topics are collected in their current schedule order so the pure algorithm
+ * can apply insertion + push without any additional re-sorting.
  */
 function collectRepackInputs(
   userState: UserState,
@@ -1583,24 +1585,6 @@ function collectRepackInputs(
   referenceData?: LocalStore["referenceData"],
 ) {
   const schedule = userState.schedule;
-
-  // --- Pinned topics ---
-  const pinnedTopics: import("@/lib/domain/repack").PinnedTopic[] = [];
-  for (const row of Object.values(schedule.topicAssignments)) {
-    if (
-      row.isPinned &&
-      row.dayNumber >= todayDayNumber &&
-      row.dayNumber <= phaseEndDay
-    ) {
-      pinnedTopics.push({
-        sourceItemId: row.sourceItemId,
-        dayNumber: row.dayNumber,
-        blockKey: row.blockKey,
-        plannedMinutes: row.plannedMinutes,
-        itemOrder: row.itemOrder,
-      });
-    }
-  }
 
   // --- Pending backlog items (Source A) ---
   const pendingBacklog: import("@/lib/domain/repack").UnifiedQueueItem[] = [];
@@ -1624,6 +1608,8 @@ function collectRepackInputs(
   // --- Uncompleted future topic assignments (Source B) ---
   // CRITICAL: Only status='pending'. Topics with 'missed', 'skipped',
   // 'completed', 'rescheduled' are excluded — they've been handled elsewhere.
+  // Original topics stay in their CURRENT workbook order; they are not re-sorted
+  // by subject tier during repack.
   const futureTopicRows: Array<{ row: typeof schedule.topicAssignments[string]; tier: SubjectTier | null }> = [];
   for (const row of Object.values(schedule.topicAssignments)) {
     const sourceEntry = getScheduleItemById(row.sourceItemId, undefined, referenceData);
@@ -1631,7 +1617,6 @@ function collectRepackInputs(
       row.dayNumber >= todayDayNumber &&
       row.dayNumber <= phaseEndDay &&
       row.status === "pending" &&
-      !row.isPinned &&
       sourceEntry !== null &&
       REPACK_ELIGIBLE_BLOCK_INTENTS.has(sourceEntry.block.blockIntent)
     ) {
@@ -1640,10 +1625,8 @@ function collectRepackInputs(
     }
   }
 
-  // Sort by tier ASC, dayNumber ASC, itemOrder ASC
+  // Preserve current schedule order for originals.
   futureTopicRows.sort((a, b) => {
-    const tDelta = tierRankLocal(a.tier) - tierRankLocal(b.tier);
-    if (tDelta !== 0) return tDelta;
     if (a.row.dayNumber !== b.row.dayNumber) return a.row.dayNumber - b.row.dayNumber;
     return a.row.itemOrder - b.row.itemOrder;
   });
@@ -1684,14 +1667,7 @@ function collectRepackInputs(
     return a.slotOrder - b.slotOrder;
   });
 
-  return { pinnedTopics, pendingBacklog, futureTopics, rawCapacities };
-}
-
-function tierRankLocal(tier: SubjectTier | null): number {
-  if (tier === "A") return 0;
-  if (tier === "B") return 1;
-  if (tier === "C") return 2;
-  return 3;
+  return { pendingBacklog, futureTopics, rawCapacities };
 }
 
 /**
@@ -1702,12 +1678,12 @@ function tierRankLocal(tier: SubjectTier | null): number {
  * - If from backlog: set recovery fields (write-once) and mark backlog 'rescheduled'
  * - If already recovery: preserve existing recovery origin fields
  *
- * For overflow original topics:
- * - Mark topic assignment status='missed', sourceTag='repack_overflow'
- * - Create/update backlog item with source_tag='repack_overflow'
+ * For terminal overflow original topics:
+ * - Mark topic assignment status='missed', sourceTag='phase_closed'
+ * - Create/update backlog item with source_tag='phase_closed'
  *
- * For overflow backlog items:
- * - Left as-is (status='pending' in backlogItems)
+ * For terminal overflow backlog items:
+ * - Mark the backlog entry as status='phase_closed'
  */
 function applyRepackResult(
   userState: UserState,
@@ -1958,9 +1934,10 @@ function closeStalePhaseBacklog(
  *
  * Idempotent: if the repack has already run for the given date, it's a no-op.
  * Run after midnight rollover (which creates backlog items) so the repack
- * can redistribute them.
+ * can insert backlog work at the front of the remaining schedule and push the
+ * original workbook sequence forward.
  *
- * Phase extension: when the unified queue overflows the current phase, the
+ * Phase extension: when the placement queue overflows the current phase, the
  * engine adds full study days at the end of the phase (up to the phase's
  * extension budget), renumbers all subsequent days to keep day_numbers
  * contiguous, and marks truly unplaceable items as terminal phase_closed.
@@ -2011,7 +1988,7 @@ export function runMidnightRepack(
   const phaseTransitionClosed = closeStalePhaseBacklog(userState, currentPhase.phaseNumber, now);
 
   // --- Collect inputs ---
-  const { pinnedTopics, pendingBacklog, futureTopics, rawCapacities } = collectRepackInputs(
+  const { pendingBacklog, futureTopics, rawCapacities } = collectRepackInputs(
     userState,
     todayDayNumber,
     phaseEndDay,
@@ -2038,7 +2015,7 @@ export function runMidnightRepack(
   }
 
   // --- Run pure algorithm ---
-  const output = runRepackAlgorithm(pendingBacklog, futureTopics, rawCapacities, pinnedTopics, extensionContext);
+  const output = runRepackAlgorithm(pendingBacklog, futureTopics, rawCapacities, extensionContext);
 
   // --- If extension days were used, apply renumber cascade + insert extension days ---
   if (output.extensionDaysUsed > 0) {
@@ -2123,68 +2100,68 @@ export function getHomeData(store: LocalStore, userId: string) {
   applyAutomations(store, userId);
 
   return withRevisionCache(() => {
-  const userState = store.userState[userId];
+    const userState = store.userState[userId];
 
-  const now = getEffectiveNow(store);
-  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const settings = userState.settings;
-  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
-  const todayScheduleDay = getScheduleDay(todayDayNumber, userState, store.referenceData);
+    const now = getEffectiveNow(store);
+    const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+    const settings = userState.settings;
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayScheduleDay = getScheduleDay(todayDayNumber, userState, store.referenceData);
 
-  const todayState = todayScheduleDay ? getDayState(userState, todayDayNumber) : null;
-  const todayRevisionPlan =
-    todayScheduleDay && settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings, store.referenceData) : null;
-  const backlogCount = getBacklogCount(userState);
-  const dayComplete =
-    todayScheduleDay && todayState ? getDayCompletionState(todayScheduleDay, userState, todayState.trafficLight, store.referenceData) : false;
-  const quoteSelection =
-    todayScheduleDay && todayState
-      ? getTodayQuoteSelection(userState.quoteState, {
-        dateKey: todayDate,
-        userKey: userId,
-        trafficLight: todayState.trafficLight,
-        dayComplete,
-      }, getQuotePools(store.referenceData))
-      : {
-        lineCategory: null,
-        lineQuote: null,
-        dailyQuote: null,
-        toughQuote: null,
-        celebrationQuote: null,
-      };
+    const todayState = todayScheduleDay ? getDayState(userState, todayDayNumber) : null;
+    const todayRevisionPlan =
+      todayScheduleDay && settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings, store.referenceData) : null;
+    const backlogCount = getBacklogCount(userState);
+    const dayComplete =
+      todayScheduleDay && todayState ? getDayCompletionState(todayScheduleDay, userState, todayState.trafficLight, store.referenceData) : false;
+    const quoteSelection =
+      todayScheduleDay && todayState
+        ? getTodayQuoteSelection(userState.quoteState, {
+          dateKey: todayDate,
+          userKey: userId,
+          trafficLight: todayState.trafficLight,
+          dayComplete,
+        }, getQuotePools(store.referenceData))
+        : {
+          lineCategory: null,
+          lineQuote: null,
+          dailyQuote: null,
+          toughQuote: null,
+          celebrationQuote: null,
+        };
 
-  const shiftHealth = getScheduleHealth(userState, settings, todayDayNumber, store.referenceData);
-  const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays, store.referenceData) : null;
-  const plannedRecovery = getScheduledRecoveryForDay(userState, settings, todayDayNumber, todayDate, store.referenceData);
+    const shiftHealth = getScheduleHealth(userState, settings, todayDayNumber, store.referenceData);
+    const shiftPreview = shiftHealth.suggestShift ? getShiftPreview(settings, shiftHealth.missedDays, store.referenceData) : null;
+    const plannedRecovery = getScheduledRecoveryForDay(userState, settings, todayDayNumber, todayDate, store.referenceData);
 
-  return {
-    nowIso: now.toISOString(),
-    todayDate,
-    todayDayNumber,
-    lateNightSweepProcessed: userState.processedDates.lateNightSweepDates.includes(todayDate),
-    dayCountLabel: getSafeDayCountLabel(todayDayNumber),
-    settings,
-    todayScheduleDay,
-    todayState,
-    todayRevisionPlan,
-    backlogCount,
-    dayComplete,
-    lineQuote: quoteSelection.lineQuote,
-    lineQuoteCategory: quoteSelection.lineCategory,
-    celebrationQuote: quoteSelection.celebrationQuote,
-    shiftHealth,
-    shiftPreview,
-    plannedRecovery,
-    phase:
-      todayScheduleDay
-        ? store.referenceData.scheduleData.daywisePlan.phaseCatalog.find(
-          (entry) =>
-            entry.phaseId === todayScheduleDay.phaseId &&
-            todayScheduleDay.dayNumber >= entry.startDay &&
-            todayScheduleDay.dayNumber <= entry.endDay,
-        ) ?? null
-        : null,
-  };
+    return {
+      nowIso: now.toISOString(),
+      todayDate,
+      todayDayNumber,
+      lateNightSweepProcessed: userState.processedDates.lateNightSweepDates.includes(todayDate),
+      dayCountLabel: getDisplayDayCountLabel(todayDayNumber, userState),
+      settings,
+      todayScheduleDay,
+      todayState,
+      todayRevisionPlan,
+      backlogCount,
+      dayComplete,
+      lineQuote: quoteSelection.lineQuote,
+      lineQuoteCategory: quoteSelection.lineCategory,
+      celebrationQuote: quoteSelection.celebrationQuote,
+      shiftHealth,
+      shiftPreview,
+      plannedRecovery,
+      phase:
+        todayScheduleDay
+          ? store.referenceData.scheduleData.daywisePlan.phaseCatalog.find(
+            (entry) =>
+              entry.phaseId === todayScheduleDay.phaseId &&
+              todayScheduleDay.dayNumber >= entry.startDay &&
+              todayScheduleDay.dayNumber <= entry.endDay,
+          ) ?? null
+          : null,
+    };
   });
 }
 
@@ -2215,26 +2192,26 @@ export function getRevisionQueuePageData(store: LocalStore, userId: string) {
   applyAutomations(store, userId);
 
   return withRevisionCache(() => {
-  const userState = store.userState[userId];
-  const now = getEffectiveNow(store);
-  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const settings = userState.settings;
-  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
-  const todayScheduleDay = getScheduleDay(todayDayNumber, userState, store.referenceData);
-  const revisionPlan = settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings, store.referenceData) : null;
-  const waitingSessions = revisionPlan
-    ? [...revisionPlan.overflowSessions, ...revisionPlan.catchUpSessions, ...revisionPlan.restudySessions]
-    : [];
+    const userState = store.userState[userId];
+    const now = getEffectiveNow(store);
+    const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+    const settings = userState.settings;
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayScheduleDay = getScheduleDay(todayDayNumber, userState, store.referenceData);
+    const revisionPlan = settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings, store.referenceData) : null;
+    const waitingSessions = revisionPlan
+      ? [...revisionPlan.overflowSessions, ...revisionPlan.catchUpSessions, ...revisionPlan.restudySessions]
+      : [];
 
-  return {
-    todayDate,
-    todayDayNumber,
-    dayCountLabel: getSafeDayCountLabel(todayDayNumber),
-    todayScheduleDay,
-    revisionPlan,
-    waitingSessions,
-    revision: buildRevisionOverview(userState, settings, todayDate, store.referenceData),
-  };
+    return {
+      todayDate,
+      todayDayNumber,
+      dayCountLabel: getDisplayDayCountLabel(todayDayNumber, userState),
+      todayScheduleDay,
+      revisionPlan,
+      waitingSessions,
+      revision: buildRevisionOverview(userState, settings, todayDate, store.referenceData),
+    };
   });
 }
 
@@ -2242,6 +2219,35 @@ export interface BacklogTierGroup {
   tier: SubjectTier;
   tierLabel: string;
   items: BacklogQueueViewItem[];
+}
+
+function shouldExposePhaseClosedItem(item: BacklogItem, currentPhaseNumber: number | null) {
+  if (item.status !== "phase_closed") {
+    return true;
+  }
+
+  if (item.phase === null || currentPhaseNumber === null) {
+    return true;
+  }
+
+  return item.phase < currentPhaseNumber;
+}
+
+function buildVisibleBacklogStatusCounts(items: BacklogItem[]) {
+  return items.reduce(
+    (counts, item) => {
+      counts[item.status] += 1;
+      return counts;
+    },
+    {
+      pending: 0,
+      rescheduled: 0,
+      completed: 0,
+      dismissed: 0,
+      phase_closed: 0,
+      all: items.length,
+    },
+  );
 }
 
 export function getBacklogPageData(
@@ -2258,6 +2264,10 @@ export function getBacklogPageData(
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+  const currentPhaseNumber = resolvePhase(todayDayNumber, userState);
+  const visibleBacklogItems = Object.values(userState.backlogItems).filter((item) => shouldExposePhaseClosedItem(item, currentPhaseNumber));
+  const visiblePhaseClosedItems = visibleBacklogItems.filter((item) => item.status === "phase_closed");
+  const counts = buildVisibleBacklogStatusCounts(visibleBacklogItems);
 
   // Build tier-grouped pending items using the queue sort order
   const pendingItems = Object.values(userState.backlogItems).filter((item) => item.status === "pending");
@@ -2300,8 +2310,7 @@ export function getBacklogPageData(
     }));
 
   // Phase-closed items
-  const phaseClosedItems = Object.values(userState.backlogItems)
-    .filter((item) => item.status === "phase_closed")
+  const phaseClosedItems = visiblePhaseClosedItems
     .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt))
     .map((item) => ({
       ...item,
@@ -2324,9 +2333,13 @@ export function getBacklogPageData(
   return {
     todayDate,
     todayDayNumber,
-    summary: getBacklogSummary(userState),
-    counts: getBacklogStatusCounts(userState),
-    items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort, store.referenceData, todayDayNumber),
+    summary: {
+      ...getBacklogSummary(userState),
+      phaseClosed: visiblePhaseClosedItems.length,
+    },
+    counts,
+    items: getBacklogQueueItems(userState, userState.settings, todayDate, options.filter, options.sort, store.referenceData, todayDayNumber)
+      .filter((item) => shouldExposePhaseClosedItem(item, currentPhaseNumber)),
     tierGroups,
     dismissedItems,
     phaseClosedItems,
@@ -2434,37 +2447,44 @@ export function getScheduleListData(store: LocalStore, userId: string) {
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+  const todayRuntimeDayNumber = getCurrentDayNumber(userState, todayDate);
+  const todayDisplayDayNumber = getDisplayDayNumber(todayRuntimeDayNumber, userState);
 
-  return withRevisionCache(() => getScheduleDays(userState, store.referenceData).map((day) => {
-    const mappedDate = getMappedDate(day.dayNumber, userState);
-    const originalPlannedDate = getOriginalPlannedDate(day.dayNumber, userState);
-    const dayState = getDayState(userState, day.dayNumber);
+  return withRevisionCache(() => store.referenceData.scheduleData.daywisePlan.days.map((referenceDay) => {
+    const runtimeDayNumber = getRuntimeDayNumberForDisplayDay(referenceDay.dayNumber, userState) ?? referenceDay.dayNumber;
+    const day = getScheduleDay(runtimeDayNumber, userState, store.referenceData);
+    if (!day) {
+      return null;
+    }
+
+    const mappedDate = getMappedDate(runtimeDayNumber, userState);
+    const originalPlannedDate = getOriginalPlannedDate(referenceDay.dayNumber, userState.settings);
+    const dayState = getDayState(userState, runtimeDayNumber);
     const completed = getDayCompletionState(day, userState, dayState.trafficLight, store.referenceData);
-    const dayStatus = getPhaseDayStatus(day.dayNumber, userState, store.referenceData);
-    const mergedPartnerDay = getMergedPartner(day.dayNumber, userState.settings, userState);
     const isPastVisibleDay = mappedDate !== null && mappedDate < todayDate;
 
     return {
       ...day,
+      dayNumber: referenceDay.dayNumber,
+      runtimeDayNumber,
       mappedDate,
       originalPlannedDate,
       trafficLight: dayState.trafficLight,
-      today: day.dayNumber === todayDayNumber,
+      today: todayDisplayDayNumber !== null && referenceDay.dayNumber === todayDisplayDayNumber,
       completed,
-      mergedPartnerDay,
-      hiddenByCompression: isCompressedHiddenDay(day.dayNumber, userState.settings),
-      hiddenShiftLabel: getShiftHiddenDayLabel(day.dayNumber, userState.settings, userState),
+      mergedPartnerDay: getMergedPartner(referenceDay.dayNumber, userState.settings),
+      hiddenByCompression: isCompressedHiddenDay(referenceDay.dayNumber, userState.settings),
+      hiddenShiftLabel: getShiftHiddenDayLabel(referenceDay.dayNumber, userState.settings),
       status:
-        day.dayNumber === todayDayNumber
+        todayDisplayDayNumber !== null && referenceDay.dayNumber === todayDisplayDayNumber
           ? "today"
-          : dayStatus === "completed"
+          : completed
             ? "completed"
             : isPastVisibleDay
               ? "missed"
               : "upcoming",
     };
-  }));
+  }).filter((day): day is NonNullable<typeof day> => day !== null));
 }
 
 export function getDayDetailData(store: LocalStore, userId: string, dayNumber: number) {
@@ -2472,48 +2492,55 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const day = getScheduleDay(dayNumber, userState, store.referenceData);
+  const runtimeDayNumber = getRuntimeDayNumberForDisplayDay(dayNumber, userState) ?? dayNumber;
+  const day = getScheduleDay(runtimeDayNumber, userState, store.referenceData);
   if (!day) {
     return null;
   }
 
   return withRevisionCache(() => {
-  const state = getDayState(userState, dayNumber);
-  const mappedDate = getMappedDate(dayNumber, userState);
-  const originalPlannedDate = getOriginalPlannedDate(dayNumber, userState);
-  const editState = getScheduleDayEditState(dayNumber, userState.settings, todayDate, userState);
-  const revisionPlan =
-    mappedDate && !editState.isFuture && !editState.isShiftHidden
-      ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, store.referenceData)
-      : null;
-  const plannedRecovery = getScheduledRecoveryForDay(userState, userState.settings, dayNumber, todayDate, store.referenceData);
+    const displayDayNumber = getDisplayDayNumber(runtimeDayNumber, userState) ?? dayNumber;
+    const state = getDayState(userState, runtimeDayNumber);
+    const mappedDate = getMappedDate(runtimeDayNumber, userState);
+    const originalPlannedDate = getOriginalPlannedDate(displayDayNumber, userState.settings);
+    const editState = getScheduleDayEditState(runtimeDayNumber, userState.settings, todayDate, userState);
+    const revisionPlan =
+      mappedDate && !editState.isFuture && !editState.isShiftHidden
+        ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, store.referenceData)
+        : null;
+    const plannedRecovery = getScheduledRecoveryForDay(userState, userState.settings, runtimeDayNumber, todayDate, store.referenceData);
 
-  return {
-    day,
-    todayDate,
-    todayDayNumber: getCurrentDayNumber(userState, todayDate),
-    mappedDate,
-    originalPlannedDate,
-    state,
-    editState,
-    hiddenShiftLabel: getShiftHiddenDayLabel(dayNumber, userState.settings, userState),
-    mergedPartnerDay: getMergedPartner(dayNumber, userState.settings, userState),
-    revisionPlan,
-    plannedRecovery,
-    blocks: getTrackableBlocks(day).map((block) => {
-      const [start, end] = block.timeSlotKey.split("-");
-      return {
-        ...block,
-        start,
-        end,
-        progress: getBlockProgress(userState, dayNumber, block.timeSlotKey, store.referenceData),
-        displayDescription: getDisplayBlockDescription(day, block.timeSlotKey, state.trafficLight),
-        items: block.items.map((item) => ({
-          ...item,
-          progress: getTopicProgress(userState, item, dayNumber, block.timeSlotKey),
-        })),
-      };
-    }),
-  };
+    return {
+      day: {
+        ...day,
+        dayNumber: displayDayNumber,
+      },
+      runtimeDayNumber,
+      displayDayNumber,
+      todayDate,
+      todayDayNumber: getCurrentDayNumber(userState, todayDate),
+      mappedDate,
+      originalPlannedDate,
+      state,
+      editState,
+      hiddenShiftLabel: getShiftHiddenDayLabel(displayDayNumber, userState.settings),
+      mergedPartnerDay: getMergedPartner(displayDayNumber, userState.settings),
+      revisionPlan,
+      plannedRecovery,
+      blocks: getTrackableBlocks(day).map((block) => {
+        const [start, end] = block.timeSlotKey.split("-");
+        return {
+          ...block,
+          start,
+          end,
+          progress: getBlockProgress(userState, runtimeDayNumber, block.timeSlotKey, store.referenceData),
+          displayDescription: getDisplayBlockDescription(day, block.timeSlotKey, state.trafficLight),
+          items: block.items.map((item) => ({
+            ...item,
+            progress: getTopicProgress(userState, item, runtimeDayNumber, block.timeSlotKey),
+          })),
+        };
+      }),
+    };
   });
 }

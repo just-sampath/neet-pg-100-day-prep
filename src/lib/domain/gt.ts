@@ -1,5 +1,5 @@
 import { getStaticReferenceData } from "@/lib/data/reference-data";
-import { getMappedDate } from "@/lib/domain/schedule";
+import { getMappedDate, getRuntimeDayNumberForDisplayDay } from "@/lib/domain/schedule";
 import type { GtPlanEntry } from "@/lib/domain/schedule-data-types";
 import type {
   AppSettings,
@@ -448,8 +448,11 @@ export function getMappedGtSchedule(
   referenceData?: RuntimeReferenceData,
 ): GtScheduleContextItem[] {
   return getReferenceData(referenceData).scheduleData.gtTestPlan.tests.map((item) => {
+    const runtimeDayNumber = isUserState(stateOrSettings)
+      ? getRuntimeDayNumberForDisplayDay(item.dayNumber, stateOrSettings) ?? item.dayNumber
+      : item.dayNumber;
     const mappedDate = isUserState(stateOrSettings)
-      ? getMappedDate(item.dayNumber, stateOrSettings)
+      ? getMappedDate(runtimeDayNumber, stateOrSettings)
       : getMappedDate(item.dayNumber, stateOrSettings);
     return {
       ...item,
@@ -640,11 +643,11 @@ export function buildGtDashboardSummary(logs: GtLog[]) {
     avgKnowledge:
       logs.length && logs.some((log) => log.knowledgeVsBehaviour !== null)
         ? Number(
-            (
-              logs.filter((log) => log.knowledgeVsBehaviour !== null).reduce((sum, log) => sum + (log.knowledgeVsBehaviour ?? 0), 0) /
-              logs.filter((log) => log.knowledgeVsBehaviour !== null).length
-            ).toFixed(1),
-          )
+          (
+            logs.filter((log) => log.knowledgeVsBehaviour !== null).reduce((sum, log) => sum + (log.knowledgeVsBehaviour ?? 0), 0) /
+            logs.filter((log) => log.knowledgeVsBehaviour !== null).length
+          ).toFixed(1),
+        )
         : null,
   };
 }

@@ -8,6 +8,7 @@ import {
   applyOverrunCascadeShift,
   applyTrafficLightToDay,
   completeBlockItems,
+  getBacklogPageData,
   getOrCreateProgress,
   moveBlockToBacklog,
   moveVisibleBlocksToBacklog,
@@ -19,7 +20,29 @@ import { createEmptyUserState } from "@/lib/data/local-store";
 import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getBlockProgress, getScheduleDay, getVisibleBlockKeys } from "@/lib/domain/schedule";
-import type { BlockKey } from "@/lib/domain/types";
+import type { BlockKey, LocalStore, UserState } from "@/lib/domain/types";
+
+function createStore(userState?: UserState, simulatedNowIso = "2026-05-02T06:30:00.000Z"): LocalStore {
+  return {
+    version: 2,
+    users: {
+      "local-user": {
+        id: "local-user",
+        email: "aspirant@beside-you.local",
+        password: "beside-you-2026",
+        displayName: "Aspirant",
+      },
+    },
+    sessions: {},
+    userState: {
+      "local-user": userState ?? createEmptyUserState(),
+    },
+    referenceData: getStaticReferenceData(),
+    dev: {
+      simulatedNowIso,
+    },
+  };
+}
 
 function createConfiguredUserState() {
   const userState = createEmptyUserState();
@@ -33,6 +56,38 @@ function getBlockKey(dayNumber: number, semanticBlockKey: string): BlockKey {
 
 function getBlockItems(dayNumber: number, blockKey: BlockKey) {
   return getScheduleDay(dayNumber)!.blocks.find((block) => block.timeSlotKey === blockKey)!.items;
+}
+
+function createPhaseClosedBacklogItem(id: string, phase: number, originalDay: number, originalBlockKey: BlockKey): BacklogItem {
+  return {
+    id,
+    sourceItemId: id as BacklogItem["sourceItemId"],
+    originalDay,
+    originalBlockKey,
+    originalStart: "08:00",
+    originalEnd: "11:00",
+    priorityOrder: 1,
+    topicDescription: `Topic ${id}`,
+    subject: "Pathology",
+    subjectIds: ["pathology"],
+    subjectTier: "A",
+    plannedMinutes: 45,
+    sourceTag: "phase_closed",
+    recoveryLane: "core_study",
+    phaseFence: "same_phase_only",
+    phase,
+    manualSortOverride: null,
+    status: "phase_closed",
+    suggestedDay: null,
+    suggestedBlockKey: null,
+    suggestedNote: null,
+    rescheduledToDay: null,
+    rescheduledToBlockKey: null,
+    createdAt: "2026-05-01T08:00:00.000Z",
+    updatedAt: "2026-05-01T08:00:00.000Z",
+    completedAt: null,
+    dismissedAt: null,
+  };
 }
 
 describe("backlog creation and traffic-light handling", () => {
@@ -990,5 +1045,62 @@ describe("per-source-tag bulk dismiss", () => {
     const pendingAfter = Object.values(userState.backlogItems).filter((i) => i.status === "pending");
     expect(pendingAfter).toHaveLength(0);
     expect(Object.values(userState.backlogItems).every((i) => i.status === "dismissed")).toBe(true);
+  });
+});
+
+describe("phase_closed backlog visibility", () => {
+  it("hides phase_closed items that belong to the current phase from backlog page data", () => {
+    const userState = createConfiguredUserState();
+    ensureUserScheduleSeeded(userState);
+    userState.processedDates.repackDates.push("2026-05-01");
+
+    userState.backlogItems["phase-closed-active"] = createPhaseClosedBacklogItem(
+      "phase-closed-active",
+      1,
+      1,
+      getBlockKey(1, "block_a"),
+    );
+
+    const data = getBacklogPageData(createStore(userState, "2026-05-01T06:30:00.000Z"), "local-user", {
+      filter: "phase_closed",
+      sort: "priority",
+    });
+
+    expect(data.phaseClosedItems).toHaveLength(0);
+    expect(data.summary.phaseClosed).toBe(0);
+    expect(data.counts.phase_closed).toBe(0);
+    expect(data.items).toHaveLength(0);
+  });
+
+  it("shows only phase_closed items from phases that have already ended", () => {
+    const userState = createConfiguredUserState();
+    ensureUserScheduleSeeded(userState);
+    userState.processedDates.midnightDates.push("2026-07-02");
+    userState.processedDates.repackDates.push("2026-07-03");
+
+    userState.backlogItems["phase-1-closed"] = createPhaseClosedBacklogItem(
+      "phase-1-closed",
+      1,
+      10,
+      getBlockKey(10, "block_a"),
+    );
+    userState.backlogItems["phase-2-closed"] = createPhaseClosedBacklogItem(
+      "phase-2-closed",
+      2,
+      64,
+      getBlockKey(64, "block_a"),
+    );
+
+    const data = getBacklogPageData(createStore(userState, "2026-07-03T06:30:00.000Z"), "local-user", {
+      filter: "phase_closed",
+      sort: "priority",
+    });
+
+    expect(data.phaseClosedItems.map((item) => item.id)).toContain("phase-1-closed");
+    expect(data.phaseClosedItems.map((item) => item.id)).not.toContain("phase-2-closed");
+    expect(data.summary.phaseClosed).toBe(1);
+    expect(data.counts.phase_closed).toBe(1);
+    expect(data.items.map((item) => item.id)).toContain("phase-1-closed");
+    expect(data.items.map((item) => item.id)).not.toContain("phase-2-closed");
   });
 });
