@@ -403,6 +403,89 @@ describe("backlog creation and traffic-light handling", () => {
     expect(getBlockProgress(userState, 2, finalReviewKey).status).toBe("missed");
   });
 
+  it("keeps block_a/block_b/block_c backlog-eligible even when their block intents change in later phases", () => {
+    const userState = createConfiguredUserState();
+    const day64 = getScheduleDay(64)!;
+    const blockA = day64.blocks.find((block) => block.semanticBlockKey === "block_a")!;
+    const blockB = day64.blocks.find((block) => block.semanticBlockKey === "block_b")!;
+    const blockC = day64.blocks.find((block) => block.semanticBlockKey === "block_c")!;
+
+    expect(blockA.blockIntent).not.toBe("core_study");
+    expect(blockB.blockIntent).not.toBe("core_study");
+    expect(blockC.blockIntent).not.toBe("core_study");
+
+    moveBlockToBacklog(userState, 64, blockA.timeSlotKey, "missed", "missed", null);
+    moveBlockToBacklog(userState, 64, blockB.timeSlotKey, "missed", "missed", null);
+    moveBlockToBacklog(userState, 64, blockC.timeSlotKey, "missed", "missed", null);
+
+    const queuedBlockKeys = new Set(Object.values(userState.backlogItems).map((item) => item.originalBlockKey));
+    expect(queuedBlockKeys.has(blockA.timeSlotKey)).toBe(true);
+    expect(queuedBlockKeys.has(blockB.timeSlotKey)).toBe(true);
+    expect(queuedBlockKeys.has(blockC.timeSlotKey)).toBe(true);
+  });
+
+  it("keeps legacy final_review backlog rows out of queue outputs and pending counts", () => {
+    const userState = createConfiguredUserState();
+    ensureUserScheduleSeeded(userState);
+    userState.processedDates.midnightDates.push("2026-05-01");
+    userState.processedDates.repackDates.push("2026-05-02");
+    const finalReviewBlock = getScheduleDay(2, userState)!.blocks.find((block) => block.semanticBlockKey === "final_review")!;
+    const finalReviewItem = finalReviewBlock.items[0]!;
+
+    userState.backlogItems[finalReviewItem.itemId] = {
+      id: finalReviewItem.itemId,
+      sourceItemId: finalReviewItem.itemId,
+      originalDay: 2,
+      originalBlockKey: finalReviewBlock.timeSlotKey,
+      originalStart: "20:15",
+      originalEnd: "22:15",
+      priorityOrder: 1,
+      topicDescription: finalReviewItem.label,
+      subject: "Pathology",
+      subjectIds: [...finalReviewItem.subjectIds],
+      subjectTier: "A",
+      plannedMinutes: finalReviewItem.plannedMinutes,
+      sourceTag: "manual_skip",
+      recoveryLane: finalReviewItem.recoveryLane,
+      phaseFence: finalReviewItem.phaseFence,
+      phase: 1,
+      manualSortOverride: null,
+      status: "pending",
+      suggestedDay: null,
+      suggestedBlockKey: null,
+      suggestedNote: null,
+      rescheduledToDay: null,
+      rescheduledToBlockKey: null,
+      createdAt: "2026-05-01T21:00:00.000Z",
+      updatedAt: "2026-05-01T21:00:00.000Z",
+      completedAt: null,
+      dismissedAt: null,
+    };
+
+    refreshBacklogSuggestions(userState, userState.settings, 2, getStaticReferenceData());
+    expect(userState.backlogItems[finalReviewItem.itemId]?.suggestedDay).toBeNull();
+    expect(userState.backlogItems[finalReviewItem.itemId]?.suggestedBlockKey).toBeNull();
+
+    const queueItems = getBacklogQueueItems(
+      userState,
+      userState.settings,
+      "2026-05-02",
+      "pending",
+      "priority",
+      getStaticReferenceData(),
+      2,
+    );
+    expect(queueItems).toHaveLength(0);
+
+    const page = getBacklogPageData(createStore(userState, "2026-05-02T06:30:00.000Z"), "local-user", {
+      filter: "pending",
+      sort: "priority",
+    });
+    expect(page.summary.totalPending).toBe(0);
+    expect(page.counts.pending).toBe(0);
+    expect(page.items).toHaveLength(0);
+  });
+
   it("resolves subject tier from reference data", () => {
     const refData = getStaticReferenceData();
 

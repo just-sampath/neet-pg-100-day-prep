@@ -7,6 +7,7 @@ import {
 import type { ScheduleDayPlan } from "@/lib/domain/schedule-data-types";
 import type {
   BlockKey,
+  BlockStatus,
   BlockProgress,
   RuntimeReferenceData,
   TimelineSlotKind,
@@ -208,6 +209,28 @@ export function getRecoveryModeExplanation(trafficLight: TrafficLight) {
   }
 
   return "Red keeps only the essential spine. Hidden work goes to backlog now; redistribution happens overnight or on first open after a time jump.";
+}
+
+export function shouldShowRecoveryRadar(trafficLight: TrafficLight, backlogCount: number, missedDayCount: number) {
+  return trafficLight !== "green" || backlogCount > 0 || missedDayCount > 0;
+}
+
+export function shouldShowRecoveryBadge(trafficLight: TrafficLight) {
+  return trafficLight !== "green";
+}
+
+export function getDisplayBlockStatus(status: BlockStatus, trafficLight: TrafficLight): BlockStatus {
+  if (trafficLight === "green" && status === "rescheduled") {
+    return "pending";
+  }
+
+  return status;
+}
+
+export function getEmptyBlockMessage(trafficLight: TrafficLight) {
+  return trafficLight === "green"
+    ? "No active topics remain in this block."
+    : "No active topics remain in this block. Any unfinished work has already been repacked into later slots.";
 }
 
 // ---------------------------------------------------------------------------

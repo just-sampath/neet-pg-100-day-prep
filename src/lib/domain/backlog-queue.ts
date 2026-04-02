@@ -1,4 +1,5 @@
 import { HARD_BOUNDARY_DATE } from "@/lib/domain/constants";
+import { isBacklogItemEligible } from "@/lib/domain/backlog";
 import { getScheduleDay, getScheduleDays, getDayState, getMappedDate, getVisibleBlockKeys, isCompressedHiddenDay } from "@/lib/domain/schedule";
 import type {
   AppSettings,
@@ -41,8 +42,12 @@ const STATUS_ORDER: Record<BacklogStatus, number> = {
   dismissed: 5,
 };
 
-function getPendingItems(userState: UserState) {
-  return Object.values(userState.backlogItems)
+function getEligibleBacklogItems(userState: UserState, referenceData?: RuntimeReferenceData) {
+  return Object.values(userState.backlogItems).filter((item) => isBacklogItemEligible(item, userState, referenceData));
+}
+
+function getPendingItems(userState: UserState, referenceData?: RuntimeReferenceData) {
+  return getEligibleBacklogItems(userState, referenceData)
     .filter((item) => item.status === "pending")
     .sort((left, right) => {
       if (left.priorityOrder !== right.priorityOrder) {
@@ -161,10 +166,10 @@ function isTargetSlotAvailable(
   return !occupiedSlots.has(getSlotKey(dayNumber, blockKey));
 }
 
-function buildOccupiedSlotSet(userState: UserState, excludeBacklogId?: string) {
+function buildOccupiedSlotSet(userState: UserState, excludeBacklogId?: string, referenceData?: RuntimeReferenceData) {
   const occupied = new Set<string>();
 
-  for (const item of Object.values(userState.backlogItems)) {
+  for (const item of getEligibleBacklogItems(userState, referenceData)) {
     if (
       item.id !== excludeBacklogId &&
       item.status === "rescheduled" &&
@@ -305,9 +310,9 @@ export function getNextBacklogPriorityOrder(userState: UserState) {
 
 export function refreshBacklogSuggestions(userState: UserState, settings: AppSettings, todayDayNumber: number, referenceData?: RuntimeReferenceData) {
   normalizeBacklogPriorityOrder(userState);
-  const occupiedSlots = buildOccupiedSlotSet(userState);
+  const occupiedSlots = buildOccupiedSlotSet(userState, undefined, referenceData);
 
-  for (const item of getPendingItems(userState)) {
+  for (const item of getPendingItems(userState, referenceData)) {
     const suggestion = generateBacklogSuggestion(item, userState, settings, todayDayNumber, occupiedSlots, referenceData);
     item.suggestedDay = suggestion.suggestedDay;
     item.suggestedBlockKey = suggestion.suggestedBlockKey;
@@ -327,8 +332,8 @@ export function getBacklogSourceLabel(sourceTag: BacklogItem["sourceTag"]) {
   return SOURCE_LABELS[sourceTag];
 }
 
-export function getBacklogSummary(userState: UserState): BacklogQueueSummary {
-  const allItems = Object.values(userState.backlogItems);
+export function getBacklogSummary(userState: UserState, referenceData?: RuntimeReferenceData): BacklogQueueSummary {
+  const allItems = getEligibleBacklogItems(userState, referenceData);
   const pendingItems = allItems.filter((item) => item.status === "pending");
 
   return {
@@ -342,8 +347,8 @@ export function getBacklogSummary(userState: UserState): BacklogQueueSummary {
   };
 }
 
-export function getBacklogStatusCounts(userState: UserState) {
-  return Object.values(userState.backlogItems).reduce(
+export function getBacklogStatusCounts(userState: UserState, referenceData?: RuntimeReferenceData) {
+  return getEligibleBacklogItems(userState, referenceData).reduce(
     (counts, item) => {
       counts[item.status] += 1;
       return counts;
@@ -404,7 +409,7 @@ export function getBacklogQueueItems(
   referenceData?: RuntimeReferenceData,
   todayDayNumber?: number,
 ): BacklogQueueViewItem[] {
-  const allItems = Object.values(userState.backlogItems);
+  const allItems = getEligibleBacklogItems(userState, referenceData);
   const filtered = filter === "all" ? allItems : allItems.filter((item) => item.status === filter);
 
   return sortBacklogItems(filtered, todayDate, sort).map((item) => ({
@@ -428,7 +433,7 @@ export function getScheduledRecoveryForDay(
   todayDate: string,
   referenceData?: RuntimeReferenceData,
 ): ScheduledRecoveryItem[] {
-  return Object.values(userState.backlogItems)
+  return getEligibleBacklogItems(userState, referenceData)
     .filter((item) => item.status === "rescheduled" && item.rescheduledToDay === dayNumber && item.rescheduledToBlockKey)
     .sort((left, right) => {
       const leftStart = getTrackableSlotStart(dayNumber, left.rescheduledToBlockKey!, referenceData);

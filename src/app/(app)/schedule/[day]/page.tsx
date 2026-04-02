@@ -5,6 +5,8 @@ import { TimeEditor } from "@/components/app/time-editor";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getDayDetailData } from "@/lib/data/app-state";
 import { readScheduleDayStore } from "@/lib/data/local-store";
+import { getVisibleBlockKeys } from "@/lib/domain/schedule";
+import { getDisplayBlockStatus, getEmptyBlockMessage, shouldShowRecoveryBadge } from "@/lib/domain/today";
 import type { BlockKey, ScheduledRecoveryItem } from "@/lib/domain/types";
 import { setTrafficLightAction, updateBlockAction, updateTopicAction } from "@/lib/server/actions";
 import { toDateOnlyInTimeZone } from "@/lib/utils/date";
@@ -46,6 +48,7 @@ export default async function ScheduleDayPage({
 
   const readOnlyReason = getReadOnlyReason(detail);
   const morningBlock = detail.blocks.find((block) => block.semanticBlockKey === "morning_revision") ?? null;
+  const visibleBlockKeys = new Set(getVisibleBlockKeys(detail.state.trafficLight, detail.day));
   const plannedRecoveryByBlock = detail.plannedRecovery.reduce((map, item) => {
     const entries = map.get(item.targetBlockKey) ?? [];
     entries.push(item);
@@ -60,7 +63,7 @@ export default async function ScheduleDayPage({
     status: block.progress.status,
     actualStart: block.progress.actualStart,
     actualEnd: block.progress.actualEnd,
-    visible: true,
+    visible: visibleBlockKeys.has(block.timeSlotKey as BlockKey),
     reschedulable: block.reschedulable,
   }));
 
@@ -147,11 +150,13 @@ export default async function ScheduleDayPage({
 
       <section className="grid gap-4">
         {detail.blocks.map((block) => {
-          const assignedRecovery = plannedRecoveryByBlock.get(block.timeSlotKey as BlockKey) ?? [];
-          const blockHasActiveWork = block.items.length > 0 || assignedRecovery.length > 0;
-          const defaultCompletionDate = block.progress.completedAt
-            ? toDateOnlyInTimeZone(block.progress.completedAt)
-            : detail.mappedDate ?? detail.originalPlannedDate ?? detail.todayDate;
+              const assignedRecovery = plannedRecoveryByBlock.get(block.timeSlotKey as BlockKey) ?? [];
+              const blockHasActiveWork = block.items.length > 0 || assignedRecovery.length > 0;
+              const canCreateBacklog = block.blockIntent === "core_study" || block.blockIntent === "consolidation";
+              const displayStatus = getDisplayBlockStatus(block.progress.status, detail.state.trafficLight);
+              const defaultCompletionDate = block.progress.completedAt
+                ? toDateOnlyInTimeZone(block.progress.completedAt)
+                : detail.mappedDate ?? detail.originalPlannedDate ?? detail.todayDate;
 
           if (morningBlock && block.timeSlotKey === morningBlock.timeSlotKey) {
             return null;
@@ -164,7 +169,7 @@ export default async function ScheduleDayPage({
                   <div className="eyebrow">{block.displayLabel}</div>
                   <h2 className="mt-2 text-xl font-semibold">{block.displayDescription}</h2>
                   <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
-                    {block.start} – {block.end} · {blockHasActiveWork ? block.progress.status : "repacked"}
+                    {block.start} – {block.end} · {blockHasActiveWork || detail.state.trafficLight === "green" ? displayStatus : "repacked"}
                   </p>
                 </div>
                 {detail.editState.canAdjustToday && blockHasActiveWork ? (
@@ -191,7 +196,7 @@ export default async function ScheduleDayPage({
 
               {!blockHasActiveWork ? (
                 <p className="mt-4 text-sm leading-7 text-(--text-secondary)">
-                  No active topics remain in this block. Any unfinished work has already been repacked into later slots.
+                  {getEmptyBlockMessage(detail.state.trafficLight)}
                 </p>
               ) : null}
 
@@ -204,6 +209,9 @@ export default async function ScheduleDayPage({
                           <div className="font-medium">{item.label}</div>
                           <div className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
                             ~{item.plannedMinutes} min · {item.progress.status}
+                            {shouldShowRecoveryBadge(detail.state.trafficLight) && item.isRecovery && item.originalDayNumber != null
+                              ? ` · Recovery Day ${item.originalDayNumber}`
+                              : ""}
                           </div>
                         </div>
                         {!detail.editState.isReadOnly && item.progress.status !== "completed" ? (
@@ -302,6 +310,7 @@ export default async function ScheduleDayPage({
                   actualEnd={block.progress.actualEnd}
                   trafficLight={detail.state.trafficLight}
                   slots={timeEditorSlots}
+                  canCreateBacklog={canCreateBacklog}
                 />
               ) : null}
             </article>

@@ -7,6 +7,7 @@ let testStore: LocalStore;
 
 vi.mock("next/cache", () => ({
   refresh: vi.fn(),
+  revalidatePath: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -34,6 +35,7 @@ import { pullTopicForward, completeBlockItems, getHomeData } from "@/lib/data/ap
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getScheduleDay, getBlockProgress, buildDailyRevisionPlan, invalidateRuntimeScheduleIndex } from "@/lib/domain/schedule";
 import { updateTopicAction, updateBlockAction } from "@/lib/server/actions";
+import { revalidatePath } from "next/cache";
 
 describe("server actions", () => {
   beforeEach(() => {
@@ -308,6 +310,23 @@ describe("server actions", () => {
       status: "pending",
       completedItemCount: 0,
     });
+  });
+
+  it("revalidates today, schedule, and backlog views after block updates", async () => {
+    ensureUserScheduleSeeded(testStore.userState["test-user"]);
+    const userState = testStore.userState["test-user"];
+    const day = getScheduleDay(1, userState, testStore.referenceData)!;
+    const block = day.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+    const formData = new FormData();
+    formData.set("dayNumber", "1");
+    formData.set("blockKey", block.timeSlotKey);
+    formData.set("intent", "skip");
+
+    await updateBlockAction(formData);
+
+    expect(revalidatePath).toHaveBeenCalledWith("/today");
+    expect(revalidatePath).toHaveBeenCalledWith("/schedule");
+    expect(revalidatePath).toHaveBeenCalledWith("/backlog");
   });
 
   it("treats a runtime block with no resident assignments as empty instead of cloning template topics", () => {

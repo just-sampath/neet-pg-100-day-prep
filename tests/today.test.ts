@@ -6,11 +6,15 @@ import { getScheduleDay, getBacklogCount } from "@/lib/domain/schedule";
 import {
   buildTodayTimeline,
   getBacklogIndicatorLabel,
+  getDisplayBlockStatus,
+  getEmptyBlockMessage,
   getHiddenBlockSupportMessage,
   getRecoveryModeExplanation,
   getRevisionMinutesLabel,
   getVisibleBlocksNote,
   getWindDownState,
+  shouldShowRecoveryBadge,
+  shouldShowRecoveryRadar,
 } from "@/lib/domain/today";
 
 describe("today flow", () => {
@@ -171,6 +175,22 @@ describe("today flow", () => {
   it("keeps visible-block quick stats aligned with overnight redistribution wording", () => {
     expect(getVisibleBlocksNote(0)).toBe("Full day still intact.");
     expect(getVisibleBlocksNote(2)).toBe("2 queued for overnight redistribution.");
+  });
+
+  it("treats green-day recovery topics as ordinary work in the shared presentation helpers", () => {
+    expect(shouldShowRecoveryRadar("green", 0, 0)).toBe(false);
+    expect(shouldShowRecoveryBadge("green")).toBe(false);
+    expect(getDisplayBlockStatus("rescheduled", "green")).toBe("pending");
+    expect(getEmptyBlockMessage("green")).toBe("No active topics remain in this block.");
+  });
+
+  it("keeps recovery framing available when the pace dial is not green", () => {
+    expect(shouldShowRecoveryRadar("yellow", 0, 0)).toBe(true);
+    expect(shouldShowRecoveryRadar("green", 2, 0)).toBe(true);
+    expect(shouldShowRecoveryRadar("green", 0, 1)).toBe(true);
+    expect(shouldShowRecoveryBadge("red")).toBe(true);
+    expect(getDisplayBlockStatus("rescheduled", "yellow")).toBe("rescheduled");
+    expect(getEmptyBlockMessage("yellow")).toContain("repacked into later slots");
   });
 });
 

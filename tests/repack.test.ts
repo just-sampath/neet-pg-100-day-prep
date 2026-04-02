@@ -598,7 +598,7 @@ describe("runMidnightRepack integration", () => {
         expect(rescheduled.length).toBeGreaterThan(0);
     });
 
-    it("pushes phase-end work into extension instead of absorbing backlog into spare slot minutes", () => {
+    it("absorbs backlog into spare template slot minutes before creating extension days", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
 
@@ -644,9 +644,10 @@ describe("runMidnightRepack integration", () => {
         const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
 
         expect(result.skipped).toBe(false);
-        expect(phase1Config.currentEndDay).toBeGreaterThan(todayDayNumber);
+        expect(result.extensionDaysCreated).toBe(0);
+        expect(phase1Config.currentEndDay).toBe(todayDayNumber);
         expect(userState.schedule.topicAssignments[targetRow.sourceItemId]).toMatchObject({
-            dayNumber: todayDayNumber + 1,
+            dayNumber: todayDayNumber,
         });
     });
 

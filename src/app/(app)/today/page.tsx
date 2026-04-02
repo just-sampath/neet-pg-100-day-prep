@@ -13,11 +13,16 @@ import type { BlockKey, BlockStatus, ScheduledRecoveryItem } from "@/lib/domain/
 import {
   buildTodayTimeline,
   getBacklogIndicatorLabel,
+  getDisplayBlockStatus,
+  getEmptyBlockMessage,
   getEarlyFinishSuggestion,
   getHiddenBlockSupportMessage,
   getRecoveryModeExplanation,
+  shouldShowRecoveryBadge,
+  shouldShowRecoveryRadar,
   getVisibleBlocksNote,
 } from "@/lib/domain/today";
+import { shouldCreateBacklogItem } from "@/lib/domain/backlog";
 import {
   getBlockProgress,
   getDisplayBlockDescription,
@@ -209,11 +214,11 @@ export default async function TodayPage() {
     const mcqQuickLogNote = practiceBlockKey
       ? getDisplayBlockDescription(todayScheduleDay, practiceBlockKey, todayState.trafficLight)
       : "Capture today’s MCQ block while the pattern is still clear.";
-    const hasRecoverySignal =
-      todayState.trafficLight !== "green" ||
-      data.shiftHealth.missedDays.length > 0 ||
-      data.backlogCount > 0 ||
-      plannedRecovery.length > 0;
+    const hasRecoverySignal = shouldShowRecoveryRadar(
+      todayState.trafficLight,
+      data.backlogCount,
+      data.shiftHealth.missedDays.length,
+    );
     const quickStats = [
       {
         label: "Visible Blocks",
@@ -362,7 +367,7 @@ export default async function TodayPage() {
                       </p>
                     </div>
                   ) : null}
-                  {plannedRecovery.length > 0 ? (
+                  {todayState.trafficLight !== "green" && plannedRecovery.length > 0 ? (
                     <div className="note-card p-4">
                       <div className="metric-label">Recovery Today</div>
                       <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
@@ -450,6 +455,7 @@ export default async function TodayPage() {
               }
 
               const completed = entry.progress.status === "completed";
+              const displayStatus = getDisplayBlockStatus(entry.progress.status, todayState.trafficLight);
               const hiddenStatusTone = completed ? "green" : "neutral";
               const blockNumber = trackableOrder.get(entry.blockKey) ?? 0;
               const assignedRecovery = plannedRecoveryByBlock.get(entry.blockKey) ?? [];
@@ -459,8 +465,19 @@ export default async function TodayPage() {
                 progress: getTopicProgress(userState, item, todayScheduleDay.dayNumber, entry.blockKey),
               })) ?? [];
               const blockHasActiveWork = blockItems.length > 0 || assignedRecovery.length > 0;
-              const blockStatusTone = blockHasActiveWork ? getProgressTone(entry.progress.status) : "neutral";
-              const blockStatusLabel = blockHasActiveWork ? getProgressLabel(entry.progress.status) : "Repacked";
+              const canMoveToBacklog = shouldCreateBacklogItem(
+                todayScheduleDay.dayNumber,
+                entry.blockKey,
+                "manual_skip",
+                referenceData,
+                userState,
+              );
+              const blockStatusTone = blockHasActiveWork || todayState.trafficLight === "green"
+                ? getProgressTone(displayStatus)
+                : "neutral";
+              const blockStatusLabel = blockHasActiveWork || todayState.trafficLight === "green"
+                ? getProgressLabel(displayStatus)
+                : "Repacked";
 
               if (entry.mode === "hidden") {
                 return (
@@ -542,7 +559,7 @@ export default async function TodayPage() {
                                 <div className="font-medium leading-7">{item.label}</div>
                                 <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-(--muted)">
                                   <span>~{item.plannedMinutes} min · {item.progress.status === "completed" ? "Done" : item.progress.status === "skipped" ? "Skipped" : item.progress.status === "missed" ? "Missed" : item.progress.status === "rescheduled" ? "Recovery" : "Pending"}</span>
-                                  {item.isRecovery && item.originalDayNumber != null ? (
+                                  {shouldShowRecoveryBadge(todayState.trafficLight) && item.isRecovery && item.originalDayNumber != null ? (
                                     <span className="status-badge" data-tone="neutral">Recovery · Day {item.originalDayNumber}</span>
                                   ) : null}
                                 </div>
@@ -613,7 +630,7 @@ export default async function TodayPage() {
                             <input type="hidden" name="blockKey" value={entry.blockKey} />
                             <input type="hidden" name="intent" value="skip" />
                             <button className="button-secondary" disabled={completed} type="submit">
-                              Move to backlog
+                              {canMoveToBacklog ? "Move to backlog" : "Skip block"}
                             </button>
                           </form>
                         </div>
@@ -626,11 +643,12 @@ export default async function TodayPage() {
                           actualEnd={entry.progress.actualEnd}
                           trafficLight={todayState.trafficLight}
                           slots={timeEditorSlots}
+                          canCreateBacklog={canMoveToBacklog}
                         />
                       </>
                     ) : (
                       <p className="mt-5 text-sm leading-7 text-(--text-secondary)">
-                        No active topics remain in this block. Any unfinished work has already been repacked into later slots.
+                        {getEmptyBlockMessage(todayState.trafficLight)}
                       </p>
                     )}
                   </div>

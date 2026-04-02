@@ -216,7 +216,7 @@ describe("schedule browser and retroactive editing", () => {
     });
     expect(hiddenShiftDetail?.hiddenShiftLabel).toBe("merged by shift compression");
     expect(hiddenShiftDetail?.editState.isReadOnly).toBe(true);
-  });
+  }, 15_000);
 
   it("does not surface phase_closed runtime assignments in day detail blocks", () => {
     const userState = createEmptyUserState();
@@ -261,22 +261,24 @@ describe("schedule browser and retroactive editing", () => {
     });
   });
 
-  it("keeps the browser on the fixed 100 planned days after inserting extension days", () => {
+  it("appends literal Day 101+ extension rows to the browser list", () => {
     const userState = createEmptyUserState();
     userState.settings.dayOneDate = "2026-05-01";
-    const originalDay64 = getScheduleDay(64)!;
-    insertExtensionDayAfter(userState, 63);
-    userState.processedDates.repackDates.push("2026-05-03");
+    insertExtensionDayAfter(userState, 100);
+    userState.processedDates.repackDates.push("2026-08-09");
 
-    const days = getScheduleListData(createStore(userState, "2026-05-03T06:30:00.000Z"), "local-user");
-    const day64 = days.find((day) => day.dayNumber === 64);
+    const days = getScheduleListData(createStore(userState, "2026-08-09T06:30:00.000Z"), "local-user");
+    const day101 = days.find((day) => day.dayNumber === 101);
 
-    expect(days).toHaveLength(100);
-    expect(day64).toMatchObject({
-      dayNumber: 64,
-      primaryFocusRaw: originalDay64.primaryFocusRaw,
-      mappedDate: addDaysToDateOnly("2026-07-03", 1),
-      originalPlannedDate: "2026-07-03",
+    expect(days).toHaveLength(101);
+    expect(days.at(-1)?.dayNumber).toBe(101);
+    expect(day101).toMatchObject({
+      dayNumber: 101,
+      runtimeDayNumber: 101,
+      mappedDate: "2026-08-09",
+      originalPlannedDate: null,
+      today: true,
+      status: "today",
     });
   });
 

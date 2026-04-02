@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 
-import { refresh } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { loginUser, logoutUser, requireCurrentUser } from "@/lib/auth/session";
@@ -77,6 +77,21 @@ function asOptionalPositiveInt(value: string) {
   return Math.round(parsed);
 }
 
+function refreshAndRevalidate(paths: string[]) {
+  for (const path of paths) {
+    revalidatePath(path);
+  }
+  refresh();
+}
+
+function refreshScheduleViews(dayNumber?: number) {
+  const paths = ["/today", "/schedule", "/backlog"];
+  if (typeof dayNumber === "number" && Number.isFinite(dayNumber) && dayNumber > 0) {
+    paths.push(`/schedule/${dayNumber}`);
+  }
+  refreshAndRevalidate(paths);
+}
+
 export async function loginAction(formData: FormData) {
   const result = await loginUser(asString(formData.get("email")), asString(formData.get("password")));
   if (!result.ok) {
@@ -115,7 +130,7 @@ export async function setDayOneDateAction(formData: FormData) {
       userState.settings.theme = theme;
     }
   });
-  refresh();
+  refreshScheduleViews();
 }
 
 export async function setThemeAction(formData: FormData) {
@@ -152,7 +167,7 @@ export async function setTrafficLightAction(formData: FormData) {
       allowRestore: dayNumber === todayDayNumber,
     }, store.referenceData);
   });
-  refresh();
+  refreshScheduleViews(dayNumber);
 }
 
 export async function updateBlockAction(formData: FormData) {
@@ -250,7 +265,7 @@ export async function updateBlockAction(formData: FormData) {
     }
   });
 
-  refresh();
+  refreshScheduleViews(dayNumber);
 }
 
 export async function updateTopicAction(formData: FormData) {
@@ -301,7 +316,7 @@ export async function updateTopicAction(formData: FormData) {
     skipTopicItem(userState, dayNumber, blockKey, itemId, "manual_skip", "skipped", note, store.referenceData);
   });
 
-  refresh();
+  refreshScheduleViews(dayNumber);
 }
 
 export async function completeRevisionSessionAction(formData: FormData) {
@@ -334,7 +349,7 @@ export async function completeRevisionSessionAction(formData: FormData) {
       store.referenceData,
     );
   });
-  refresh();
+  refreshScheduleViews();
 }
 
 export async function completeRevisionAction(formData: FormData) {
@@ -358,7 +373,7 @@ export async function completeRevisionAction(formData: FormData) {
       completedAt: getEffectiveNow(store).toISOString(),
     };
   });
-  refresh();
+  refreshScheduleViews();
 }
 
 export async function updateBacklogAction(formData: FormData) {
@@ -422,7 +437,7 @@ export async function updateBacklogAction(formData: FormData) {
       moveBacklogItemPriority(userState, backlogId, moveDirection);
     }
   });
-  refresh();
+  refreshScheduleViews();
 }
 
 export async function bulkBacklogAction(formData: FormData) {
@@ -448,7 +463,7 @@ export async function bulkBacklogAction(formData: FormData) {
     rescheduleBacklogScopeToSuggestions(userState, userState.settings, todayDayNumber, scope, store.referenceData);
   });
 
-  refresh();
+  refreshScheduleViews();
 }
 
 export async function wrapUpDayAction(formData: FormData) {
@@ -462,7 +477,7 @@ export async function wrapUpDayAction(formData: FormData) {
       note: "Moved to backlog by wind-down prompt.",
     }, store.referenceData);
   });
-  refresh();
+  refreshScheduleViews(dayNumber);
 }
 
 export async function runLateNightSweepAction() {
@@ -477,7 +492,7 @@ export async function runLateNightSweepAction() {
     runBlockOverrunCutoff(userState, userState.settings, todayDate, todayDayNumber, minutes, store.referenceData);
     runEndOfDaySweep(userState, userState.settings, todayDate, todayDayNumber, minutes, store.referenceData);
   });
-  refresh();
+  refreshScheduleViews();
 }
 
 export async function applyShiftAction(formData: FormData) {
@@ -496,7 +511,7 @@ export async function applyShiftAction(formData: FormData) {
 
     applyScheduleShiftToUserState(userState, preview);
   });
-  refresh();
+  refreshScheduleViews();
 }
 
 export async function submitMcqBulkAction(formData: FormData) {
@@ -657,7 +672,7 @@ export async function generateWeeklySummaryAction() {
     const week = weekBounds(today);
     upsertWeeklySummary(userState, userState.settings, week.start, today, store.referenceData);
   });
-  refresh();
+  refreshAndRevalidate(["/weekly", "/today"]);
 }
 
 export async function runRepackAction() {
@@ -670,7 +685,7 @@ export async function runRepackAction() {
     const todayDayNumber = getCurrentDayNumber(userState, todayDate);
     result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, store.referenceData);
   });
-  refresh();
+  refreshScheduleViews();
   return result;
 }
 
@@ -690,7 +705,7 @@ export async function acceptEarlyFinishAction(formData: FormData) {
     pullTopicForward(userState, sourceItemId, targetDayNumber, targetBlockKey);
   });
 
-  refresh();
+  refreshScheduleViews(targetDayNumber);
 }
 
 export async function setSimulatedNowAction(formData: FormData) {
@@ -699,7 +714,7 @@ export async function setSimulatedNowAction(formData: FormData) {
   await mutateStore((store) => {
     store.dev.simulatedNowIso = value ? new Date(value).toISOString() : null;
   });
-  refresh();
+  refreshScheduleViews();
 }
 
 export async function clearSimulatedNowAction() {
@@ -707,7 +722,7 @@ export async function clearSimulatedNowAction() {
   await mutateStore((store) => {
     store.dev.simulatedNowIso = null;
   });
-  refresh();
+  refreshScheduleViews();
 }
 
 export async function resetAppStateAction(formData: FormData) {

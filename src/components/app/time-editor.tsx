@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 
 import { previewOverrunCascade, type OverrunPreviewSlot } from "@/lib/domain/backlog";
 import type { BlockKey, TrafficLight } from "@/lib/domain/types";
@@ -15,10 +16,22 @@ type Props = {
   actualEnd?: string | null;
   trafficLight: TrafficLight;
   slots: OverrunPreviewSlot[];
+  canCreateBacklog?: boolean;
 };
 
-export function TimeEditor({ dayNumber, blockKey, start, end, actualStart: savedStart, actualEnd: savedEnd, trafficLight, slots }: Props) {
+export function TimeEditor({
+  dayNumber,
+  blockKey,
+  start,
+  end,
+  actualStart: savedStart,
+  actualEnd: savedEnd,
+  trafficLight,
+  slots,
+  canCreateBacklog = true,
+}: Props) {
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
   const [actualStart, setActualStart] = useState(savedStart || start);
   const [actualEnd, setActualEnd] = useState(savedEnd || end);
 
@@ -55,6 +68,7 @@ export function TimeEditor({ dayNumber, blockKey, start, end, actualStart: saved
         formData.set("cascadeDecision", cascadeDecision);
       }
       await updateBlockAction(formData);
+      router.refresh();
     });
   }
 
@@ -73,13 +87,16 @@ export function TimeEditor({ dayNumber, blockKey, start, end, actualStart: saved
       formData.set("intent", "skip");
       formData.set("note", "Moved to backlog to protect sleep.");
       await updateBlockAction(formData);
+      router.refresh();
     });
   }
 
   const guidance = sleepViolation
     ? {
       tone: "warning" as const,
-      message: "This would cut into sleep time. Move to backlog instead?",
+      message: canCreateBacklog
+        ? "This would cut into sleep time. Move to backlog instead?"
+        : "This would cut into sleep time. Skip this block and stop here?",
     }
     : overrunPreview.kind === "decision"
       ? {
@@ -122,7 +139,7 @@ export function TimeEditor({ dayNumber, blockKey, start, end, actualStart: saved
           ) : null}
           {sleepViolation ? (
             <button className="button-primary" type="button" disabled={pending} onClick={moveToBacklog}>
-              Move to backlog
+              {canCreateBacklog ? "Move to backlog" : "Skip block"}
             </button>
           ) : null}
           {overrunPreview.kind === "decision" ? (
@@ -136,7 +153,7 @@ export function TimeEditor({ dayNumber, blockKey, start, end, actualStart: saved
                 disabled={pending}
                 onClick={() => submitTimeUpdate("move_next_to_backlog")}
               >
-                Move overflow to backlog
+                {canCreateBacklog ? "Move overflow to backlog" : "Skip overflow block"}
               </button>
             </>
           ) : null}

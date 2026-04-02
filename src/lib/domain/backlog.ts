@@ -1,5 +1,14 @@
 import { getScheduleDay } from "@/lib/domain/schedule";
-import type { BacklogSourceTag, BlockKey, BlockStatus, RuntimeReferenceData, SubjectTier, TrafficLight, UserState } from "@/lib/domain/types";
+import type {
+  BacklogItem,
+  BacklogSourceTag,
+  BlockKey,
+  BlockStatus,
+  RuntimeReferenceData,
+  SubjectTier,
+  TrafficLight,
+  UserState,
+} from "@/lib/domain/types";
 import { timeValue } from "@/lib/utils/date";
 
 export interface OverrunPreviewSlot {
@@ -46,16 +55,37 @@ function formatClock(totalMinutes: number) {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 }
 
-const BACKLOG_QUALIFYING_INTENTS = new Set<string>(["core_study", "consolidation"]);
+const BACKLOG_QUALIFYING_SEMANTIC_BLOCK_KEYS = new Set(["block_a", "block_b", "block_c"]);
 
-export function shouldCreateBacklogItem(dayNumber: number, blockKey: BlockKey, sourceTag: BacklogSourceTag, referenceData?: RuntimeReferenceData) {
-  const day = getScheduleDay(dayNumber, undefined, referenceData);
-  const block = day?.blocks.find((entry) => entry.timeSlotKey === blockKey);
+function resolveBacklogBlock(
+  dayNumber: number,
+  blockKey: BlockKey,
+  referenceData?: RuntimeReferenceData,
+  userState?: UserState,
+) {
+  const runtimeBlock = userState
+    ? getScheduleDay(dayNumber, userState, referenceData)?.blocks.find((entry) => entry.timeSlotKey === blockKey)
+    : null;
+  if (runtimeBlock) {
+    return runtimeBlock;
+  }
+
+  return getScheduleDay(dayNumber, undefined, referenceData)?.blocks.find((entry) => entry.timeSlotKey === blockKey);
+}
+
+export function shouldCreateBacklogItem(
+  dayNumber: number,
+  blockKey: BlockKey,
+  sourceTag: BacklogSourceTag,
+  referenceData?: RuntimeReferenceData,
+  userState?: UserState,
+) {
+  const block = resolveBacklogBlock(dayNumber, blockKey, referenceData, userState);
   if (!block || !block.trackable || !block.reschedulable) {
     return false;
   }
 
-  if (!BACKLOG_QUALIFYING_INTENTS.has(block.blockIntent)) {
+  if (!BACKLOG_QUALIFYING_SEMANTIC_BLOCK_KEYS.has(block.semanticBlockKey)) {
     return false;
   }
 
@@ -64,6 +94,10 @@ export function shouldCreateBacklogItem(dayNumber: number, blockKey: BlockKey, s
   }
 
   return true;
+}
+
+export function isBacklogItemEligible(item: BacklogItem, userState: UserState, referenceData?: RuntimeReferenceData) {
+  return shouldCreateBacklogItem(item.originalDay, item.originalBlockKey, item.sourceTag, referenceData, userState);
 }
 
 export function getTrafficLightBacklogSourceTag(): BacklogSourceTag {

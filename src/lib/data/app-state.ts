@@ -13,7 +13,14 @@ import {
   sortBacklogQueue,
   TIER_LABELS,
 } from "@/lib/domain/backlog-queue";
-import { getTrafficLightBacklogSourceTag, previewOverrunCascade, resolvePhase, resolveSubjectTier, shouldCreateBacklogItem } from "@/lib/domain/backlog";
+import {
+  getTrafficLightBacklogSourceTag,
+  isBacklogItemEligible,
+  previewOverrunCascade,
+  resolvePhase,
+  resolveSubjectTier,
+  shouldCreateBacklogItem,
+} from "@/lib/domain/backlog";
 import { HARD_BOUNDARY_DATE, MORNING_REVISION_SLOT_PLAN, NO_DUE_MORNING_REVISION_NOTE } from "@/lib/domain/constants";
 import { runRepackAlgorithm } from "@/lib/domain/repack";
 import type { ExtensionContext } from "@/lib/domain/repack";
@@ -45,7 +52,6 @@ import {
   buildRevisionInventory,
   withRevisionCache,
   groupRevisionItemsForDisplay,
-  getBacklogCount,
   getBlockProgress,
   getCurrentDayNumber,
   getDayCompletionState,
@@ -113,7 +119,7 @@ function timingKey(dayNumber: number, blockKey: BlockKey) {
 }
 
 const MORNING_REVISION_MAX_MINUTES = MORNING_REVISION_SLOT_PLAN.reduce((sum, slot) => sum + slot.durationMinutes, 0);
-const REPACK_ELIGIBLE_BLOCK_INTENTS = new Set(["core_study", "consolidation"]);
+const REPACK_ELIGIBLE_SEMANTIC_BLOCK_KEYS = new Set(["block_a", "block_b", "block_c"]);
 
 function parseRevisionTypeFromRevisionId(revisionId: string): RevisionType | null {
   const revisionType = revisionId.split(":").at(-1);
@@ -602,7 +608,7 @@ export function skipTopicItem(
   referenceData?: LocalStore["referenceData"],
 ) {
   markTopicForRecovery(userState, dayNumber, blockKey, itemId, sourceTag, status, note, referenceData);
-  if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag, referenceData)) {
+  if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag, referenceData, userState)) {
     upsertBacklogItem(userState, dayNumber, blockKey, itemId, sourceTag, referenceData);
   }
 }
@@ -733,7 +739,7 @@ export function moveBlockToBacklog(
     }
 
     markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, sourceTag, status, note, referenceData);
-    if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag, referenceData)) {
+    if (shouldCreateBacklogItem(dayNumber, blockKey, sourceTag, referenceData, userState)) {
       upsertBacklogItem(userState, dayNumber, blockKey, item.itemId, sourceTag, referenceData);
     }
     movedItemIds.push(item.itemId);
@@ -914,7 +920,7 @@ export function moveVisibleBlocksToBacklog(
     }
 
     movedBlockCount += 1;
-    if (shouldCreateBacklogItem(dayNumber, blockKey, "missed", referenceData)) {
+    if (shouldCreateBacklogItem(dayNumber, blockKey, "missed", referenceData, userState)) {
       backlogItemCount += movedItemIds.length;
     }
   }
@@ -968,7 +974,7 @@ export function runBlockOverrunCutoff(
       continue;
     }
 
-    if (!shouldCreateBacklogItem(todayDayNumber, blockKey, "block_overrun_2245", referenceData)) {
+    if (!shouldCreateBacklogItem(todayDayNumber, blockKey, "block_overrun_2245", referenceData, userState)) {
       continue;
     }
 
@@ -1030,7 +1036,7 @@ export function runEndOfDaySweep(
       continue;
     }
 
-    if (!shouldCreateBacklogItem(todayDayNumber, blockKey, "end_of_day_sweep", referenceData)) {
+    if (!shouldCreateBacklogItem(todayDayNumber, blockKey, "end_of_day_sweep", referenceData, userState)) {
       continue;
     }
 
@@ -1635,10 +1641,27 @@ function collectRepackInputs(
   const blockSlotOrderByKey = new Map(
     Object.values(schedule.blocks).map((row) => [`${row.dayNumber}:${row.blockKey}`, row.slotOrder] as const),
   );
+  const visibleBlockKeysByDay = new Map<number, Set<BlockKey>>();
+  const isBlockVisibleForRepack = (dayNumber: number, blockKey: BlockKey) => {
+    let visibleKeys = visibleBlockKeysByDay.get(dayNumber);
+    if (!visibleKeys) {
+      const day = getScheduleDay(dayNumber, userState, referenceData);
+      if (!day) {
+        visibleKeys = new Set<BlockKey>();
+      } else {
+        visibleKeys = new Set(getVisibleBlockKeys(getDayState(userState, dayNumber).trafficLight, day));
+      }
+      visibleBlockKeysByDay.set(dayNumber, visibleKeys);
+    }
+
+    return visibleKeys.has(blockKey);
+  };
 
   // --- Pending backlog items (Source A) ---
   const pendingBacklog: import("@/lib/domain/repack").UnifiedQueueItem[] = [];
-  for (const item of sortBacklogQueue(Object.values(userState.backlogItems).filter((b) => b.status === "pending"))) {
+  for (const item of sortBacklogQueue(Object.values(userState.backlogItems).filter(
+    (backlogItem) => backlogItem.status === "pending" && isBacklogItemEligible(backlogItem, userState, referenceData),
+  ))) {
     // Look up the topic assignment row to check existing recovery fields
     const topicRow = schedule.topicAssignments[item.sourceItemId];
     pendingBacklog.push({
@@ -1668,7 +1691,8 @@ function collectRepackInputs(
       row.dayNumber <= phaseEndDay &&
       row.status === "pending" &&
       sourceEntry !== null &&
-      REPACK_ELIGIBLE_BLOCK_INTENTS.has(sourceEntry.block.blockIntent)
+      REPACK_ELIGIBLE_SEMANTIC_BLOCK_KEYS.has(sourceEntry.block.semanticBlockKey) &&
+      isBlockVisibleForRepack(row.dayNumber, row.blockKey as BlockKey)
     ) {
       const { subjectTier } = resolveSubjectTier(row.subjectIds, referenceData);
       futureTopicRows.push({
@@ -1700,32 +1724,26 @@ function collectRepackInputs(
     backlogOriginalBlockKey: null,
   }));
 
-  const occupiedMinutesBySlot = new Map<string, number>();
-  for (const { row } of futureTopicRows) {
-    const slotKey = `${row.dayNumber}:${row.blockKey}`;
-    occupiedMinutesBySlot.set(slotKey, (occupiedMinutesBySlot.get(slotKey) ?? 0) + row.plannedMinutes);
-  }
-
   // --- Block capacities ---
-  // Only core_study and consolidation blocks participate.
-  // Existing-day capacity preserves the current packing of pending work instead
-  // of exposing spare workbook minutes as free recovery space.
+  // Only Block A / B / C semantic slots participate.
+  // Use full template block duration so spare slot time can absorb inserted
+  // backlog before cascading into downstream blocks or extension days.
   const rawCapacities: import("@/lib/domain/repack").BlockCapacity[] = [];
   for (const blockRow of Object.values(schedule.blocks)) {
     if (
       blockRow.dayNumber >= todayDayNumber &&
       blockRow.dayNumber <= phaseEndDay &&
-      REPACK_ELIGIBLE_BLOCK_INTENTS.has(blockRow.blockIntent)
+      REPACK_ELIGIBLE_SEMANTIC_BLOCK_KEYS.has(blockRow.semanticBlockKey) &&
+      isBlockVisibleForRepack(blockRow.dayNumber, blockRow.blockKey as BlockKey)
     ) {
-      const occupiedMinutes = occupiedMinutesBySlot.get(`${blockRow.dayNumber}:${blockRow.blockKey}`) ?? 0;
-      if (occupiedMinutes <= 0) {
+      if (blockRow.durationMinutes <= 0) {
         continue;
       }
 
       rawCapacities.push({
         dayNumber: blockRow.dayNumber,
         blockKey: blockRow.blockKey,
-        durationMinutes: occupiedMinutes,
+        durationMinutes: blockRow.durationMinutes,
         slotOrder: blockRow.slotOrder,
       });
     }
@@ -2215,7 +2233,7 @@ export function getHomeData(store: LocalStore, userId: string) {
     const todayState = todayScheduleDay ? getDayState(userState, todayDayNumber) : null;
     const todayRevisionPlan =
       todayScheduleDay && settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings, store.referenceData) : null;
-    const backlogCount = getBacklogCount(userState);
+    const backlogCount = getBacklogSummary(userState, store.referenceData).totalPending;
     const dayComplete =
       todayScheduleDay && todayState ? getDayCompletionState(todayScheduleDay, userState, todayState.trafficLight, store.referenceData) : false;
     const quoteSelection =
@@ -2369,12 +2387,15 @@ export function getBacklogPageData(
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const todayDayNumber = getCurrentDayNumber(userState, todayDate);
   const currentPhaseNumber = resolvePhase(todayDayNumber, userState);
-  const visibleBacklogItems = Object.values(userState.backlogItems).filter((item) => shouldExposePhaseClosedItem(item, currentPhaseNumber));
+  const eligibleBacklogItems = Object.values(userState.backlogItems).filter(
+    (item) => isBacklogItemEligible(item, userState, store.referenceData),
+  );
+  const visibleBacklogItems = eligibleBacklogItems.filter((item) => shouldExposePhaseClosedItem(item, currentPhaseNumber));
   const visiblePhaseClosedItems = visibleBacklogItems.filter((item) => item.status === "phase_closed");
   const counts = buildVisibleBacklogStatusCounts(visibleBacklogItems);
 
   // Build tier-grouped pending items using the queue sort order
-  const pendingItems = Object.values(userState.backlogItems).filter((item) => item.status === "pending");
+  const pendingItems = eligibleBacklogItems.filter((item) => item.status === "pending");
   const sorted = sortBacklogQueue(pendingItems);
   const tierOrder: SubjectTier[] = ["A", "B", "C"];
   const tierGroups: BacklogTierGroup[] = tierOrder
@@ -2401,7 +2422,7 @@ export function getBacklogPageData(
     .filter((group) => group.items.length > 0);
 
   // Dismissed items for the toggle section
-  const dismissedItems = Object.values(userState.backlogItems)
+  const dismissedItems = eligibleBacklogItems
     .filter((item) => item.status === "dismissed")
     .sort((a, b) => (b.updatedAt ?? b.createdAt).localeCompare(a.updatedAt ?? a.createdAt))
     .map((item) => ({
@@ -2438,7 +2459,7 @@ export function getBacklogPageData(
     todayDate,
     todayDayNumber,
     summary: {
-      ...getBacklogSummary(userState),
+      ...getBacklogSummary(userState, store.referenceData),
       phaseClosed: visiblePhaseClosedItems.length,
     },
     counts,
@@ -2554,41 +2575,83 @@ export function getScheduleListData(store: LocalStore, userId: string) {
   const todayRuntimeDayNumber = getCurrentDayNumber(userState, todayDate);
   const todayDisplayDayNumber = getDisplayDayNumber(todayRuntimeDayNumber, userState);
 
-  return withRevisionCache(() => store.referenceData.scheduleData.daywisePlan.days.map((referenceDay) => {
-    const runtimeDayNumber = getRuntimeDayNumberForDisplayDay(referenceDay.dayNumber, userState) ?? referenceDay.dayNumber;
-    const day = getScheduleDay(runtimeDayNumber, userState, store.referenceData);
-    if (!day) {
-      return null;
-    }
+  return withRevisionCache(() => {
+    const plannedDays = store.referenceData.scheduleData.daywisePlan.days.map((referenceDay) => {
+      const runtimeDayNumber = getRuntimeDayNumberForDisplayDay(referenceDay.dayNumber, userState) ?? referenceDay.dayNumber;
+      const day = getScheduleDay(runtimeDayNumber, userState, store.referenceData);
+      if (!day) {
+        return null;
+      }
 
-    const mappedDate = getMappedDate(runtimeDayNumber, userState);
-    const originalPlannedDate = getOriginalPlannedDate(referenceDay.dayNumber, userState.settings);
-    const dayState = getDayState(userState, runtimeDayNumber);
-    const completed = getDayCompletionState(day, userState, dayState.trafficLight, store.referenceData);
-    const isPastVisibleDay = mappedDate !== null && mappedDate < todayDate;
+      const mappedDate = getMappedDate(runtimeDayNumber, userState);
+      const originalPlannedDate = getOriginalPlannedDate(referenceDay.dayNumber, userState.settings);
+      const dayState = getDayState(userState, runtimeDayNumber);
+      const completed = getDayCompletionState(day, userState, dayState.trafficLight, store.referenceData);
+      const isPastVisibleDay = mappedDate !== null && mappedDate < todayDate;
+      const isToday = todayDisplayDayNumber !== null && referenceDay.dayNumber === todayDisplayDayNumber;
 
-    return {
-      ...day,
-      dayNumber: referenceDay.dayNumber,
-      runtimeDayNumber,
-      mappedDate,
-      originalPlannedDate,
-      trafficLight: dayState.trafficLight,
-      today: todayDisplayDayNumber !== null && referenceDay.dayNumber === todayDisplayDayNumber,
-      completed,
-      mergedPartnerDay: getMergedPartner(referenceDay.dayNumber, userState.settings),
-      hiddenByCompression: isCompressedHiddenDay(referenceDay.dayNumber, userState.settings),
-      hiddenShiftLabel: getShiftHiddenDayLabel(referenceDay.dayNumber, userState.settings),
-      status:
-        todayDisplayDayNumber !== null && referenceDay.dayNumber === todayDisplayDayNumber
+      return {
+        ...day,
+        dayNumber: referenceDay.dayNumber,
+        runtimeDayNumber,
+        mappedDate,
+        originalPlannedDate,
+        trafficLight: dayState.trafficLight,
+        today: isToday,
+        completed,
+        mergedPartnerDay: getMergedPartner(referenceDay.dayNumber, userState.settings),
+        hiddenByCompression: isCompressedHiddenDay(referenceDay.dayNumber, userState.settings),
+        hiddenShiftLabel: getShiftHiddenDayLabel(referenceDay.dayNumber, userState.settings),
+        status: isToday
           ? "today"
           : completed
             ? "completed"
             : isPastVisibleDay
               ? "missed"
               : "upcoming",
-    };
-  }).filter((day): day is NonNullable<typeof day> => day !== null));
+      };
+    }).filter((day): day is NonNullable<typeof day> => day !== null);
+
+    const extensionDays = Object.values(userState.schedule.days)
+      .filter((row) => row.isExtensionDay && row.dayNumber > 100)
+      .toSorted((left, right) => left.dayNumber - right.dayNumber)
+      .map((row) => {
+        const day = getScheduleDay(row.dayNumber, userState, store.referenceData);
+        if (!day) {
+          return null;
+        }
+
+        const mappedDate = getMappedDate(row.dayNumber, userState);
+        const dayState = getDayState(userState, row.dayNumber);
+        const completed = getDayCompletionState(day, userState, dayState.trafficLight, store.referenceData);
+        const isPastVisibleDay = mappedDate !== null && mappedDate < todayDate;
+        const isToday = row.dayNumber === todayRuntimeDayNumber;
+
+        return {
+          ...day,
+          dayNumber: row.dayNumber,
+          runtimeDayNumber: row.dayNumber,
+          mappedDate,
+          originalPlannedDate: null,
+          trafficLight: dayState.trafficLight,
+          today: isToday,
+          completed,
+          mergedPartnerDay: null,
+          hiddenByCompression: false,
+          hiddenShiftLabel: null,
+          status: isToday
+            ? "today"
+            : completed
+              ? "completed"
+              : isPastVisibleDay
+                ? "missed"
+                : "upcoming",
+        };
+      })
+      .filter((day): day is NonNullable<typeof day> => day !== null);
+
+    return [...plannedDays, ...extensionDays];
+  });
 }
 
 export function getDayDetailData(store: LocalStore, userId: string, dayNumber: number) {
