@@ -184,6 +184,32 @@ export function getBacklogIndicatorLabel(backlogCount: number) {
   return `${backlogCount} ${backlogCount === 1 ? "block" : "blocks"} in backlog`;
 }
 
+export function getVisibleBlocksNote(hiddenBlockCount: number) {
+  return hiddenBlockCount > 0
+    ? `${hiddenBlockCount} queued for overnight redistribution.`
+    : "Full day still intact.";
+}
+
+export function getHiddenBlockSupportMessage(completed: boolean) {
+  if (completed) {
+    return "Already completed before the pace dial tightened. Kept on record.";
+  }
+
+  return "Queued for overnight redistribution. At midnight — or on first open after a time jump — it slides into the next realistic study slots.";
+}
+
+export function getRecoveryModeExplanation(trafficLight: TrafficLight) {
+  if (trafficLight === "green") {
+    return null;
+  }
+
+  if (trafficLight === "yellow") {
+    return "Yellow only decides what leaves today. Redistribution happens overnight — or on first open after a time jump — so the day stays lighter without being scrambled.";
+  }
+
+  return "Red keeps only the essential spine. Hidden work goes to backlog now; redistribution happens overnight or on first open after a time jump.";
+}
+
 // ---------------------------------------------------------------------------
 // Early Finish Suggestion
 // ---------------------------------------------------------------------------

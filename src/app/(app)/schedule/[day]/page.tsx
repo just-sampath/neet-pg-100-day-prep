@@ -143,6 +143,7 @@ export default async function ScheduleDayPage({
       <section className="grid gap-4">
         {detail.blocks.map((block) => {
           const assignedRecovery = plannedRecoveryByBlock.get(block.timeSlotKey as BlockKey) ?? [];
+          const blockHasActiveWork = block.items.length > 0 || assignedRecovery.length > 0;
           const defaultCompletionDate = block.progress.completedAt
             ? toDateOnlyInTimeZone(block.progress.completedAt)
             : detail.mappedDate ?? detail.originalPlannedDate ?? detail.todayDate;
@@ -158,10 +159,10 @@ export default async function ScheduleDayPage({
                   <div className="eyebrow">{block.displayLabel}</div>
                   <h2 className="mt-2 text-xl font-semibold">{block.displayDescription}</h2>
                   <p className="mt-1 text-sm text-[var(--muted)]">
-                    {block.start} – {block.end} · {block.progress.status}
+                    {block.start} – {block.end} · {blockHasActiveWork ? block.progress.status : "repacked"}
                   </p>
                 </div>
-                {detail.editState.canAdjustToday ? (
+                {detail.editState.canAdjustToday && blockHasActiveWork ? (
                   <div className="flex gap-2">
                     <form action={updateBlockAction}>
                       <input type="hidden" name="dayNumber" value={detail.runtimeDayNumber} />
@@ -182,6 +183,12 @@ export default async function ScheduleDayPage({
                   </div>
                 ) : null}
               </div>
+
+              {!blockHasActiveWork ? (
+                <p className="mt-4 text-sm leading-7 text-(--text-secondary)">
+                  No active topics remain in this block. Any unfinished work has already been repacked into later slots.
+                </p>
+              ) : null}
 
               {block.items.length ? (
                 <div className="mt-4 grid gap-3">
@@ -257,7 +264,7 @@ export default async function ScheduleDayPage({
                 </div>
               ) : null}
 
-              {detail.editState.canRetroactivelyComplete ? (
+              {detail.editState.canRetroactivelyComplete && blockHasActiveWork ? (
                 <form action={updateBlockAction} className="note-card mt-4 grid gap-3 p-4">
                   <div className="eyebrow">Retroactive completion</div>
                   <p className="text-sm leading-7 text-(--text-secondary)">
@@ -280,7 +287,7 @@ export default async function ScheduleDayPage({
                 </form>
               ) : null}
 
-              {detail.editState.canAdjustToday ? (
+              {detail.editState.canAdjustToday && blockHasActiveWork ? (
                 <TimeEditor
                   dayNumber={detail.runtimeDayNumber}
                   blockKey={block.timeSlotKey as BlockKey}

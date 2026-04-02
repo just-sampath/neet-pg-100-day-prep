@@ -3,7 +3,15 @@ import { describe, expect, it } from "vitest";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getScheduleDay, getBacklogCount } from "@/lib/domain/schedule";
-import { buildTodayTimeline, getBacklogIndicatorLabel, getRevisionMinutesLabel, getWindDownState } from "@/lib/domain/today";
+import {
+  buildTodayTimeline,
+  getBacklogIndicatorLabel,
+  getHiddenBlockSupportMessage,
+  getRecoveryModeExplanation,
+  getRevisionMinutesLabel,
+  getVisibleBlocksNote,
+  getWindDownState,
+} from "@/lib/domain/today";
 
 describe("today flow", () => {
   it("keeps the full day in one chronological timeline with breaks, meals, and hidden blocks inline", () => {
@@ -144,6 +152,25 @@ describe("today flow", () => {
     expect(getBacklogIndicatorLabel(3)).toBe("3 blocks in backlog");
     expect(getRevisionMinutesLabel(15)).toBe("~15 min each");
     expect(getRevisionMinutesLabel(0)).toBeNull();
+  });
+
+  it("describes hidden blocks as queued for overnight redistribution", () => {
+    expect(getHiddenBlockSupportMessage(false)).toContain("Queued for overnight redistribution");
+    expect(getHiddenBlockSupportMessage(false)).toContain("first open after a time jump");
+    expect(getHiddenBlockSupportMessage(true)).toBe("Already completed before the pace dial tightened. Kept on record.");
+  });
+
+  it("explains that yellow and red modes only queue work while redistribution happens later", () => {
+    expect(getRecoveryModeExplanation("green")).toBeNull();
+    expect(getRecoveryModeExplanation("yellow")).toContain("overnight");
+    expect(getRecoveryModeExplanation("yellow")).toContain("first open after a time jump");
+    expect(getRecoveryModeExplanation("red")).toContain("essential spine");
+    expect(getRecoveryModeExplanation("red")).toContain("first open after a time jump");
+  });
+
+  it("keeps visible-block quick stats aligned with overnight redistribution wording", () => {
+    expect(getVisibleBlocksNote(0)).toBe("Full day still intact.");
+    expect(getVisibleBlocksNote(2)).toBe("2 queued for overnight redistribution.");
   });
 });
 

@@ -682,10 +682,10 @@ export function upsertBacklogItem(
   userState.backlogItems[itemId] = {
     id: itemId,
     sourceItemId: itemId,
-    originalDay: dayNumber,
-    originalBlockKey: blockKey,
-    originalStart: block.timeSlotKey.split("-")[0] ?? null,
-    originalEnd: block.timeSlotKey.split("-")[1] ?? null,
+    originalDay: existing?.originalDay ?? dayNumber,
+    originalBlockKey: existing?.originalBlockKey ?? blockKey,
+    originalStart: existing?.originalStart ?? block.timeSlotKey.split("-")[0] ?? null,
+    originalEnd: existing?.originalEnd ?? block.timeSlotKey.split("-")[1] ?? null,
     priorityOrder: existing?.priorityOrder ?? getNextBacklogPriorityOrder(userState),
     topicDescription: item.label,
     subject: resolvedSubject !== "General" ? resolvedSubject : subject,
@@ -857,15 +857,21 @@ export function moveVisibleBlocksToBacklog(
   userState: UserState,
   dayNumber: number,
   trafficLight: TrafficLight,
-  options?: { excludeFinalReview?: boolean; note?: string | null },
+  options?: { excludeFinalReview?: boolean; note?: string | null; hasCompletedRevisionAnchors?: boolean },
   referenceData?: LocalStore["referenceData"],
 ) {
   const day = getScheduleDay(dayNumber, userState, referenceData);
   if (!day) {
-    return;
+    return {
+      movedBlockCount: 0,
+      backlogItemCount: 0,
+    };
   }
 
   const visibleBlocks = getVisibleBlockKeys(trafficLight, day);
+  let movedBlockCount = 0;
+  let backlogItemCount = 0;
+
   for (const blockKey of visibleBlocks) {
     const block = day.blocks.find((entry) => entry.timeSlotKey === blockKey);
     if (!block) {
@@ -873,15 +879,28 @@ export function moveVisibleBlocksToBacklog(
     }
 
     if (block.semanticBlockKey === "morning_revision") {
+      const hasCompletedRevisionAnchors = options?.hasCompletedRevisionAnchors ?? Object.values(userState.schedule.topicAssignments).some(
+        (row) => row.revisionEligible && row.status === "completed",
+      );
+      if (!hasCompletedRevisionAnchors) {
+        continue;
+      }
+
       const mappedDate = getMappedDate(dayNumber, userState);
       const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
       if (!revisionPlan || revisionPlan.morningSessionPlanned === 0) {
         continue;
       }
 
-      for (const item of getUnresolvedItems(userState, dayNumber, blockKey, referenceData)) {
+      const unresolvedItems = getUnresolvedItems(userState, dayNumber, blockKey, referenceData);
+      if (unresolvedItems.length === 0) {
+        continue;
+      }
+
+      for (const item of unresolvedItems) {
         markTopicForRecovery(userState, dayNumber, blockKey, item.itemId, "missed", "missed", options?.note ?? null, referenceData);
       }
+      movedBlockCount += 1;
       continue;
     }
 
@@ -889,8 +908,21 @@ export function moveVisibleBlocksToBacklog(
       continue;
     }
 
-    moveBlockToBacklog(userState, dayNumber, blockKey, "missed", "missed", options?.note ?? null, referenceData);
+    const movedItemIds = moveBlockToBacklog(userState, dayNumber, blockKey, "missed", "missed", options?.note ?? null, referenceData);
+    if (movedItemIds.length === 0) {
+      continue;
+    }
+
+    movedBlockCount += 1;
+    if (shouldCreateBacklogItem(dayNumber, blockKey, "missed", referenceData)) {
+      backlogItemCount += movedItemIds.length;
+    }
   }
+
+  return {
+    movedBlockCount,
+    backlogItemCount,
+  };
 }
 
 export function runBlockOverrunCutoff(
@@ -1149,13 +1181,20 @@ export function runMidnightRollover(
   todayDate: string,
   todayDayNumber: number,
   referenceData?: LocalStore["referenceData"],
+  options?: { includeRevisionSnapshot?: boolean },
 ) {
+  const revisionRollover = () => (
+    options?.includeRevisionSnapshot === false
+      ? { due: 0, overflow: 0, catchUp: 0, restudyFlags: 0 }
+      : getRevisionRolloverSnapshot(userState, settings, todayDate, referenceData)
+  );
+
   if (!settings.dayOneDate || todayDayNumber <= 1) {
     return {
       processedDate: null,
       missedBlocks: 0,
       backlogCreated: 0,
-      revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate, referenceData),
+      revisionRollover: revisionRollover(),
     };
   }
 
@@ -1165,7 +1204,7 @@ export function runMidnightRollover(
       processedDate: previousDate,
       missedBlocks: 0,
       backlogCreated: 0,
-      revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate, referenceData),
+      revisionRollover: revisionRollover(),
     };
   }
 
@@ -1173,22 +1212,30 @@ export function runMidnightRollover(
   let missedBlocks = 0;
   let backlogCreated = 0;
   ensureUserScheduleSeeded(userState);
+  const hasCompletedRevisionAnchors = Object.values(userState.schedule.topicAssignments).some(
+    (row) => row.revisionEligible && row.status === "completed",
+  );
 
   if (previousDayNumber >= 1 && previousDayNumber <= 105) {
     const day = getScheduleDay(previousDayNumber, userState, referenceData);
     if (day) {
       const trafficLight = getDayState(userState, previousDayNumber).trafficLight;
       const mappedDate = getMappedDate(previousDayNumber, userState);
-      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
-      if (revisionPlan && revisionPlan.morningSessionPlanned === 0) {
+      const revisionPlan = hasCompletedRevisionAnchors && mappedDate
+        ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData)
+        : null;
+      if (mappedDate && (!hasCompletedRevisionAnchors || revisionPlan?.morningSessionPlanned === 0)) {
         markNoDueMorningRevisionClosed(userState, previousDayNumber, `${previousDate}T23:59:00.000Z`, referenceData);
       }
-      const visibleBlocks = getVisibleBlockKeys(trafficLight, day);
-      const beforeCount = Object.values(userState.backlogItems).filter((item) => item.status === "pending").length;
-      moveVisibleBlocksToBacklog(userState, previousDayNumber, trafficLight, undefined, referenceData);
-      const afterCount = Object.values(userState.backlogItems).filter((item) => item.status === "pending").length;
-      backlogCreated += Math.max(0, afterCount - beforeCount);
-      missedBlocks += visibleBlocks.filter((blockKey) => getBlockProgress(userState, previousDayNumber, blockKey, referenceData).status === "missed").length;
+      const rolloverResult = moveVisibleBlocksToBacklog(
+        userState,
+        previousDayNumber,
+        trafficLight,
+        { hasCompletedRevisionAnchors },
+        referenceData,
+      );
+      backlogCreated += rolloverResult.backlogItemCount;
+      missedBlocks += rolloverResult.movedBlockCount;
     }
   }
 
@@ -1214,7 +1261,7 @@ export function runMidnightRollover(
     processedDate: previousDate,
     missedBlocks,
     backlogCreated,
-    revisionRollover: getRevisionRolloverSnapshot(userState, settings, todayDate, referenceData),
+    revisionRollover: revisionRollover(),
   };
 }
 
@@ -1585,6 +1632,9 @@ function collectRepackInputs(
   referenceData?: LocalStore["referenceData"],
 ) {
   const schedule = userState.schedule;
+  const blockSlotOrderByKey = new Map(
+    Object.values(schedule.blocks).map((row) => [`${row.dayNumber}:${row.blockKey}`, row.slotOrder] as const),
+  );
 
   // --- Pending backlog items (Source A) ---
   const pendingBacklog: import("@/lib/domain/repack").UnifiedQueueItem[] = [];
@@ -1610,7 +1660,7 @@ function collectRepackInputs(
   // 'completed', 'rescheduled' are excluded — they've been handled elsewhere.
   // Original topics stay in their CURRENT workbook order; they are not re-sorted
   // by subject tier during repack.
-  const futureTopicRows: Array<{ row: typeof schedule.topicAssignments[string]; tier: SubjectTier | null }> = [];
+  const futureTopicRows: Array<{ row: typeof schedule.topicAssignments[string]; tier: SubjectTier | null; slotOrder: number }> = [];
   for (const row of Object.values(schedule.topicAssignments)) {
     const sourceEntry = getScheduleItemById(row.sourceItemId, undefined, referenceData);
     if (
@@ -1621,13 +1671,19 @@ function collectRepackInputs(
       REPACK_ELIGIBLE_BLOCK_INTENTS.has(sourceEntry.block.blockIntent)
     ) {
       const { subjectTier } = resolveSubjectTier(row.subjectIds, referenceData);
-      futureTopicRows.push({ row, tier: subjectTier });
+      futureTopicRows.push({
+        row,
+        tier: subjectTier,
+        slotOrder: blockSlotOrderByKey.get(`${row.dayNumber}:${row.blockKey}`) ?? Number.MAX_SAFE_INTEGER,
+      });
     }
   }
 
   // Preserve current schedule order for originals.
   futureTopicRows.sort((a, b) => {
     if (a.row.dayNumber !== b.row.dayNumber) return a.row.dayNumber - b.row.dayNumber;
+    if (a.slotOrder !== b.slotOrder) return a.slotOrder - b.slotOrder;
+    if (a.row.blockKey !== b.row.blockKey) return a.row.blockKey.localeCompare(b.row.blockKey);
     return a.row.itemOrder - b.row.itemOrder;
   });
 
@@ -1644,8 +1700,16 @@ function collectRepackInputs(
     backlogOriginalBlockKey: null,
   }));
 
+  const occupiedMinutesBySlot = new Map<string, number>();
+  for (const { row } of futureTopicRows) {
+    const slotKey = `${row.dayNumber}:${row.blockKey}`;
+    occupiedMinutesBySlot.set(slotKey, (occupiedMinutesBySlot.get(slotKey) ?? 0) + row.plannedMinutes);
+  }
+
   // --- Block capacities ---
-  // Only core_study and consolidation blocks participate
+  // Only core_study and consolidation blocks participate.
+  // Existing-day capacity preserves the current packing of pending work instead
+  // of exposing spare workbook minutes as free recovery space.
   const rawCapacities: import("@/lib/domain/repack").BlockCapacity[] = [];
   for (const blockRow of Object.values(schedule.blocks)) {
     if (
@@ -1653,10 +1717,15 @@ function collectRepackInputs(
       blockRow.dayNumber <= phaseEndDay &&
       REPACK_ELIGIBLE_BLOCK_INTENTS.has(blockRow.blockIntent)
     ) {
+      const occupiedMinutes = occupiedMinutesBySlot.get(`${blockRow.dayNumber}:${blockRow.blockKey}`) ?? 0;
+      if (occupiedMinutes <= 0) {
+        continue;
+      }
+
       rawCapacities.push({
         dayNumber: blockRow.dayNumber,
         blockKey: blockRow.blockKey,
-        durationMinutes: blockRow.durationMinutes,
+        durationMinutes: occupiedMinutes,
         slotOrder: blockRow.slotOrder,
       });
     }
@@ -2072,12 +2141,47 @@ export function runMidnightRepack(
   };
 }
 
+function getCatchUpStartDate(userState: UserState, todayDate: string) {
+  const lastProcessedRepackDate = userState.processedDates.repackDates.at(-1) ?? null;
+
+  if (lastProcessedRepackDate) {
+    return lastProcessedRepackDate < todayDate ? addDaysToDateOnly(lastProcessedRepackDate, 1) : null;
+  }
+
+  return null;
+}
+
+function runCatchUpAutomations(store: LocalStore, userId: string, todayDate: string) {
+  const userState = store.userState[userId];
+  const settings = userState.settings;
+  const startDate = getCatchUpStartDate(userState, todayDate);
+
+  if (!startDate) {
+    return;
+  }
+
+  let walkDate = startDate;
+  while (walkDate < todayDate) {
+    const walkDayNumber = getCurrentDayNumber(userState, walkDate);
+
+    if (getRuntimeMode() === "local") {
+      runMidnightRollover(userState, settings, walkDate, walkDayNumber, store.referenceData, { includeRevisionSnapshot: false });
+    }
+
+    runMidnightRepack(userState, settings, walkDate, walkDayNumber, store.referenceData);
+    walkDate = addDaysToDateOnly(walkDate, 1);
+  }
+}
+
 export function applyAutomations(store: LocalStore, userId: string) {
   const userState = store.userState[userId];
   ensureUserScheduleSeeded(userState);
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const settings = userState.settings;
+
+  runCatchUpAutomations(store, userId, todayDate);
+
   const todayDayNumber = getCurrentDayNumber(userState, todayDate);
   const minutes = getMinutesInTimeZone(now, IST_TIME_ZONE);
 

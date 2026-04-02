@@ -4,6 +4,7 @@ import { dismissBacklogScope, getBacklogQueueItems, moveBacklogItemPriority, ref
 import { previewOverrunCascade, resolvePhase, resolveSubjectTier } from "@/lib/domain/backlog";
 import type { BacklogItem, SubjectTier } from "@/lib/domain/types";
 import {
+  applyAutomations,
   applyOverrunCascadeBacklog,
   applyOverrunCascadeShift,
   applyTrafficLightToDay,
@@ -14,6 +15,7 @@ import {
   moveVisibleBlocksToBacklog,
   runBlockOverrunCutoff,
   runEndOfDaySweep,
+  runMidnightRepack,
   runMidnightRollover,
 } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
@@ -468,6 +470,61 @@ describe("backlog creation and traffic-light handling", () => {
     );
     expect(reupserted.length).toBe(firstItems.length);
     expect(reupserted.every((item) => item.sourceTag === "traffic_light")).toBe(true);
+  });
+
+  it("preserves original backlog provenance when a rescheduled destination block is skipped", () => {
+    const userState = createConfiguredUserState();
+    ensureUserScheduleSeeded(userState);
+
+    const originalBlockKey = getBlockKey(1, "block_a");
+    moveBlockToBacklog(userState, 1, originalBlockKey, "manual_skip", "skipped", null);
+
+    runMidnightRepack(userState, userState.settings, "2026-05-02", 2, getStaticReferenceData());
+
+    const rescheduledItem = Object.values(userState.backlogItems).find(
+      (item) => item.status === "rescheduled" && item.rescheduledToDay !== null && item.rescheduledToBlockKey !== null,
+    )!;
+
+    const destinationDay = rescheduledItem.rescheduledToDay!;
+    const destinationBlockKey = rescheduledItem.rescheduledToBlockKey!;
+
+    moveBlockToBacklog(userState, destinationDay, destinationBlockKey, "manual_skip", "skipped", null);
+
+    expect(userState.backlogItems[rescheduledItem.id]).toMatchObject({
+      status: "pending",
+      originalDay: 1,
+      originalBlockKey,
+    });
+  });
+
+  it("backfills intermediate midnight and repack dates when simulated time jumps multiple days", () => {
+    const userState = createConfiguredUserState();
+    ensureUserScheduleSeeded(userState);
+    const store = createStore(userState, "2026-05-01T06:30:00.000Z");
+
+    applyAutomations(store, "local-user");
+    expect(userState.processedDates.repackDates).toContain("2026-05-01");
+
+    store.dev.simulatedNowIso = "2026-05-04T06:30:00.000Z";
+    applyAutomations(store, "local-user");
+
+    expect(userState.processedDates.repackDates).toEqual(
+      expect.arrayContaining(["2026-05-02", "2026-05-03", "2026-05-04"]),
+    );
+    expect(userState.processedDates.midnightDates).toEqual(
+      expect.arrayContaining(["2026-05-01", "2026-05-02", "2026-05-03"]),
+    );
+  });
+
+  it("does not replay every missed day on a fresh store with no prior automation history", () => {
+    const userState = createConfiguredUserState();
+    ensureUserScheduleSeeded(userState);
+    const store = createStore(userState, "2026-05-04T06:30:00.000Z");
+
+    applyAutomations(store, "local-user");
+
+    expect(userState.processedDates.repackDates).toEqual(["2026-05-04"]);
+    expect(userState.processedDates.midnightDates).toEqual(["2026-05-03"]);
   });
 });
 

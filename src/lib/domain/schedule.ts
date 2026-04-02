@@ -247,9 +247,11 @@ function buildRuntimeDayBlock(
       originalDayNumber: entry.isRecovery ? entry.originalDayNumber : undefined,
       originalBlockKey: entry.isRecovery ? entry.originalBlockKey : undefined,
     }))
-    : itemRows.length > 0
+    : row
       ? []
-      : cloneTemplateItems(templateBlock?.items ?? []);
+      : itemRows.length > 0
+        ? []
+        : cloneTemplateItems(templateBlock?.items ?? []);
 
   if (!row && templateBlock) {
     return {
@@ -859,7 +861,7 @@ export function getBlockProgress(
 
         const status =
           revisionPlan.morningSessionPlanned === 0
-            ? timing.note === NO_DUE_MORNING_REVISION_NOTE
+            ? timing.note === NO_DUE_MORNING_REVISION_NOTE || nativeStatus === "completed"
               ? "completed"
               : "pending"
             : revisionPlan.morningSessionRemaining === 0
@@ -1897,6 +1899,27 @@ export function getScheduleHealth(
   };
 }
 
+function isImplicitlyCompletedEmptyBlock(
+  day: ScheduleDayPlan,
+  blockKey: BlockKey,
+  userState: UserState,
+  progress: BlockProgress,
+  referenceData?: RuntimeReferenceData,
+) {
+  if (progress.status !== "pending" || progress.totalItemCount !== 0 || progress.unresolvedItemCount !== 0) {
+    return false;
+  }
+
+  const dayRow = userState.schedule.days[String(day.dayNumber)];
+  if (dayRow?.isExtensionDay) {
+    return true;
+  }
+
+  const referenceDay = getReferenceScheduleIndex(referenceData).dayByNumber.get(day.dayNumber);
+  const referenceBlock = referenceDay?.blocks.find((entry) => entry.timeSlotKey === blockKey) ?? null;
+  return referenceBlock?.items.length === 0;
+}
+
 export function getDayCompletionState(
   day: ScheduleDayPlan,
   userState: UserState,
@@ -1907,16 +1930,11 @@ export function getDayCompletionState(
 
   return visibleBlocks.every((blockKey) => {
     const progress = getBlockProgress(userState, day.dayNumber, blockKey, referenceData);
-    if (progress.status === "pending" && progress.totalItemCount === 0 && progress.unresolvedItemCount === 0) {
+    if (progress.status === "completed") {
       return true;
     }
 
-    return (
-      progress.status === "completed" ||
-      progress.status === "skipped" ||
-      progress.status === "missed" ||
-      progress.status === "rescheduled"
-    );
+    return isImplicitlyCompletedEmptyBlock(day, blockKey, userState, progress, referenceData);
   });
 }
 

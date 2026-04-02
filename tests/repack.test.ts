@@ -9,6 +9,7 @@ import type {
     BlockCapacity,
 } from "@/lib/domain/repack";
 import {
+    applyTrafficLightToDay,
     moveBlockToBacklog,
     completeBlockItems,
     runMidnightRepack,
@@ -17,8 +18,7 @@ import {
 import { createEmptyUserState } from "@/lib/data/local-store";
 import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { applyScheduleMappingsFromSettings, buildExtensionDayRows, ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
-import { getScheduleDay } from "@/lib/domain/schedule";
-import { getCurrentDayNumber } from "@/lib/domain/schedule";
+import { getCurrentDayNumber, getScheduleDay, getVisibleBlockKeys } from "@/lib/domain/schedule";
 import type { BlockKey, SubjectTier } from "@/lib/domain/types";
 import { addDaysToDateOnly } from "@/lib/utils/date";
 
@@ -44,6 +44,15 @@ function getBlockItems(dayNumber: number, semanticBlockKey: string) {
     return getScheduleDay(dayNumber)!.blocks.find(
         (block) => block.semanticBlockKey === semanticBlockKey,
     )!.items;
+}
+
+function completeVisibleBlocksForDay(userState: ReturnType<typeof createConfiguredUserState>, dayNumber: number, trafficLight: "green" | "yellow" | "red") {
+    const day = getScheduleDay(dayNumber, userState, refData)!;
+    const completedAt = `${addDaysToDateOnly(userState.settings.dayOneDate!, dayNumber - 1)}T20:00:00.000Z`;
+
+    for (const blockKey of getVisibleBlockKeys(trafficLight, day)) {
+        completeBlockItems(userState, dayNumber, blockKey, completedAt, null, refData);
+    }
 }
 
 function makeQueueItem(
@@ -404,6 +413,41 @@ describe("runMidnightRepack integration", () => {
         }
     });
 
+    it("preserves same-day slot order when repack runs on a fresh Day 1 load", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const todayDate = "2026-05-01";
+        const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+        const day1BlockAKey = getBlockKey(1, "block_a");
+        const day1BlockBKey = getBlockKey(1, "block_b");
+        const day1BlockCKey = getBlockKey(1, "block_c");
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(result.skipped).toBe(false);
+        expect(userState.schedule.topicAssignments["d001-0800-01"]).toMatchObject({
+            dayNumber: 1,
+            blockKey: day1BlockAKey,
+            itemOrder: 1,
+        });
+        expect(userState.schedule.topicAssignments["d001-0800-02"]).toMatchObject({
+            dayNumber: 1,
+            blockKey: day1BlockAKey,
+            itemOrder: 2,
+        });
+        expect(userState.schedule.topicAssignments["d001-1115-01"]).toMatchObject({
+            dayNumber: 1,
+            blockKey: day1BlockBKey,
+            itemOrder: 1,
+        });
+        expect(userState.schedule.topicAssignments["d001-1500-01"]).toMatchObject({
+            dayNumber: 1,
+            blockKey: day1BlockCKey,
+            itemOrder: 1,
+        });
+    });
+
     it("keeps mcq_practice, final_review, and wrap_up_log assignments anchored in their native slots", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
@@ -554,6 +598,58 @@ describe("runMidnightRepack integration", () => {
         expect(rescheduled.length).toBeGreaterThan(0);
     });
 
+    it("pushes phase-end work into extension instead of absorbing backlog into spare slot minutes", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const phase1Config = Object.values(userState.schedule.phaseConfig).find((phase) => phase.phaseNumber === 1)!;
+        const todayDayNumber = phase1Config.currentEndDay;
+        const todayDate = addDaysToDateOnly(userState.settings.dayOneDate!, todayDayNumber - 1);
+        const blockAKey = getBlockKey(todayDayNumber, "block_a");
+        const blockBKey = getBlockKey(todayDayNumber, "block_b");
+        const blockCKey = getBlockKey(todayDayNumber, "block_c");
+        const targetItem = getBlockItems(todayDayNumber, "block_a")[0]!;
+        const targetRow = userState.schedule.topicAssignments[targetItem.itemId]!;
+
+        for (const row of Object.values(userState.schedule.topicAssignments)) {
+            if (row.dayNumber >= todayDayNumber) {
+                row.status = row.sourceItemId === targetRow.sourceItemId ? "pending" : "completed";
+            }
+        }
+
+        targetRow.dayNumber = todayDayNumber;
+        targetRow.blockKey = blockAKey;
+        targetRow.itemOrder = 1;
+        targetRow.label = "Protected Phase-End Topic";
+        targetRow.plannedMinutes = 120;
+        targetRow.status = "pending";
+
+        userState.schedule.blocks[`${todayDayNumber}:${blockAKey}`]!.durationMinutes = 180;
+        userState.schedule.blocks[`${todayDayNumber}:${blockBKey}`]!.durationMinutes = 0;
+        userState.schedule.blocks[`${todayDayNumber}:${blockCKey}`]!.durationMinutes = 0;
+
+        moveBlockToBacklog(userState, 1, getBlockKey(1, "block_a"), "manual_skip", "skipped", null, refData);
+        const backlogItems = Object.values(userState.backlogItems)
+            .filter((item) => item.status === "pending")
+            .sort((left, right) => left.id.localeCompare(right.id));
+        const preservedBacklog = backlogItems[0]!;
+
+        for (const item of backlogItems.slice(1)) {
+            item.status = "dismissed";
+            item.dismissedAt = todayDate;
+        }
+
+        preservedBacklog.plannedMinutes = 60;
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(result.skipped).toBe(false);
+        expect(phase1Config.currentEndDay).toBeGreaterThan(todayDayNumber);
+        expect(userState.schedule.topicAssignments[targetRow.sourceItemId]).toMatchObject({
+            dayNumber: todayDayNumber + 1,
+        });
+    });
+
     it("marks phase_closed topic assignments as missed with phase_closed source tag", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
@@ -673,6 +769,62 @@ describe("runMidnightRepack integration", () => {
             // The repack should have attempted to place these items
             expect(result.placed).toBeGreaterThan(0);
         }
+    });
+
+    it("extends phase 1 after three consecutive red days in the reported sequential flow", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const phase1Config = Object.values(userState.schedule.phaseConfig).find((phase) => phase.phaseNumber === 1)!;
+        const originalPhaseEndDay = phase1Config.currentEndDay;
+
+        for (const dayNumber of [1, 2, 3] as const) {
+            completeVisibleBlocksForDay(userState, dayNumber, "green");
+            const nextDate = addDaysToDateOnly(userState.settings.dayOneDate!, dayNumber);
+            runMidnightRollover(userState, userState.settings, nextDate, dayNumber + 1, refData);
+            runMidnightRepack(userState, userState.settings, nextDate, dayNumber + 1, refData);
+        }
+
+        for (const dayNumber of [4, 5, 6] as const) {
+            const phaseEndBeforeRed = phase1Config.currentEndDay;
+            applyTrafficLightToDay(userState, dayNumber, "red", { allowRestore: true }, refData);
+            expect(phase1Config.currentEndDay).toBe(phaseEndBeforeRed);
+
+            completeVisibleBlocksForDay(userState, dayNumber, "red");
+            const nextDate = addDaysToDateOnly(userState.settings.dayOneDate!, dayNumber);
+            runMidnightRollover(userState, userState.settings, nextDate, dayNumber + 1, refData);
+            runMidnightRepack(userState, userState.settings, nextDate, dayNumber + 1, refData);
+        }
+
+        expect(phase1Config.currentEndDay).toBeGreaterThan(originalPhaseEndDay);
+        expect(userState.processedDates.repackDates).toEqual(
+            expect.arrayContaining(["2026-05-02", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06", "2026-05-07"]),
+        );
+    });
+
+    it("does not place backlog into hidden blocks when repack runs on a red day", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const todayDayNumber = 2;
+        const todayDate = addDaysToDateOnly(userState.settings.dayOneDate!, todayDayNumber - 1);
+        const blockBKey = getBlockKey(todayDayNumber, "block_b");
+        const blockCKey = getBlockKey(todayDayNumber, "block_c");
+
+        applyTrafficLightToDay(userState, todayDayNumber, "red", { allowRestore: true }, refData);
+        moveBlockToBacklog(userState, 1, getBlockKey(1, "block_a"), "manual_skip", "skipped", null, refData);
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(result.skipped).toBe(false);
+        expect(
+            Object.values(userState.backlogItems).some(
+                (item) =>
+                    item.status === "rescheduled" &&
+                    item.rescheduledToDay === todayDayNumber &&
+                    (item.rescheduledToBlockKey === blockBKey || item.rescheduledToBlockKey === blockCKey),
+            ),
+        ).toBe(false);
     });
 });
 

@@ -30,7 +30,7 @@ vi.mock("@/lib/data/local-store", async () => {
 });
 
 import { createEmptyUserState } from "@/lib/data/local-store";
-import { pullTopicForward, completeBlockItems } from "@/lib/data/app-state";
+import { pullTopicForward, completeBlockItems, getHomeData } from "@/lib/data/app-state";
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getScheduleDay, getBlockProgress, buildDailyRevisionPlan, invalidateRuntimeScheduleIndex } from "@/lib/domain/schedule";
 import { updateTopicAction, updateBlockAction } from "@/lib/server/actions";
@@ -263,6 +263,80 @@ describe("server actions", () => {
       expect(progress.unresolvedItemCount).toBe(0);
     },
   );
+
+  it("keeps Day 1 core-study items in workbook order on the first Today load", () => {
+    ensureUserScheduleSeeded(testStore.userState["test-user"]);
+
+    getHomeData(testStore, "test-user");
+
+    const userState = testStore.userState["test-user"];
+    const day = getScheduleDay(1, userState, testStore.referenceData)!;
+    const blockA = day.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+    const blockB = day.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+    const blockC = day.blocks.find((entry) => entry.semanticBlockKey === "block_c")!;
+
+    expect(blockA.items.map((item) => item.itemId)).toEqual(["d001-0800-01", "d001-0800-02"]);
+    expect(blockB.items.map((item) => item.itemId)).toEqual(["d001-1115-01"]);
+    expect(blockC.items.map((item) => item.itemId)).toEqual(["d001-1500-01"]);
+  });
+
+  it("completes only Day 1 Block A items after the first Today load", async () => {
+    ensureUserScheduleSeeded(testStore.userState["test-user"]);
+
+    getHomeData(testStore, "test-user");
+
+    const userState = testStore.userState["test-user"];
+    const day = getScheduleDay(1, userState, testStore.referenceData)!;
+    const blockA = day.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+    const blockB = day.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+    const formData = new FormData();
+    formData.set("dayNumber", "1");
+    formData.set("blockKey", blockA.timeSlotKey);
+    formData.set("intent", "complete");
+
+    await updateBlockAction(formData);
+
+    expect(userState.schedule.topicAssignments["d001-0800-01"]?.status).toBe("completed");
+    expect(userState.schedule.topicAssignments["d001-0800-02"]?.status).toBe("completed");
+    expect(userState.schedule.topicAssignments["d001-1115-01"]?.status).toBe("pending");
+
+    expect(getBlockProgress(userState, 1, blockA.timeSlotKey, testStore.referenceData)).toMatchObject({
+      status: "completed",
+      completedItemCount: 2,
+    });
+    expect(getBlockProgress(userState, 1, blockB.timeSlotKey, testStore.referenceData)).toMatchObject({
+      status: "pending",
+      completedItemCount: 0,
+    });
+  });
+
+  it("treats a runtime block with no resident assignments as empty instead of cloning template topics", () => {
+    ensureUserScheduleSeeded(testStore.userState["test-user"]);
+    const userState = testStore.userState["test-user"];
+    const day2 = getScheduleDay(2, userState, testStore.referenceData)!;
+    const blockB = day2.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+    const day3 = getScheduleDay(3, userState, testStore.referenceData)!;
+    const destinationBlock = day3.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+
+    for (const [index, item] of blockB.items.entries()) {
+      const row = userState.schedule.topicAssignments[item.itemId]!;
+      row.dayNumber = day3.dayNumber;
+      row.blockKey = destinationBlock.timeSlotKey;
+      row.itemOrder = 50 + index;
+      row.status = "pending";
+      row.completedAt = null;
+    }
+    invalidateRuntimeScheduleIndex(userState);
+
+    const refreshedDay2 = getScheduleDay(2, userState, testStore.referenceData)!;
+    const refreshedBlockB = refreshedDay2.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+
+    expect(refreshedBlockB.items).toHaveLength(0);
+    expect(getBlockProgress(userState, 2, refreshedBlockB.timeSlotKey, testStore.referenceData)).toMatchObject({
+      totalItemCount: 0,
+      unresolvedItemCount: 0,
+    });
+  });
 });
 
 describe("pullTopicForward", () => {

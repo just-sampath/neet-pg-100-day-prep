@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useSyncExternalStore, useTransition } from "react";
 
 import {
   clearSimulatedNowAction,
@@ -37,6 +37,11 @@ function resolveToolbarDate(value: string, simulatedNow: string | null) {
 }
 
 export function DevToolbar({ simulatedNow }: { simulatedNow: string | null }) {
+  const hydrated = useSyncExternalStore(
+    () => () => { },
+    () => true,
+    () => false,
+  );
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState(simulatedNow ? simulatedNow.slice(0, 16) : "");
 
@@ -56,11 +61,16 @@ export function DevToolbar({ simulatedNow }: { simulatedNow: string | null }) {
     submit(nextValue);
   }
 
+  if (!hydrated) {
+    return null;
+  }
+
   return (
     <section className="panel p-4 md:p-5">
       <div className="eyebrow">Dev Time Travel</div>
       <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
         Drive the app into late-night prompts, midnight rollover, and weekly summary generation without waiting on the wall clock.
+        Multi-day jumps backfill each missed midnight and redistribution pass on the way.
       </p>
       <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center">
         <input
