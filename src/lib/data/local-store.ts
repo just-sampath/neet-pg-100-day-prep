@@ -132,7 +132,13 @@ async function persistLocalStoreFiles(store: LocalStore) {
   await mkdir(dataDir, { recursive: true });
   // Strip referenceData — it is static build-time data reloaded from
   // generated files on every read; persisting it wastes ~1.2 MB per write.
-  const { referenceData: _ref, ...persistable } = store;
+  const persistable = {
+    version: store.version,
+    users: store.users,
+    sessions: store.sessions,
+    userState: store.userState,
+    dev: store.dev,
+  };
   const serialized = JSON.stringify(persistable);
   await writeFile(tempStorePath, serialized);
 

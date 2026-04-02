@@ -118,7 +118,7 @@ export default async function TodayPage() {
           </p>
           <form action={setDayOneDateAction} className="mt-8 grid gap-4 md:max-w-md">
             <label>
-              <span className="mb-2 block text-sm text-[var(--muted)]">Day 1 date</span>
+              <span className="mb-2 block text-sm text-(--muted)">Day 1 date</span>
               <input className="field" type="date" name="dayOneDate" defaultValue={tomorrowDefault} min={minDate} required />
             </label>
             <input type="hidden" name="theme" value={data.settings.theme} />
@@ -283,7 +283,7 @@ export default async function TodayPage() {
                   <h2 className="display mt-4 text-4xl md:text-6xl">{todayScheduleDay.primaryFocusRaw}</h2>
                   <p className="lead mt-5 max-w-2xl">{todayScheduleDay.notesRaw ?? phase?.description ?? todayScheduleDay.resourceRaw}</p>
                 </div>
-                <div className="note-card min-w-[15rem] p-5">
+                <div className="note-card min-w-60 p-5">
                   <div className="eyebrow">Mapped Date</div>
                   <div className="display mt-3 text-2xl md:text-3xl">{formatDateLabel(data.todayDate)}</div>
                   <p className="mt-3 text-sm leading-7 text-(--text-secondary)">
@@ -327,7 +327,7 @@ export default async function TodayPage() {
                 <blockquote className="note-card mt-8 grid gap-4 p-5 md:grid-cols-[0.28fr_0.72fr] md:p-6">
                   <div>
                     <div className="eyebrow">{data.lineQuoteCategory === "tough_day" ? "Tough-Day Line" : "Daily Line"}</div>
-                    <p className="mt-3 font-mono text-xs uppercase tracking-[0.2em] text-[var(--text-dim)]">
+                    <p className="mt-3 font-mono text-xs uppercase tracking-[0.2em] text-(--text-dim)">
                       {data.lineQuoteCategory === "tough_day" ? `${todayState.trafficLight} pace` : "green pace"} / beside you
                     </p>
                   </div>
@@ -467,7 +467,7 @@ export default async function TodayPage() {
                   <article key={entry.id} className="timeline-hidden-card reveal-rise p-4 md:p-5">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <div className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
+                        <div className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-(--muted)">
                           Block {String(blockNumber).padStart(2, "0")} / {entry.label}
                         </div>
                         <p className="mt-2 text-sm text-(--text-secondary)">
@@ -482,11 +482,11 @@ export default async function TodayPage() {
                       {getHiddenBlockSupportMessage(completed)}
                     </p>
                     {assignedRecovery.length ? (
-                      <div className="mt-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)]/85 p-4">
+                      <div className="mt-4 rounded-2xl border border-(--border) bg-(--surface)/85 p-4">
                         <div className="eyebrow">Recovery still assigned here</div>
                         <div className="mt-3 grid gap-3">
                           {assignedRecovery.map((item) => (
-                            <article key={item.id} className="rounded-2xl border border-[var(--border)] p-3">
+                            <article key={item.id} className="rounded-2xl border border-(--border) p-3">
                               <div className="flex flex-wrap items-center gap-2">
                                 <span className="status-badge" data-tone="neutral">
                                   {item.subject}
@@ -521,7 +521,7 @@ export default async function TodayPage() {
                 >
                   <div className="pl-6">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-[var(--muted)]">
+                      <span className="font-mono text-[0.72rem] uppercase tracking-[0.24em] text-(--muted)">
                         Block {String(blockNumber).padStart(2, "0")}
                       </span>
                       <span className="text-sm text-(--text-secondary)">
@@ -536,11 +536,11 @@ export default async function TodayPage() {
                     {blockItems.length ? (
                       <div className="mt-5 grid gap-3">
                         {blockItems.map((item) => (
-                          <article key={item.itemId} className="rounded-2xl border border-[var(--border)] px-4 py-3">
+                          <article key={item.itemId} className="rounded-2xl border border-(--border) px-4 py-3">
                             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                               <div className="min-w-0">
                                 <div className="font-medium leading-7">{item.label}</div>
-                                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--muted)]">
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-(--muted)">
                                   <span>~{item.plannedMinutes} min · {item.progress.status === "completed" ? "Done" : item.progress.status === "skipped" ? "Skipped" : item.progress.status === "missed" ? "Missed" : item.progress.status === "rescheduled" ? "Recovery" : "Pending"}</span>
                                   {item.isRecovery && item.originalDayNumber != null ? (
                                     <span className="status-badge" data-tone="neutral">Recovery · Day {item.originalDayNumber}</span>
@@ -588,7 +588,6 @@ export default async function TodayPage() {
                         todayScheduleDay,
                         tomorrowScheduleDay,
                         userState,
-                        referenceData,
                       }) : null;
                       return earlyFinishSuggestion ? (
                         <EarlyFinishSuggestionCard

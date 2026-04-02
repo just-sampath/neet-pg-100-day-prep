@@ -71,7 +71,7 @@ export default async function ScheduleDayPage({
           Day {detail.day.dayNumber} · {detail.day.phaseName}
         </div>
         <h1 className="display mt-3 text-3xl">{detail.day.primaryFocusRaw}</h1>
-        <p className="mt-2 text-[var(--muted)]">
+        <p className="mt-2" style={{ color: "var(--muted)" }}>
           {detail.mappedDate ? formatDateLabel(detail.mappedDate) : "Day 1 not set"} · {detail.day.resourceRaw}
         </p>
         <p className="mt-2 text-sm leading-7 text-(--text-secondary)">
@@ -97,18 +97,23 @@ export default async function ScheduleDayPage({
             The pace dial only changes the current day. Past and future days stay untouched from the browser.
           </p>
           <div className="mt-4 grid grid-cols-3 gap-2">
-            {(["green", "yellow", "red"] as const).map((trafficLight) => (
-              <form key={trafficLight} action={setTrafficLightAction}>
-                <input type="hidden" name="dayNumber" value={detail.runtimeDayNumber} />
-                <input type="hidden" name="trafficLight" value={trafficLight} />
-                <button
-                  className={`w-full rounded-full px-4 py-3 text-sm font-semibold ${detail.state.trafficLight === trafficLight ? "bg-[var(--accent)] text-[#20160a]" : "bg-[var(--surface-muted)]"}`}
-                  type="submit"
-                >
-                  {trafficLight}
-                </button>
-              </form>
-            ))}
+            {(["green", "yellow", "red"] as const).map((trafficLight) => {
+              const isActive = detail.state.trafficLight === trafficLight;
+
+              return (
+                <form key={trafficLight} action={setTrafficLightAction}>
+                  <input type="hidden" name="dayNumber" value={detail.runtimeDayNumber} />
+                  <input type="hidden" name="trafficLight" value={trafficLight} />
+                  <button
+                    className={`w-full rounded-full px-4 py-3 text-sm font-semibold${isActive ? " text-[#20160a]" : ""}`}
+                    style={{ backgroundColor: isActive ? "var(--accent)" : "var(--surface-muted)" }}
+                    type="submit"
+                  >
+                    {trafficLight}
+                  </button>
+                </form>
+              );
+            })}
           </div>
         </section>
       ) : (
@@ -158,7 +163,7 @@ export default async function ScheduleDayPage({
                 <div>
                   <div className="eyebrow">{block.displayLabel}</div>
                   <h2 className="mt-2 text-xl font-semibold">{block.displayDescription}</h2>
-                  <p className="mt-1 text-sm text-[var(--muted)]">
+                  <p className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
                     {block.start} – {block.end} · {blockHasActiveWork ? block.progress.status : "repacked"}
                   </p>
                 </div>
@@ -193,11 +198,11 @@ export default async function ScheduleDayPage({
               {block.items.length ? (
                 <div className="mt-4 grid gap-3">
                   {block.items.map((item) => (
-                    <article key={item.itemId} className="rounded-2xl border border-[var(--border)] p-4">
+                    <article key={item.itemId} className="rounded-2xl border p-4" style={{ borderColor: "var(--border)" }}>
                       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div>
                           <div className="font-medium">{item.label}</div>
-                          <div className="mt-1 text-sm text-[var(--muted)]">
+                          <div className="mt-1 text-sm" style={{ color: "var(--muted)" }}>
                             ~{item.plannedMinutes} min · {item.progress.status}
                           </div>
                         </div>
@@ -244,7 +249,7 @@ export default async function ScheduleDayPage({
                   </p>
                   <div className="mt-4 grid gap-3">
                     {assignedRecovery.map((item) => (
-                      <article key={item.id} className="rounded-2xl border border-[var(--border)] p-3">
+                      <article key={item.id} className="rounded-2xl border p-3" style={{ borderColor: "var(--border)" }}>
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="status-badge" data-tone="neutral">
                             {item.subject}
@@ -272,7 +277,7 @@ export default async function ScheduleDayPage({
                   </p>
                   <div className="grid gap-3 md:grid-cols-[1fr_auto] md:items-end">
                     <div>
-                      <label className="mb-2 block text-sm text-[var(--muted)]">Date you finished this block</label>
+                      <label className="mb-2 block text-sm" style={{ color: "var(--muted)" }}>Date you finished this block</label>
                       <input className="field" type="date" name="completionDate" defaultValue={defaultCompletionDate} max={detail.todayDate} />
                     </div>
                     <div className="flex gap-2">

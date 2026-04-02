@@ -838,7 +838,7 @@ export function applyTrafficLightToDay(
 
   const previousVisible = new Set(getVisibleBlockKeys(previous.trafficLight, day));
   const nextVisible = new Set(getVisibleBlockKeys(trafficLight, day));
-  const hiddenSourceTag = getTrafficLightBacklogSourceTag(trafficLight === "red" ? "red" : "yellow");
+  const hiddenSourceTag = getTrafficLightBacklogSourceTag();
 
   if (options?.allowRestore) {
     const restoredBlocks = new Set([...nextVisible].filter((blockKey) => !previousVisible.has(blockKey)));

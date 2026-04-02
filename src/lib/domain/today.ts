@@ -240,7 +240,6 @@ export function getEarlyFinishSuggestion({
   todayScheduleDay,
   tomorrowScheduleDay,
   userState,
-  referenceData,
 }: {
   block: ScheduleDayPlan["blocks"][number];
   blockKey: BlockKey;
@@ -250,7 +249,6 @@ export function getEarlyFinishSuggestion({
   todayScheduleDay: ScheduleDayPlan;
   tomorrowScheduleDay: ScheduleDayPlan | null;
   userState: UserState;
-  referenceData?: RuntimeReferenceData;
 }): EarlyFinishSuggestion | null {
   // Guard: only for theory study blocks (Block A, B, C)
   if (!EARLY_FINISH_ELIGIBLE_BLOCKS.has(block.semanticBlockKey)) {
@@ -288,7 +286,6 @@ export function getEarlyFinishSuggestion({
     tomorrowScheduleDay,
     blockKey,
     userState,
-    referenceData,
   );
 
   // Find first fitting topic
@@ -320,7 +317,6 @@ function collectEarlyFinishCandidates(
   tomorrowScheduleDay: ScheduleDayPlan | null,
   currentBlockKey: BlockKey,
   userState: UserState,
-  referenceData?: RuntimeReferenceData,
 ): EarlyFinishCandidate[] {
   const candidates: EarlyFinishCandidate[] = [];
 
@@ -332,7 +328,7 @@ function collectEarlyFinishCandidates(
     const laterBlock = todayScheduleDay.blocks[i];
     if (!laterBlock.trackable) continue;
     if (!EARLY_FINISH_ELIGIBLE_BLOCKS.has(laterBlock.semanticBlockKey)) continue;
-    addPendingItems(candidates, laterBlock, todayScheduleDay.dayNumber, userState, referenceData);
+    addPendingItems(candidates, laterBlock, todayScheduleDay.dayNumber, userState);
   }
 
   // Collect from tomorrow's blocks
@@ -340,7 +336,7 @@ function collectEarlyFinishCandidates(
     for (const tomorrowBlock of tomorrowScheduleDay.blocks) {
       if (!tomorrowBlock.trackable) continue;
       if (!EARLY_FINISH_ELIGIBLE_BLOCKS.has(tomorrowBlock.semanticBlockKey)) continue;
-      addPendingItems(candidates, tomorrowBlock, tomorrowScheduleDay.dayNumber, userState, referenceData);
+      addPendingItems(candidates, tomorrowBlock, tomorrowScheduleDay.dayNumber, userState);
     }
   }
 
@@ -352,7 +348,6 @@ function addPendingItems(
   block: ScheduleDayPlan["blocks"][number],
   dayNumber: number,
   userState: UserState,
-  referenceData?: RuntimeReferenceData,
 ): void {
   const blockKey = block.timeSlotKey as BlockKey;
   for (const item of block.items) {

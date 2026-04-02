@@ -66,7 +66,7 @@ export function shouldCreateBacklogItem(dayNumber: number, blockKey: BlockKey, s
   return true;
 }
 
-export function getTrafficLightBacklogSourceTag(_trafficLight: Exclude<TrafficLight, "green">): BacklogSourceTag {
+export function getTrafficLightBacklogSourceTag(): BacklogSourceTag {
   return "traffic_light";
 }
 
