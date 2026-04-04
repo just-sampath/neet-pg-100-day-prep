@@ -21,6 +21,10 @@ const realtimeTables = [
 ] as const;
 
 type SyncState = "live" | "reconnecting" | "offline";
+const SELF_ECHO_SUPPRESSION_MS = 900;
+const REFRESH_OPTIMIZATIONS_ENABLED =
+  process.env.NEXT_PUBLIC_SUPABASE_REFRESH_OPTIMIZATIONS?.toLowerCase() !== "false" &&
+  process.env.NEXT_PUBLIC_SUPABASE_REFRESH_OPTIMIZATIONS !== "0";
 
 export function SyncStatus({
   runtimeMode,
@@ -38,6 +42,7 @@ export function SyncStatus({
     runtimeMode !== "supabase" ? "live" : supabaseClient ? "reconnecting" : "offline",
   );
   const timerRef = useRef<number | null>(null);
+  const lastLocalMutationAtRef = useRef(0);
 
   const queueRefresh = useEffectEvent(() => {
     if (timerRef.current !== null) {
@@ -48,7 +53,7 @@ export function SyncStatus({
       startTransition(() => {
         router.refresh();
       });
-    }, 120);
+    }, REFRESH_OPTIMIZATIONS_ENABLED ? 120 : 0);
   });
 
   useEffect(() => {
@@ -56,12 +61,16 @@ export function SyncStatus({
       return;
     }
 
+    const onSubmit = () => {
+      lastLocalMutationAtRef.current = Date.now();
+    };
     const onOnline = () => {
       setState("reconnecting");
       queueRefresh();
     };
     const onOffline = () => setState("offline");
 
+    document.addEventListener("submit", onSubmit, true);
     window.addEventListener("online", onOnline);
     window.addEventListener("offline", onOffline);
 
@@ -75,6 +84,12 @@ export function SyncStatus({
           filter: `user_id=eq.${userId}`,
         },
         () => {
+          if (
+            REFRESH_OPTIMIZATIONS_ENABLED &&
+            Date.now() - lastLocalMutationAtRef.current <= SELF_ECHO_SUPPRESSION_MS
+          ) {
+            return;
+          }
           queueRefresh();
         },
       );
@@ -106,6 +121,7 @@ export function SyncStatus({
       if (timerRef.current !== null) {
         window.clearTimeout(timerRef.current);
       }
+      document.removeEventListener("submit", onSubmit, true);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("offline", onOffline);
       void supabaseClient.removeChannel(channel);

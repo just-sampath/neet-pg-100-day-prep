@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getBacklogPageData } from "@/lib/data/app-state";
-import { mutateStore, readRuntimeReferenceData } from "@/lib/data/local-store";
+import { readPassiveStore, readRuntimeReferenceData } from "@/lib/data/local-store";
 import { getTrackableBlockOptions } from "@/lib/domain/schedule";
 import type { BacklogBulkScope, BacklogSortMode, BacklogStatus, BacklogViewFilter } from "@/lib/domain/types";
 import { bulkBacklogAction, updateBacklogAction } from "@/lib/server/actions";
@@ -79,7 +79,7 @@ export default async function BacklogPage({
   const sort = isBacklogSort(params.sort) ? params.sort : "priority";
   const referenceData = await readRuntimeReferenceData();
   const manualRescheduleOptions = getTrackableBlockOptions(undefined, referenceData);
-  const data = await mutateStore((store) => getBacklogPageData(store, user.id, { filter, sort }));
+  const data = await readPassiveStore((store) => getBacklogPageData(store, user.id, { filter, sort }));
 
   const defaultCompletionDate = data.todayDate;
   const summaryLine = data.summary.totalPending

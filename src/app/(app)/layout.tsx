@@ -7,6 +7,7 @@ import { requireCurrentUser } from "@/lib/auth/session";
 import { readStore } from "@/lib/data/local-store";
 import { getRuntimeMode } from "@/lib/runtime/mode";
 import { logoutAction } from "@/lib/server/actions";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export default async function AppLayout({
   children,
@@ -15,8 +16,22 @@ export default async function AppLayout({
 }>) {
   const user = await requireCurrentUser();
   const runtimeMode = getRuntimeMode();
-  const store = await readStore();
-  const setupComplete = !!store.userState[user.id]?.settings?.dayOneDate;
+  let setupComplete = false;
+
+  if (runtimeMode === "supabase") {
+    const supabase = await createSupabaseServerClient();
+    if (supabase) {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("day_one_date")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      setupComplete = Boolean(data?.day_one_date);
+    }
+  } else {
+    const store = await readStore();
+    setupComplete = !!store.userState[user.id]?.settings?.dayOneDate;
+  }
 
   return (
     <main id="main-content" className="app-shell">

@@ -2,7 +2,7 @@ import { DevToolbar } from "@/components/app/dev-toolbar";
 import { InstallStatusCard } from "@/components/app/install-status-card";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { applyAutomations } from "@/lib/data/app-state";
-import { getEffectiveNow, mutateStore } from "@/lib/data/local-store";
+import { getEffectiveNow, readPassiveStore } from "@/lib/data/local-store";
 import { APP_DESCRIPTION, APP_VERSION } from "@/lib/domain/app-meta";
 import { EXAM_DATE, HARD_BOUNDARY_DATE } from "@/lib/domain/constants";
 import { getRuntimeLabel, getRuntimeMode } from "@/lib/runtime/mode";
@@ -14,7 +14,7 @@ export default async function SettingsPage() {
   await requireDayOneSetup(user.id);
   const runtimeMode = getRuntimeMode();
   const showDevelopmentReset = process.env.NODE_ENV !== "production";
-  const { settings, simulatedNow, todayDate, nowIso } = await mutateStore((store) => {
+  const { settings, simulatedNow, todayDate, nowIso } = await readPassiveStore((store) => {
     applyAutomations(store, user.id);
     const now = getEffectiveNow(store);
     return {

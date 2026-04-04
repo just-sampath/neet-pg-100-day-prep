@@ -4,12 +4,12 @@ import { McqBulkEntryForm } from "@/components/app/mcq-bulk-entry-form";
 import { McqDetailedEntryForm } from "@/components/app/mcq-detailed-entry-form";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getMcqPageData } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { readPassiveStore } from "@/lib/data/local-store";
 
 export default async function McqPage() {
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
-  const data = await mutateStore((store) => getMcqPageData(store, user.id));
+  const data = await readPassiveStore((store) => getMcqPageData(store, user.id));
 
   return (
     <div className="grid gap-6">

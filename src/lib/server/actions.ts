@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 
-import { refresh, revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { loginUser, logoutUser, requireCurrentUser } from "@/lib/auth/session";
@@ -31,7 +31,13 @@ import {
   skipTopicItem,
   upsertWeeklySummary,
 } from "@/lib/data/app-state";
-import { createEmptyUserState, getEffectiveNow, mutateStore } from "@/lib/data/local-store";
+import {
+  createEmptyUserState,
+  getEffectiveNow,
+  isSupabaseRetryableConflictError,
+  mutateScheduleStore,
+  mutateStore,
+} from "@/lib/data/local-store";
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import {
   getCurrentDayNumber,
@@ -77,19 +83,37 @@ function asOptionalPositiveInt(value: string) {
   return Math.round(parsed);
 }
 
-function refreshAndRevalidate(paths: string[]) {
-  for (const path of paths) {
-    revalidatePath(path);
-  }
+function refreshScheduleViews(dayNumber?: number) {
+  void dayNumber;
   refresh();
 }
 
-function refreshScheduleViews(dayNumber?: number) {
-  const paths = ["/today", "/schedule", "/backlog"];
-  if (typeof dayNumber === "number" && Number.isFinite(dayNumber) && dayNumber > 0) {
-    paths.push(`/schedule/${dayNumber}`);
+async function mutateScheduleStoreWithConflictHandling(
+  mutator: Parameters<typeof mutateScheduleStore>[0],
+) {
+  try {
+    return await mutateScheduleStore(mutator);
+  } catch (error) {
+    if (!isSupabaseRetryableConflictError(error)) {
+      throw error;
+    }
+    refresh();
+    throw new Error("RETRYABLE_CONFLICT: State changed on another device. Reload and retry.");
   }
-  refreshAndRevalidate(paths);
+}
+
+async function mutateStoreWithConflictHandling(
+  mutator: Parameters<typeof mutateStore>[0],
+) {
+  try {
+    return await mutateStore(mutator);
+  } catch (error) {
+    if (!isSupabaseRetryableConflictError(error)) {
+      throw error;
+    }
+    refresh();
+    throw new Error("RETRYABLE_CONFLICT: State changed on another device. Reload and retry.");
+  }
 }
 
 export async function loginAction(formData: FormData) {
@@ -109,7 +133,7 @@ export async function setDayOneDateAction(formData: FormData) {
   const user = await requireCurrentUser();
   const dayOneDate = asString(formData.get("dayOneDate"));
   const theme = asString(formData.get("theme"));
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const resolvedDate = dayOneDate || addDaysToDateOnly(
       toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE),
@@ -139,7 +163,7 @@ export async function setThemeAction(formData: FormData) {
   if (theme !== "dark" && theme !== "light") {
     return;
   }
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     store.userState[user.id].settings.theme = theme;
   });
   refresh();
@@ -153,7 +177,7 @@ export async function setTrafficLightAction(formData: FormData) {
     return;
   }
 
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     ensureUserScheduleSeeded(userState);
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
@@ -162,7 +186,7 @@ export async function setTrafficLightAction(formData: FormData) {
       return;
     }
 
-    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
     applyTrafficLightToDay(userState, dayNumber, trafficLight, {
       allowRestore: dayNumber === todayDayNumber,
     }, store.referenceData);
@@ -181,7 +205,7 @@ export async function updateBlockAction(formData: FormData) {
   const cascadeDecision = asString(formData.get("cascadeDecision"));
   const note = asString(formData.get("note")) || null;
 
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     ensureUserScheduleSeeded(userState);
     const effectiveNow = getEffectiveNow(store);
@@ -281,7 +305,7 @@ export async function updateTopicAction(formData: FormData) {
     return;
   }
 
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     ensureUserScheduleSeeded(userState);
     const effectiveNow = getEffectiveNow(store);
@@ -331,7 +355,7 @@ export async function completeRevisionSessionAction(formData: FormData) {
     return;
   }
 
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const now = getEffectiveNow(store);
     const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
@@ -361,7 +385,7 @@ export async function completeRevisionAction(formData: FormData) {
   if (!sourceItemId || !sourceDay || !sourceBlockKey || !["D+1", "D+3", "D+7", "D+14", "D+28"].includes(revisionType)) {
     return;
   }
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const revisionId = `${sourceItemId}:${revisionType}`;
     userState.revisionCompletions[revisionId] = {
@@ -385,10 +409,10 @@ export async function updateBacklogAction(formData: FormData) {
   const rescheduledToBlockKey = asString(formData.get("rescheduledToBlockKey")) as BlockKey;
   const moveDirection = asString(formData.get("direction")) as BacklogMoveDirection;
 
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
     refreshBacklogSuggestions(userState, userState.settings, todayDayNumber, store.referenceData);
     const item = userState.backlogItems[backlogId];
     if (!item) {
@@ -449,10 +473,10 @@ export async function bulkBacklogAction(formData: FormData) {
     return;
   }
 
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
     refreshBacklogSuggestions(userState, userState.settings, todayDayNumber, store.referenceData);
 
     if (intent === "dismiss_scope") {
@@ -470,7 +494,7 @@ export async function wrapUpDayAction(formData: FormData) {
   const user = await requireCurrentUser();
   const dayNumber = Number(asString(formData.get("dayNumber")));
   const trafficLight = asString(formData.get("trafficLight")) as TrafficLight;
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     moveVisibleBlocksToBacklog(userState, dayNumber, trafficLight, {
       excludeFinalReview: true,
@@ -482,11 +506,11 @@ export async function wrapUpDayAction(formData: FormData) {
 
 export async function runLateNightSweepAction() {
   const user = await requireCurrentUser();
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const now = getEffectiveNow(store);
     const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
     const minutes = getMinutesInTimeZone(now, IST_TIME_ZONE);
 
     runBlockOverrunCutoff(userState, userState.settings, todayDate, todayDayNumber, minutes, store.referenceData);
@@ -498,10 +522,10 @@ export async function runLateNightSweepAction() {
 export async function applyShiftAction(formData: FormData) {
   const user = await requireCurrentUser();
   const previewSignature = asString(formData.get("previewSignature"));
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
     const shiftHealth = getScheduleHealth(userState, userState.settings, todayDayNumber, store.referenceData);
     const preview = shiftHealth.suggestShift ? getShiftPreview(userState.settings, shiftHealth.missedDays, store.referenceData) : null;
 
@@ -517,7 +541,7 @@ export async function applyShiftAction(formData: FormData) {
 export async function submitMcqBulkAction(formData: FormData) {
   const user = await requireCurrentUser();
   let result: { ok: boolean; error?: string } = { ok: true };
-  await mutateStore((store) => {
+  await mutateStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const validated = validateMcqBulkDraft(
       {
@@ -557,7 +581,7 @@ export async function submitMcqBulkAction(formData: FormData) {
 export async function submitMcqItemAction(formData: FormData) {
   const user = await requireCurrentUser();
   let result: { ok: boolean; error?: string } = { ok: true };
-  await mutateStore((store) => {
+  await mutateStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const validated = validateMcqItemDraft(
       {
@@ -609,7 +633,7 @@ export async function submitMcqItemAction(formData: FormData) {
 export async function submitGtAction(formData: FormData) {
   const user = await requireCurrentUser();
   let result: { ok: boolean; error?: string } = { ok: true };
-  await mutateStore((store) => {
+  await mutateStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const sectionInput = (prefix: string) => ({
       timeEnough: asString(formData.get(`${prefix}TimeEnough`)) || null,
@@ -666,23 +690,23 @@ export async function submitGtAction(formData: FormData) {
 
 export async function generateWeeklySummaryAction() {
   const user = await requireCurrentUser();
-  await mutateStore((store) => {
+  await mutateStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const today = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
     const week = weekBounds(today);
     upsertWeeklySummary(userState, userState.settings, week.start, today, store.referenceData);
   });
-  refreshAndRevalidate(["/weekly", "/today"]);
+  refresh();
 }
 
 export async function runRepackAction() {
   const user = await requireCurrentUser();
   let result: ReturnType<typeof runMidnightRepack> | null = null;
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const now = getEffectiveNow(store);
     const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
     result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, store.referenceData);
   });
   refreshScheduleViews();
@@ -699,7 +723,7 @@ export async function acceptEarlyFinishAction(formData: FormData) {
     return;
   }
 
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     ensureUserScheduleSeeded(userState);
     pullTopicForward(userState, sourceItemId, targetDayNumber, targetBlockKey);
@@ -711,7 +735,7 @@ export async function acceptEarlyFinishAction(formData: FormData) {
 export async function setSimulatedNowAction(formData: FormData) {
   await requireCurrentUser();
   const value = asString(formData.get("simulatedNow"));
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     store.dev.simulatedNowIso = value ? new Date(value).toISOString() : null;
   });
   refreshScheduleViews();
@@ -719,7 +743,7 @@ export async function setSimulatedNowAction(formData: FormData) {
 
 export async function clearSimulatedNowAction() {
   await requireCurrentUser();
-  await mutateStore((store) => {
+  await mutateScheduleStoreWithConflictHandling((store) => {
     store.dev.simulatedNowIso = null;
   });
   refreshScheduleViews();
@@ -735,7 +759,7 @@ export async function resetAppStateAction(formData: FormData) {
   }
 
   const user = await requireCurrentUser();
-  await mutateStore((store) => {
+  await mutateStoreWithConflictHandling((store) => {
     store.userState[user.id] = createEmptyUserState();
     store.sessions = {};
     store.dev.simulatedNowIso = null;

@@ -102,7 +102,7 @@ import type {
   UserState,
   WeeklySummary,
 } from "@/lib/domain/types";
-import { getEffectiveNow } from "@/lib/data/local-store";
+import { getEffectiveNow, isSupabaseGuardedReadStore } from "@/lib/data/local-store";
 import { getRuntimeMode } from "@/lib/runtime/mode";
 import {
   addDaysToDateOnly,
@@ -1488,9 +1488,9 @@ export function generateWeeklySummary(
     if (overallAccuracy < previousAccuracy) accuracyVsPrevious = "down";
   }
 
-  const currentDayNumber = getCurrentDayNumber(userState, coveredThroughDate);
+  const currentDayNumber = getCurrentDayNumber(userState, coveredThroughDate, referenceData);
   const { missedDays } = getScheduleHealth(userState, settings, currentDayNumber, referenceData);
-  const backlogSummary = getBacklogSummary(userState);
+  const backlogSummary = getBacklogSummary(userState, referenceData);
   const bufferDaysUsed = settings.shiftEvents.filter((event) => event.bufferDayUsed !== null).length;
   const scheduleStatus = getWeeklyScheduleStatus(missedDays.length, bufferDaysUsed);
   const overrunBlocks = [...overrunMap.entries()]
@@ -2180,7 +2180,7 @@ function runCatchUpAutomations(store: LocalStore, userId: string, todayDate: str
 
   let walkDate = startDate;
   while (walkDate < todayDate) {
-    const walkDayNumber = getCurrentDayNumber(userState, walkDate);
+    const walkDayNumber = getCurrentDayNumber(userState, walkDate, store.referenceData);
 
     if (getRuntimeMode() === "local") {
       runMidnightRollover(userState, settings, walkDate, walkDayNumber, store.referenceData, { includeRevisionSnapshot: false });
@@ -2192,6 +2192,18 @@ function runCatchUpAutomations(store: LocalStore, userId: string, todayDate: str
 }
 
 export function applyAutomations(store: LocalStore, userId: string) {
+  return applyAutomationsWithMode(store, userId, isSupabaseGuardedReadStore(store) ? "read_guarded" : "full_mutation");
+}
+
+export function applyAutomationsWithMode(
+  store: LocalStore,
+  userId: string,
+  mode: "full_mutation" | "read_guarded",
+) {
+  if (mode === "read_guarded") {
+    return;
+  }
+
   const userState = store.userState[userId];
   ensureUserScheduleSeeded(userState);
   const now = getEffectiveNow(store);
@@ -2200,7 +2212,7 @@ export function applyAutomations(store: LocalStore, userId: string) {
 
   runCatchUpAutomations(store, userId, todayDate);
 
-  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+  const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
   const minutes = getMinutesInTimeZone(now, IST_TIME_ZONE);
 
   runBlockOverrunCutoff(userState, settings, todayDate, todayDayNumber, minutes, store.referenceData);
@@ -2227,7 +2239,7 @@ export function getHomeData(store: LocalStore, userId: string) {
     const now = getEffectiveNow(store);
     const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
     const settings = userState.settings;
-    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
     const todayScheduleDay = getScheduleDay(todayDayNumber, userState, store.referenceData);
 
     const todayState = todayScheduleDay ? getDayState(userState, todayDayNumber) : null;
@@ -2318,7 +2330,7 @@ export function getRevisionQueuePageData(store: LocalStore, userId: string) {
     const now = getEffectiveNow(store);
     const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
     const settings = userState.settings;
-    const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+    const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
     const todayScheduleDay = getScheduleDay(todayDayNumber, userState, store.referenceData);
     const revisionPlan = settings.dayOneDate ? buildDailyRevisionPlan(todayDate, userState, settings, store.referenceData) : null;
     const waitingSessions = revisionPlan
@@ -2385,7 +2397,7 @@ export function getBacklogPageData(
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+  const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
   const currentPhaseNumber = resolvePhase(todayDayNumber, userState);
   const eligibleBacklogItems = Object.values(userState.backlogItems).filter(
     (item) => isBacklogItemEligible(item, userState, store.referenceData),
@@ -2572,7 +2584,7 @@ export function getScheduleListData(store: LocalStore, userId: string) {
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const todayRuntimeDayNumber = getCurrentDayNumber(userState, todayDate);
+  const todayRuntimeDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
   const todayDisplayDayNumber = getDisplayDayNumber(todayRuntimeDayNumber, userState);
 
   return withRevisionCache(() => {
@@ -2685,7 +2697,7 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
       runtimeDayNumber,
       displayDayNumber,
       todayDate,
-      todayDayNumber: getCurrentDayNumber(userState, todayDate),
+      todayDayNumber: getCurrentDayNumber(userState, todayDate, store.referenceData),
       mappedDate,
       originalPlannedDate,
       state,

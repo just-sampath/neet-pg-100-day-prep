@@ -3,12 +3,12 @@ import Link from "next/link";
 import { GtEntryForm } from "@/components/app/gt-entry-form";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getGtPageData } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { readPassiveStore } from "@/lib/data/local-store";
 
 export default async function GtPage() {
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
-  const data = await mutateStore((store) => getGtPageData(store, user.id));
+  const data = await readPassiveStore((store) => getGtPageData(store, user.id));
 
   return (
     <div className="grid gap-6">

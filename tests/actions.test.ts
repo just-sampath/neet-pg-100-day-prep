@@ -7,7 +7,6 @@ let testStore: LocalStore;
 
 vi.mock("next/cache", () => ({
   refresh: vi.fn(),
-  revalidatePath: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -27,6 +26,7 @@ vi.mock("@/lib/data/local-store", async () => {
     ...actual,
     getEffectiveNow: vi.fn(() => new Date("2026-05-10T06:30:00.000Z")),
     mutateStore: vi.fn(async (updater: (store: LocalStore) => unknown) => updater(testStore)),
+    mutateScheduleStore: vi.fn(async (updater: (store: LocalStore) => unknown) => updater(testStore)),
   };
 });
 
@@ -35,7 +35,7 @@ import { pullTopicForward, completeBlockItems, getHomeData } from "@/lib/data/ap
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getScheduleDay, getBlockProgress, buildDailyRevisionPlan, invalidateRuntimeScheduleIndex } from "@/lib/domain/schedule";
 import { updateTopicAction, updateBlockAction } from "@/lib/server/actions";
-import { revalidatePath } from "next/cache";
+import { refresh } from "next/cache";
 
 describe("server actions", () => {
   beforeEach(() => {
@@ -312,7 +312,7 @@ describe("server actions", () => {
     });
   });
 
-  it("revalidates today, schedule, and backlog views after block updates", async () => {
+  it("refreshes the current view after block updates", async () => {
     ensureUserScheduleSeeded(testStore.userState["test-user"]);
     const userState = testStore.userState["test-user"];
     const day = getScheduleDay(1, userState, testStore.referenceData)!;
@@ -324,9 +324,7 @@ describe("server actions", () => {
 
     await updateBlockAction(formData);
 
-    expect(revalidatePath).toHaveBeenCalledWith("/today");
-    expect(revalidatePath).toHaveBeenCalledWith("/schedule");
-    expect(revalidatePath).toHaveBeenCalledWith("/backlog");
+    expect(refresh).toHaveBeenCalled();
   });
 
   it("treats a runtime block with no resident assignments as empty instead of cloning template topics", () => {

@@ -521,7 +521,11 @@ type RevisionSessionBucket = {
   subjectPriority: number;
 };
 
-function sortRevisionQueueItems(left: RevisionQueueItem, right: RevisionQueueItem) {
+function sortRevisionQueueItems(
+  left: RevisionQueueItem,
+  right: RevisionQueueItem,
+  referenceData?: RuntimeReferenceData,
+) {
   if (left.overdueBy !== right.overdueBy) {
     return right.overdueBy - left.overdueBy;
   }
@@ -530,7 +534,9 @@ function sortRevisionQueueItems(left: RevisionQueueItem, right: RevisionQueueIte
     return left.scheduledDate.localeCompare(right.scheduledDate);
   }
 
-  const subjectDelta = getSubjectPriorityForRevisionItem(left) - getSubjectPriorityForRevisionItem(right);
+  const subjectDelta =
+    getSubjectPriorityForRevisionItem(left, referenceData) -
+    getSubjectPriorityForRevisionItem(right, referenceData);
   if (subjectDelta !== 0) {
     return subjectDelta;
   }
@@ -598,7 +604,7 @@ function sortRevisionBuckets(left: RevisionSessionBucket, right: RevisionSession
   return left.sourceTopicLabel.localeCompare(right.sourceTopicLabel);
 }
 
-function createRevisionSessionBuckets(items: RevisionQueueItem[]) {
+function createRevisionSessionBuckets(items: RevisionQueueItem[], referenceData?: RuntimeReferenceData) {
   const buckets = new Map<string, RevisionSessionBucket>();
 
   for (const item of items) {
@@ -640,7 +646,7 @@ function createRevisionSessionBuckets(items: RevisionQueueItem[]) {
       earliestPendingScheduledDate: item.status === "completed" ? null : item.scheduledDate,
       maxOverdueBy: item.overdueBy,
       maxPendingOverdueBy: item.status === "completed" ? 0 : item.overdueBy,
-      subjectPriority: getSubjectPriorityForRevisionItem(item),
+      subjectPriority: getSubjectPriorityForRevisionItem(item, referenceData),
     });
   }
 
@@ -1512,7 +1518,7 @@ function buildDueRevisionItems(
                   : "overdue_7_plus",
       } satisfies RevisionQueueItem;
     })
-    .sort(sortRevisionQueueItems);
+    .sort((left, right) => sortRevisionQueueItems(left, right, referenceData));
 }
 
 function isQueuedRevisionItemCandidate(item: RevisionQueueItem, targetDate: string) {
@@ -1630,7 +1636,7 @@ function buildRevisionPlanBaseUncached(
 
   const queuedRevisionIds = new Set(morningQueueItems.map((item) => item.id));
 
-  const morningSessionsAll = createRevisionSessionBuckets(morningQueueItems).map((bucket) =>
+  const morningSessionsAll = createRevisionSessionBuckets(morningQueueItems, referenceData).map((bucket) =>
     createRevisionSession(
       bucket,
       "due_this_morning",
@@ -1642,6 +1648,7 @@ function buildRevisionPlanBaseUncached(
 
   const secondaryBuckets = createRevisionSessionBuckets(
     dueItems.filter((item) => item.status !== "completed" && !queuedRevisionIds.has(item.id)),
+    referenceData,
   ).filter((bucket) => bucket.pendingItems.length > 0);
 
   const overflowSessions = secondaryBuckets
@@ -1951,7 +1958,7 @@ export function getSafeDayCountLabel(dayNumber: number) {
 }
 
 export function getPhaseDayStatus(dayNumber: number, userState: UserState, referenceData?: RuntimeReferenceData): BlockStatus {
-  const day = getScheduleDay(dayNumber, userState);
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   if (!day) {
     return "pending";
   }
@@ -1969,7 +1976,7 @@ export function getPhaseDayStatus(dayNumber: number, userState: UserState, refer
 }
 
 function getMacroPhaseDayStatus(dayNumber: number, userState: UserState, referenceData?: RuntimeReferenceData): BlockStatus {
-  const day = getScheduleDay(dayNumber, userState);
+  const day = getScheduleDay(dayNumber, userState, referenceData);
   if (!day) {
     return "pending";
   }
@@ -1992,7 +1999,7 @@ function getMacroPhaseDayStatus(dayNumber: number, userState: UserState, referen
 
 export function getPhaseStatus(phaseId: string, userState: UserState, settings: AppSettings, referenceData?: RuntimeReferenceData): BlockStatus {
   void settings;
-  const days = getScheduleDays(userState, referenceData).filter((day) => getPhaseGroup(day) === phaseId);
+  const days = getScheduleDays(userState, referenceData).filter((day) => getPhaseGroup(day, referenceData) === phaseId);
   const statuses = days.map((day) => getMacroPhaseDayStatus(day.dayNumber, userState, referenceData));
 
   return getDerivedStatus(

@@ -408,7 +408,14 @@ function repairAnchoredTopicAssignments(schedule: UserScheduleState, seededAt: s
   return repaired;
 }
 
-export function ensureUserScheduleSeeded(userState: UserState, seededAt = new Date().toISOString()) {
+export function ensureUserScheduleSeeded(
+  userState: UserState,
+  seededAt = new Date().toISOString(),
+  options?: {
+    allowRepair?: boolean;
+  },
+) {
+  const allowRepair = options?.allowRepair ?? true;
   if (!userState.settings.dayOneDate) {
     return false;
   }
@@ -419,7 +426,7 @@ export function ensureUserScheduleSeeded(userState: UserState, seededAt = new Da
     userState.settings.scheduleSeedVersion = SCHEDULE_SEED_VERSION;
     userState.settings.scheduleSeededAt = seededAt;
     invalidateRuntimeScheduleIndex(userState);
-  } else {
+  } else if (allowRepair) {
     // Repair missing topicAssignments (e.g. corrupted store recovered from backup)
     const repairedMissingAssignments = repairMissingTopicAssignments(userState.schedule, seededAt);
     const repairedAnchoredAssignments = repairAnchoredTopicAssignments(userState.schedule, seededAt);

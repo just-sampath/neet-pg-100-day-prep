@@ -7,6 +7,7 @@ import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { DEFAULT_LOCAL_USER } from "@/lib/domain/constants";
 import {
   buildReferenceDataFromRows,
+  getQuotePools,
   getStaticReferenceData,
 } from "@/lib/data/reference-data";
 import { normalizeStoredGtLog } from "@/lib/domain/gt";
@@ -16,7 +17,6 @@ import { getScheduleItemById } from "@/lib/domain/schedule";
 import {
   applyScheduleMappingsFromSettings,
   applyLegacyScheduleStateToSchedule,
-  buildSeededScheduleState,
   createEmptyScheduleState,
   ensureUserScheduleSeeded,
   getReferenceSeedRows,
@@ -50,6 +50,130 @@ const storePath = resolve(dataDir, "local-store.json");
 const tempStorePath = resolve(dataDir, "local-store.tmp.json");
 const backupStorePath = resolve(dataDir, "local-store.backup.json");
 let localMutationQueue: Promise<void> = Promise.resolve();
+
+const SUPABASE_RETRYABLE_CONFLICT = "SUPABASE_CONFLICT_RETRYABLE";
+const SUPABASE_CAS_MAX_ATTEMPTS = 2;
+type SupabaseStoreReadScope = "full" | "schedule_full" | "today_scoped" | "browser_scoped" | "day_scoped";
+type SupabaseStoreReadMode = "full_mutation" | "read_guarded";
+type SupabaseStoreMetadata = {
+  readScope: SupabaseStoreReadScope;
+  readMode: SupabaseStoreReadMode;
+  stateVersionByUserId: Record<string, number>;
+};
+
+const supabaseStoreMetadata = new WeakMap<LocalStore, SupabaseStoreMetadata>();
+
+function isFeatureFlagEnabled(name: string, defaultEnabled = true) {
+  const raw = process.env[name]?.trim().toLowerCase();
+  if (!raw) {
+    return defaultEnabled;
+  }
+  return raw !== "0" && raw !== "false" && raw !== "off";
+}
+
+function isSupabaseReadGuardedEnabled() {
+  return isFeatureFlagEnabled("SUPABASE_READ_GUARDED", true);
+}
+
+function isSupabaseOptimisticCasEnabled() {
+  return isFeatureFlagEnabled("SUPABASE_OPTIMISTIC_CAS", true);
+}
+
+function isSupabaseDeltaWritesEnabled() {
+  return isFeatureFlagEnabled("SUPABASE_DELTA_WRITES", true);
+}
+
+function isSupabaseTransactionalRpcEnabled() {
+  return isFeatureFlagEnabled("SUPABASE_TRANSACTIONAL_RPC", true);
+}
+
+function isSupabasePersistenceLoggingEnabled() {
+  return isFeatureFlagEnabled("SUPABASE_PERSISTENCE_LOGS", false);
+}
+
+function logSupabasePersistence(event: string, payload: Record<string, unknown>) {
+  if (!isSupabasePersistenceLoggingEnabled()) {
+    return;
+  }
+  console.info(`[supabase-persistence] ${event}`, payload);
+}
+
+function ensureSupabaseStoreMetadata(store: LocalStore) {
+  const existing = supabaseStoreMetadata.get(store);
+  if (existing) {
+    return existing;
+  }
+
+  const created: SupabaseStoreMetadata = {
+    readScope: "full",
+    readMode: "full_mutation",
+    stateVersionByUserId: {},
+  };
+  supabaseStoreMetadata.set(store, created);
+  return created;
+}
+
+function setSupabaseStoreReadScope(store: LocalStore, scope: SupabaseStoreReadScope) {
+  ensureSupabaseStoreMetadata(store).readScope = scope;
+}
+
+function setSupabaseStoreReadMode(store: LocalStore, mode: SupabaseStoreReadMode) {
+  ensureSupabaseStoreMetadata(store).readMode = mode;
+}
+
+export function getSupabaseStoreReadScope(store: LocalStore): SupabaseStoreReadScope {
+  return supabaseStoreMetadata.get(store)?.readScope ?? "full";
+}
+
+function getSupabaseStoreReadMode(store: LocalStore): SupabaseStoreReadMode {
+  return supabaseStoreMetadata.get(store)?.readMode ?? "full_mutation";
+}
+
+export function isSupabaseGuardedReadStore(store: LocalStore) {
+  return (
+    getRuntimeMode() === "supabase" &&
+    isSupabaseReadGuardedEnabled() &&
+    getSupabaseStoreReadMode(store) === "read_guarded"
+  );
+}
+
+function setSupabaseStoreStateVersion(store: LocalStore, userId: string, version: number) {
+  ensureSupabaseStoreMetadata(store).stateVersionByUserId[userId] = version;
+}
+
+function getSupabaseStoreStateVersion(store: LocalStore, userId: string) {
+  const value = supabaseStoreMetadata.get(store)?.stateVersionByUserId[userId];
+  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : null;
+}
+
+function parseSupabaseStateVersion(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.floor(value));
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.floor(parsed));
+    }
+  }
+  return 0;
+}
+
+export class SupabaseRetryableConflictError extends Error {
+  readonly code = SUPABASE_RETRYABLE_CONFLICT;
+
+  constructor(message = "State changed on another device. Reload latest state and retry.") {
+    super(message);
+    this.name = "SupabaseRetryableConflictError";
+  }
+}
+
+export function isSupabaseRetryableConflictError(error: unknown): error is SupabaseRetryableConflictError {
+  return (
+    error instanceof SupabaseRetryableConflictError ||
+    (typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === SUPABASE_RETRYABLE_CONFLICT)
+  );
+}
 
 function emptySettings(): AppSettings {
   return {
@@ -483,9 +607,9 @@ function normalizeMorningRevisionAutoAddNotice(value: unknown): Record<string, M
   return result;
 }
 
-function normalizeBacklogItem(entry: BacklogItem, id: string): BacklogItem {
+function normalizeBacklogItem(entry: BacklogItem, id: string, referenceData?: LocalStore["referenceData"]): BacklogItem {
   const sourceItemId = entry.sourceItemId ?? id;
-  const scheduleItem = getScheduleItemById(sourceItemId);
+  const scheduleItem = getScheduleItemById(sourceItemId, undefined, referenceData);
   const subjectIds = entry.subjectIds?.length ? entry.subjectIds : scheduleItem?.item.subjectIds ?? [];
   const plannedMinutes =
     typeof entry.plannedMinutes === "number" && Number.isFinite(entry.plannedMinutes)
@@ -519,7 +643,10 @@ function normalizeBacklogItem(entry: BacklogItem, id: string): BacklogItem {
   };
 }
 
-function normalizeUserState(userState: UserState | undefined): UserState {
+function normalizeUserState(
+  userState: UserState | undefined,
+  referenceData?: LocalStore["referenceData"],
+): UserState {
   const base = userState ?? createEmptyUserState();
   const legacyBase = userState as
     | (Partial<UserState> & {
@@ -548,9 +675,11 @@ function normalizeUserState(userState: UserState | undefined): UserState {
     schedule: normalizeScheduleState(base.schedule),
     revisionCompletions: normalizeRevisionCompletions(base.revisionCompletions),
     backlogItems: Object.fromEntries(
-      Object.entries(base.backlogItems ?? {}).map(([id, item]) => [id, normalizeBacklogItem(item, id)]),
+      Object.entries(base.backlogItems ?? {}).map(([id, item]) => [id, normalizeBacklogItem(item, id, referenceData)]),
     ),
-    quoteState: normalizeQuoteState(base.quoteState),
+    quoteState: referenceData
+      ? normalizeQuoteState(base.quoteState, getQuotePools(referenceData))
+      : normalizeQuoteState(base.quoteState),
     mcqBulkLogs: Object.fromEntries(
       Object.entries(base.mcqBulkLogs ?? {}).map(([id, log]) => [id, normalizeStoredMcqBulkLog(log)]),
     ),
@@ -599,11 +728,15 @@ function normalizeUserState(userState: UserState | undefined): UserState {
   return normalized;
 }
 
-function createDefaultUserStateMap(users: Record<string, LocalUser>, previous?: Record<string, UserState>) {
+function createDefaultUserStateMap(
+  users: Record<string, LocalUser>,
+  previous?: Record<string, UserState>,
+  referenceData?: LocalStore["referenceData"],
+) {
   const userState: Record<string, UserState> = {};
 
   for (const userId of Object.keys(users)) {
-    userState[userId] = normalizeUserState(previous?.[userId]);
+    userState[userId] = normalizeUserState(previous?.[userId], referenceData);
   }
 
   return userState;
@@ -633,7 +766,7 @@ function resetStoreToCurrentVersion(parsed: LocalStore): LocalStore {
     version: STORE_VERSION,
     users,
     sessions: parsed.sessions ?? {},
-    userState: createDefaultUserStateMap(users),
+    userState: createDefaultUserStateMap(users, undefined, getStaticReferenceData()),
     referenceData: getStaticReferenceData(),
     dev: {
       simulatedNowIso: parsed.dev?.simulatedNowIso ?? null,
@@ -662,7 +795,7 @@ async function readLocalStore(): Promise<LocalStore> {
   }
 
   ensureDefaultLocalUser(parsed);
-  parsed.userState = createDefaultUserStateMap(parsed.users, parsed.userState);
+  parsed.userState = createDefaultUserStateMap(parsed.users, parsed.userState, parsed.referenceData);
   parsed.referenceData = getStaticReferenceData();
   return parsed;
 }
@@ -688,7 +821,7 @@ async function withLocalMutationLock<T>(operation: () => Promise<T>): Promise<T>
 }
 
 function createSessionScopedStore(user: LocalUser): LocalStore {
-  return {
+  const store: LocalStore = {
     version: STORE_VERSION,
     users: {
       [user.id]: user,
@@ -702,6 +835,9 @@ function createSessionScopedStore(user: LocalUser): LocalStore {
       simulatedNowIso: null,
     },
   };
+  setSupabaseStoreReadScope(store, "full");
+  setSupabaseStoreReadMode(store, "full_mutation");
+  return store;
 }
 
 export function createRemoteUser(userId: string, overrides?: Partial<Pick<LocalUser, "email" | "displayName">>): LocalUser {
@@ -758,7 +894,7 @@ function parseSourceItemIdFromRevisionId(revisionId: string, revisionType: strin
   return revisionId.endsWith(suffix) ? revisionId.slice(0, -suffix.length) : revisionId;
 }
 
-function buildAppSettingsRow(userId: string, store: LocalStore, userState: UserState) {
+function buildAppSettingsRow(userId: string, store: LocalStore, userState: UserState, stateVersion?: number) {
   return {
     user_id: userId,
     day_one_date: userState.settings.dayOneDate,
@@ -774,6 +910,7 @@ function buildAppSettingsRow(userId: string, store: LocalStore, userState: UserS
     morning_revision_actual_minutes: userState.morningRevisionActualMinutes,
     morning_revision_auto_add_notice: userState.morningRevisionAutoAddNotice,
     simulated_now_iso: store.dev.simulatedNowIso,
+    ...(typeof stateVersion === "number" ? { state_version: stateVersion } : {}),
   };
 }
 
@@ -978,43 +1115,59 @@ async function ensureSupabaseReferenceDataSeeded() {
     seed_version: SCHEDULE_SEED_VERSION,
   }));
 
-  const operations = await Promise.all([
-    admin.from("subject_tiers").upsert(subjectRows, {
-      onConflict: "subject_id",
-      ignoreDuplicates: false,
-    }),
-    admin.from("quote_catalog").upsert(quoteRows, {
-      onConflict: "quote_id",
-      ignoreDuplicates: false,
-    }),
-    admin.from("gt_plan_items").upsert(gtPlanRows, {
-      onConflict: "gt_plan_ref",
-      ignoreDuplicates: false,
-    }),
-    admin.from("revision_map_days").upsert(revisionMapRows, {
-      onConflict: "day_number",
-      ignoreDuplicates: false,
-    }),
-  ]);
+  try {
+    const operations = await Promise.all([
+      admin.from("subject_tiers").upsert(subjectRows, {
+        onConflict: "subject_id",
+        ignoreDuplicates: false,
+      }),
+      admin.from("quote_catalog").upsert(quoteRows, {
+        onConflict: "quote_id",
+        ignoreDuplicates: false,
+      }),
+      admin.from("gt_plan_items").upsert(gtPlanRows, {
+        onConflict: "gt_plan_ref",
+        ignoreDuplicates: false,
+      }),
+      admin.from("revision_map_days").upsert(revisionMapRows, {
+        onConflict: "day_number",
+        ignoreDuplicates: false,
+      }),
+    ]);
 
-  const error = operations.find((result) => result.error)?.error;
-  if (error) {
-    throw new Error(`reference seed: ${error.message}`);
+    const error = operations.find((result) => result.error)?.error;
+    if (error) {
+      throw new Error(`reference seed: ${error.message}`);
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`reference seed: ${error.message}`);
+    }
+    throw new Error("reference seed: Unknown failure");
   }
 }
 
 async function loadSupabaseReferenceData(supabase: SupabaseClient) {
-  const [
-    subjectTiersResult,
-    quoteCatalogResult,
-    gtPlanItemsResult,
-    revisionMapDaysResult,
-  ] = await Promise.all([
-    supabase.from("subject_tiers").select("*").order("display_order", { ascending: true }),
-    supabase.from("quote_catalog").select("*").order("display_order", { ascending: true }),
-    supabase.from("gt_plan_items").select("*").order("source_day_number", { ascending: true }),
-    supabase.from("revision_map_days").select("*").order("day_number", { ascending: true }),
-  ]);
+  let subjectTiersResult;
+  let quoteCatalogResult;
+  let gtPlanItemsResult;
+  let revisionMapDaysResult;
+  try {
+    [
+      subjectTiersResult,
+      quoteCatalogResult,
+      gtPlanItemsResult,
+      revisionMapDaysResult,
+    ] = await Promise.all([
+      supabase.from("subject_tiers").select("*").order("display_order", { ascending: true }),
+      supabase.from("quote_catalog").select("*").order("display_order", { ascending: true }),
+      supabase.from("gt_plan_items").select("*").order("source_day_number", { ascending: true }),
+      supabase.from("revision_map_days").select("*").order("day_number", { ascending: true }),
+    ]);
+  } catch (error) {
+    console.warn("Supabase reference queries failed; using static reference data:", error);
+    return getStaticReferenceData();
+  }
 
   const errors = [
     subjectTiersResult.error,
@@ -1024,14 +1177,27 @@ async function loadSupabaseReferenceData(supabase: SupabaseClient) {
   ].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
 
   if (errors.length > 0) {
-    throw new Error(errors.map((entry) => entry.message).join(" | "));
+    console.warn(
+      "Supabase reference rows returned query errors; using static reference data:",
+      errors.map((entry) => entry.message).join(" | "),
+    );
+    return getStaticReferenceData();
+  }
+
+  const subjectTiers = subjectTiersResult.data ?? [];
+  const quoteCatalog = quoteCatalogResult.data ?? [];
+  const gtPlanItems = gtPlanItemsResult.data ?? [];
+  const revisionMapDays = revisionMapDaysResult.data ?? [];
+
+  if (subjectTiers.length === 0 || quoteCatalog.length === 0 || gtPlanItems.length === 0 || revisionMapDays.length === 0) {
+    return getStaticReferenceData();
   }
 
   return buildReferenceDataFromRows({
-    subjectTiers: subjectTiersResult.data ?? [],
-    quoteCatalog: quoteCatalogResult.data ?? [],
-    gtPlanItems: gtPlanItemsResult.data ?? [],
-    revisionMapDays: revisionMapDaysResult.data ?? [],
+    subjectTiers,
+    quoteCatalog,
+    gtPlanItems,
+    revisionMapDays,
   });
 }
 
@@ -1042,8 +1208,9 @@ export async function readRuntimeReferenceData() {
 
   const admin = createSupabaseAdminClient();
   if (admin) {
-    await ensureSupabaseReferenceDataSeeded();
-    return loadSupabaseReferenceData(admin);
+    void ensureSupabaseReferenceDataSeeded().catch((error) => {
+      console.warn("Supabase admin reference seed skipped:", error);
+    });
   }
 
   const supabase = await createSupabaseServerClient();
@@ -1051,10 +1218,19 @@ export async function readRuntimeReferenceData() {
     return loadSupabaseReferenceData(supabase);
   }
 
-  throw new Error("Supabase runtime is active, but runtime reference data could not be loaded from Supabase.");
+  if (admin) {
+    return loadSupabaseReferenceData(admin);
+  }
+
+  return getStaticReferenceData();
 }
 
-function applySupabaseSettingsRow(store: LocalStore, userId: string, row: Record<string, unknown> | null | undefined) {
+function applySupabaseSettingsRow(
+  store: LocalStore,
+  userId: string,
+  row: Record<string, unknown> | null | undefined,
+  referenceData: LocalStore["referenceData"],
+) {
   const userState = store.userState[userId];
   if (!row || !userState) {
     return;
@@ -1069,12 +1245,16 @@ function applySupabaseSettingsRow(store: LocalStore, userId: string, row: Record
     scheduleSeedVersion: (row.schedule_seed_version as number | null | undefined) ?? 0,
     scheduleSeededAt: (row.schedule_seeded_at as string | null | undefined) ?? null,
   });
-  userState.quoteState = normalizeQuoteState((row.quote_state as UserState["quoteState"] | undefined) ?? undefined);
+  userState.quoteState = normalizeQuoteState(
+    (row.quote_state as UserState["quoteState"] | undefined) ?? undefined,
+    getQuotePools(referenceData),
+  );
   userState.processedDates = normalizeProcessedDates(row.processed_dates);
   userState.morningRevisionSelections = normalizeMorningRevisionSelections(row.morning_revision_selections);
   userState.morningRevisionActualMinutes = normalizeMorningRevisionActualMinutes(row.morning_revision_actual_minutes);
   userState.morningRevisionAutoAddNotice = normalizeMorningRevisionAutoAddNotice(row.morning_revision_auto_add_notice);
   store.dev.simulatedNowIso = (row.simulated_now_iso as string | null | undefined) ?? null;
+  setSupabaseStoreStateVersion(store, userId, parseSupabaseStateVersion(row.state_version));
 }
 
 function applySupabaseScheduleDayRows(userState: UserState, rows: Array<Record<string, unknown>> | null | undefined) {
@@ -1192,10 +1372,14 @@ function applySupabaseRevisionCompletionRows(userState: UserState, rows: Array<R
   }
 }
 
-function applySupabaseBacklogItemRows(userState: UserState, rows: Array<Record<string, unknown>> | null | undefined) {
+function applySupabaseBacklogItemRows(
+  userState: UserState,
+  rows: Array<Record<string, unknown>> | null | undefined,
+  referenceData?: LocalStore["referenceData"],
+) {
   for (const row of rows ?? []) {
     const sourceItemId = (row.source_item_id as string | null | undefined) ?? (row.id as string);
-    const scheduleItem = getScheduleItemById(sourceItemId, userState);
+    const scheduleItem = getScheduleItemById(sourceItemId, userState, referenceData);
     const subjectIds = (row.subject_ids as string[] | null | undefined)?.length
       ? (row.subject_ids as string[])
       : scheduleItem?.item.subjectIds ?? [];
@@ -1230,58 +1414,8 @@ function applySupabaseBacklogItemRows(userState: UserState, rows: Array<Record<s
         dismissedAt: (row.dismissed_at as string | null | undefined) ?? null,
       },
       row.id as string,
+      referenceData,
     );
-  }
-}
-
-async function ensureSupabaseScheduleSeeded(
-  userId: string,
-  settings: AppSettings,
-  supabase: SupabaseClient,
-) {
-  if (!settings.dayOneDate || settings.scheduleSeedVersion >= SCHEDULE_SEED_VERSION) {
-    return;
-  }
-
-  const seededAt = new Date().toISOString();
-  const seededSchedule = buildSeededScheduleState(settings.dayOneDate, seededAt);
-  applyScheduleMappingsFromSettings(seededSchedule, settings, seededAt);
-
-  const [settingsResult, daysResult, blocksResult, assignmentsResult, phaseResult] = await Promise.all([
-    supabase.from("app_settings").upsert(
-      {
-        user_id: userId,
-        schedule_seed_version: SCHEDULE_SEED_VERSION,
-        schedule_seeded_at: seededAt,
-      },
-      {
-        onConflict: "user_id",
-        ignoreDuplicates: false,
-      },
-    ),
-    supabase.from("schedule_days").upsert(buildScheduleDayRows(userId, seededSchedule), {
-      onConflict: "user_id,day_number",
-      ignoreDuplicates: false,
-    }),
-    supabase.from("schedule_blocks").upsert(buildScheduleBlockRows(userId, seededSchedule), {
-      onConflict: "user_id,day_number,block_key",
-      ignoreDuplicates: false,
-    }),
-    supabase.from("schedule_topic_assignments").upsert(buildScheduleTopicAssignmentRows(userId, seededSchedule), {
-      onConflict: "user_id,source_item_id",
-      ignoreDuplicates: false,
-    }),
-    supabase.from("phase_config").upsert(buildPhaseConfigRows(userId, seededSchedule), {
-      onConflict: "user_id,phase_number",
-      ignoreDuplicates: false,
-    }),
-  ]);
-
-  const error = [settingsResult, daysResult, blocksResult, assignmentsResult, phaseResult]
-    .find((result) => result.error)?.error;
-
-  if (error) {
-    throw new Error(`schedule seed: ${error.message}`);
   }
 }
 
@@ -1344,7 +1478,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       scheduleSeedVersion: settingsResult.data.schedule_seed_version ?? 0,
       scheduleSeededAt: settingsResult.data.schedule_seeded_at ?? null,
     });
-    userState.quoteState = normalizeQuoteState(settingsResult.data.quote_state);
+    userState.quoteState = normalizeQuoteState(settingsResult.data.quote_state, getQuotePools(store.referenceData));
     userState.processedDates = normalizeProcessedDates(settingsResult.data.processed_dates);
     userState.morningRevisionSelections = normalizeMorningRevisionSelections(settingsResult.data.morning_revision_selections);
     userState.morningRevisionActualMinutes = normalizeMorningRevisionActualMinutes(
@@ -1354,6 +1488,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       settingsResult.data.morning_revision_auto_add_notice,
     );
     store.dev.simulatedNowIso = settingsResult.data.simulated_now_iso ?? null;
+    setSupabaseStoreStateVersion(store, user.id, parseSupabaseStateVersion(settingsResult.data.state_version));
   }
 
   for (const row of scheduleDaysResult.data ?? []) {
@@ -1480,7 +1615,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
 
   for (const row of backlogItemsResult.data ?? []) {
     const sourceItemId = row.source_item_id ?? row.id;
-    const scheduleItem = getScheduleItemById(sourceItemId);
+    const scheduleItem = getScheduleItemById(sourceItemId, undefined, store.referenceData);
     const rowSubjectIds = (row.subject_ids as string[] | null | undefined)?.length
       ? (row.subject_ids as string[])
       : scheduleItem?.item.subjectIds ?? [];
@@ -1515,6 +1650,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
         dismissedAt: row.dismissed_at,
       },
       row.id,
+      store.referenceData,
     );
   }
 
@@ -1597,7 +1733,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     }
   }
 
-  store.userState[user.id] = normalizeUserState(userState);
+  store.userState[user.id] = normalizeUserState(userState, store.referenceData);
   return store;
 }
 
@@ -1607,6 +1743,8 @@ export async function readSupabaseStoreForUser(user: LocalUser, supabase: Supaba
 
 async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseClient): Promise<LocalStore> {
   const store = createSessionScopedStore(user);
+  setSupabaseStoreReadScope(store, "schedule_full");
+  setSupabaseStoreReadMode(store, "full_mutation");
   const userState = store.userState[user.id];
   store.referenceData = await loadSupabaseReferenceData(supabase);
 
@@ -1652,7 +1790,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
       scheduleSeedVersion: settingsResult.data.schedule_seed_version ?? 0,
       scheduleSeededAt: settingsResult.data.schedule_seeded_at ?? null,
     });
-    userState.quoteState = normalizeQuoteState(settingsResult.data.quote_state);
+    userState.quoteState = normalizeQuoteState(settingsResult.data.quote_state, getQuotePools(store.referenceData));
     userState.processedDates = normalizeProcessedDates(settingsResult.data.processed_dates);
     userState.morningRevisionSelections = normalizeMorningRevisionSelections(settingsResult.data.morning_revision_selections);
     userState.morningRevisionActualMinutes = normalizeMorningRevisionActualMinutes(
@@ -1662,6 +1800,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
       settingsResult.data.morning_revision_auto_add_notice,
     );
     store.dev.simulatedNowIso = settingsResult.data.simulated_now_iso ?? null;
+    setSupabaseStoreStateVersion(store, user.id, parseSupabaseStateVersion(settingsResult.data.state_version));
   }
 
   for (const row of scheduleDaysResult.data ?? []) {
@@ -1788,7 +1927,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
 
   for (const row of backlogItemsResult.data ?? []) {
     const sourceItemId = row.source_item_id ?? row.id;
-    const scheduleItem = getScheduleItemById(sourceItemId, userState);
+    const scheduleItem = getScheduleItemById(sourceItemId, userState, store.referenceData);
     const rowSubjectIds = (row.subject_ids as string[] | null | undefined)?.length
       ? (row.subject_ids as string[])
       : scheduleItem?.item.subjectIds ?? [];
@@ -1823,37 +1962,27 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
         dismissedAt: row.dismissed_at,
       },
       row.id,
+      store.referenceData,
     );
   }
 
-  store.userState[user.id] = normalizeUserState(userState);
+  store.userState[user.id] = normalizeUserState(userState, store.referenceData);
   return store;
 }
 
 async function getSupabaseScheduleReadContext() {
   const { supabase, user } = await requireSupabaseRequestUser();
   const localUser = asSupabaseUser(user);
-  await ensureSupabaseReferenceDataSeeded();
+  const admin = createSupabaseAdminClient();
+  if (admin) {
+    void ensureSupabaseReferenceDataSeeded().catch((error) => {
+      console.warn("Supabase reference seed skipped due to admin error:", error);
+    });
+  }
 
   const settingsResult = await supabase.from("app_settings").select("*").eq("user_id", user.id).maybeSingle();
   if (settingsResult.error) {
     throw new Error(`Unable to read the Supabase app settings: ${settingsResult.error.message}`);
-  }
-
-  if (settingsResult.data) {
-    await ensureSupabaseScheduleSeeded(
-      user.id,
-      normalizeSettings({
-        dayOneDate: settingsResult.data.day_one_date,
-        theme: settingsResult.data.theme ?? "dark",
-        scheduleShiftDays: settingsResult.data.schedule_shift_days ?? 0,
-        shiftAppliedAt: settingsResult.data.shift_applied_at ?? null,
-        shiftEvents: settingsResult.data.shift_events ?? [],
-        scheduleSeedVersion: settingsResult.data.schedule_seed_version ?? 0,
-        scheduleSeededAt: settingsResult.data.schedule_seeded_at ?? null,
-      }),
-      supabase,
-    );
   }
 
   return { supabase, user, localUser, settingsRow: settingsResult.data ?? null };
@@ -1958,9 +2087,11 @@ async function loadRescheduledBacklogItemsForDay(userId: string, supabase: Supab
 
 async function hydrateSupabaseScheduleBrowserReadStore(user: LocalUser, supabase: SupabaseClient, settingsRow: Record<string, unknown> | null) {
   const store = createSessionScopedStore(user);
+  setSupabaseStoreReadScope(store, "browser_scoped");
+  setSupabaseStoreReadMode(store, "read_guarded");
   const userState = store.userState[user.id];
   store.referenceData = await loadSupabaseReferenceData(supabase);
-  applySupabaseSettingsRow(store, user.id, settingsRow);
+  applySupabaseSettingsRow(store, user.id, settingsRow, store.referenceData);
 
   const [scheduleDaysResult, scheduleAssignmentsResult] = await Promise.all([
     supabase.from("schedule_days").select("*").eq("user_id", user.id),
@@ -1979,15 +2110,17 @@ async function hydrateSupabaseScheduleBrowserReadStore(user: LocalUser, supabase
   applySupabaseScheduleDayRows(userState, scheduleDaysResult.data);
   applySupabaseScheduleAssignmentRows(userState, scheduleAssignmentsResult.data);
 
-  store.userState[user.id] = normalizeUserState(userState);
+  store.userState[user.id] = normalizeUserState(userState, store.referenceData);
   return store;
 }
 
 async function hydrateSupabaseTodayReadStore(user: LocalUser, supabase: SupabaseClient, settingsRow: Record<string, unknown> | null) {
   const store = createSessionScopedStore(user);
+  setSupabaseStoreReadScope(store, "today_scoped");
+  setSupabaseStoreReadMode(store, "read_guarded");
   const userState = store.userState[user.id];
   store.referenceData = await loadSupabaseReferenceData(supabase);
-  applySupabaseSettingsRow(store, user.id, settingsRow);
+  applySupabaseSettingsRow(store, user.id, settingsRow, store.referenceData);
 
   const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
   const visibleDays = await loadVisibleScheduleDaysUpToDate(user.id, supabase, todayDate, 7);
@@ -2027,9 +2160,9 @@ async function hydrateSupabaseTodayReadStore(user: LocalUser, supabase: Supabase
   applySupabaseBacklogItemRows(userState, dedupeRows(
     [...pendingBacklogRows, ...scheduledRecoveryRows],
     (row) => String(row.id),
-  ));
+  ), store.referenceData);
 
-  store.userState[user.id] = normalizeUserState(userState);
+  store.userState[user.id] = normalizeUserState(userState, store.referenceData);
   return store;
 }
 
@@ -2040,9 +2173,11 @@ async function hydrateSupabaseScheduleDayReadStore(
   dayNumber: number,
 ) {
   const store = createSessionScopedStore(user);
+  setSupabaseStoreReadScope(store, "day_scoped");
+  setSupabaseStoreReadMode(store, "read_guarded");
   const userState = store.userState[user.id];
   store.referenceData = await loadSupabaseReferenceData(supabase);
-  applySupabaseSettingsRow(store, user.id, settingsRow);
+  applySupabaseSettingsRow(store, user.id, settingsRow, store.referenceData);
   const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
   const [currentVisibleDays, dayRows] = await Promise.all([
     loadVisibleScheduleDaysUpToDate(user.id, supabase, todayDate, 1),
@@ -2081,9 +2216,9 @@ async function hydrateSupabaseScheduleDayReadStore(
   applySupabaseScheduleBlockRows(userState, blockRows.data);
   applySupabaseScheduleAssignmentRows(userState, assignmentsResult.data);
   applySupabaseRevisionCompletionRows(userState, revisionCompletionRows);
-  applySupabaseBacklogItemRows(userState, scheduledRecoveryRows);
+  applySupabaseBacklogItemRows(userState, scheduledRecoveryRows, store.referenceData);
 
-  store.userState[user.id] = normalizeUserState(userState);
+  store.userState[user.id] = normalizeUserState(userState, store.referenceData);
   return store;
 }
 
@@ -2155,9 +2290,63 @@ async function persistSupabaseScheduleReadStore(nextStore: LocalStore, previousS
   await Promise.all(writes);
 }
 
+async function persistSupabaseScopedQuoteState(nextStore: LocalStore, previousStore: LocalStore) {
+  const userId = Object.keys(nextStore.userState)[0];
+  if (!userId) {
+    return;
+  }
+
+  const nextState = nextStore.userState[userId] ?? createEmptyUserState();
+  const previousState = previousStore.userState[userId] ?? createEmptyUserState();
+  if (JSON.stringify(nextState.quoteState) === JSON.stringify(previousState.quoteState)) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase runtime is active, but the Supabase server client is unavailable.");
+  }
+
+  const expectedStateVersion = getSupabaseStoreStateVersion(nextStore, userId);
+  const resolvedExpectedStateVersion = resolveExpectedStateVersion(nextStore, userId, expectedStateVersion);
+  const nextStateVersion = resolvedExpectedStateVersion + 1;
+  try {
+    const { data, error } = await supabase
+      .from("app_settings")
+      .update({
+        quote_state: nextState.quoteState,
+        state_version: nextStateVersion,
+      })
+      .eq("user_id", userId)
+      .eq("state_version", resolvedExpectedStateVersion)
+      .select("state_version")
+      .maybeSingle();
+    if (error) {
+      throw new Error(`app_settings: ${error.message}`);
+    }
+    if (!data) {
+      throw new SupabaseRetryableConflictError();
+    }
+    setSupabaseStoreStateVersion(nextStore, userId, parseSupabaseStateVersion(data.state_version));
+  } catch (error) {
+    if (!isSupabaseRetryableConflictError(error)) {
+      throw error;
+    }
+    // Quote persistence is a guarded-read safelist; skip on contention so
+    // scoped reads never fail due to cross-device races.
+    console.warn("Scoped quote_state persistence skipped due to conflict.");
+  }
+}
+
 async function loadSupabaseStore(): Promise<LocalStore> {
   const { supabase, localUser } = await getSupabaseScheduleReadContext();
   return hydrateSupabaseStore(localUser, supabase);
+}
+
+async function loadSupabaseGuardedStore(): Promise<LocalStore> {
+  const store = await loadSupabaseStore();
+  setSupabaseStoreReadMode(store, "read_guarded");
+  return store;
 }
 
 async function loadSupabaseScheduleStore(): Promise<LocalStore> {
@@ -2180,22 +2369,223 @@ async function loadSupabaseScheduleDayReadStore(dayNumber: number) {
   return hydrateSupabaseScheduleDayReadStore(localUser, supabase, settingsRow, dayNumber);
 }
 
-type SyncTableInput = {
+type PersistSupabaseOptions = {
+  expectedStateVersion?: number | null;
+  includeActivityTables: boolean;
+};
+
+type DeltaSyncTableInput = {
   table: string;
-  rows: Record<string, unknown>[];
+  nextRows: Record<string, unknown>[];
+  previousRows: Record<string, unknown>[];
   onConflict: string;
-  previousCount: number;
+  rowKey: (row: Record<string, unknown>) => string;
+  serializeRemovedKey?: (key: string) => unknown;
+  deleteMissing: (
+    keys: string[],
+    supabase: SupabaseClient,
+    input: Pick<DeltaSyncTableInput, "table" | "nextRows" | "previousRows"> & { userId: string },
+  ) => Promise<void>;
   userId: string;
 };
 
-async function syncUserRows(
-  {
-    table,
-    rows,
-    onConflict,
-    previousCount,
-    userId,
-  }: SyncTableInput,
+type DeltaSyncPlan = {
+  changedRows: Record<string, unknown>[];
+  removedKeys: string[];
+};
+
+type SupabaseAtomicMutationPayload = {
+  [tableName: string]: {
+    changed: Record<string, unknown>[];
+    removed: unknown[];
+  };
+};
+
+function buildRevisionCompletionRows(userId: string, state: UserState) {
+  return Object.values(state.revisionCompletions).map((entry) => ({
+    user_id: userId,
+    revision_id: entry.revisionId,
+    source_item_id: entry.sourceItemId,
+    source_day: entry.sourceDay,
+    source_block_key: entry.sourceBlockKey,
+    revision_type: entry.revisionType,
+    completed_at: entry.completedAt,
+  }));
+}
+
+function buildMcqBulkRows(userId: string, state: UserState) {
+  return Object.values(state.mcqBulkLogs).map((entry) => ({
+    id: entry.id,
+    user_id: userId,
+    entry_date: entry.entryDate,
+    total_attempted: entry.totalAttempted,
+    correct: entry.correct,
+    wrong: entry.wrong,
+    subject: entry.subject,
+    source: entry.source,
+    created_at: entry.createdAt,
+  }));
+}
+
+function buildMcqItemRows(userId: string, state: UserState) {
+  return Object.values(state.mcqItemLogs).map((entry) => ({
+    id: entry.id,
+    user_id: userId,
+    entry_date: entry.entryDate,
+    mcq_id: entry.mcqId,
+    result: entry.result,
+    subject: entry.subject,
+    topic: entry.topic,
+    source: entry.source,
+    cause_code: entry.causeCode,
+    priority: entry.priority,
+    correct_rule: entry.correctRule,
+    what_fooled_me: entry.whatFooledMe,
+    fix_codes: entry.fixCodes,
+    tags: entry.tags,
+    created_at: entry.createdAt,
+  }));
+}
+
+function buildGtRows(userId: string, state: UserState) {
+  return Object.values(state.gtLogs).map((entry) => ({
+    id: entry.id,
+    user_id: userId,
+    gt_number: entry.gtNumber,
+    gt_date: entry.gtDate,
+    day_number: entry.dayNumber,
+    score: entry.score,
+    correct: entry.correct,
+    wrong: entry.wrong,
+    unattempted: entry.unattempted,
+    air_percentile: entry.airPercentile,
+    device: entry.device,
+    attempted_live: entry.attemptedLive,
+    overall_feeling: entry.overallFeeling,
+    section_a: entry.sectionA,
+    section_b: entry.sectionB,
+    section_c: entry.sectionC,
+    section_d: entry.sectionD,
+    section_e: entry.sectionE,
+    error_types: entry.errorTypes,
+    recurring_topics: entry.recurringTopics,
+    weakest_subjects: entry.weakestSubjects,
+    knowledge_vs_behaviour: entry.knowledgeVsBehaviour,
+    unsure_right_count: entry.unsureRightCount,
+    change_before_next_gt: entry.changeBeforeNextGt,
+    created_at: entry.createdAt,
+  }));
+}
+
+function buildWeeklySummaryRows(userId: string, state: UserState) {
+  return Object.values(state.weeklySummaries).map((entry) => ({
+    id: entry.id,
+    user_id: userId,
+    week_key: entry.weekKey,
+    week_start_date: entry.weekStartDate,
+    week_end_date: entry.weekEndDate,
+    payload: entry,
+    generated_at: entry.generatedAt,
+  }));
+}
+
+async function deleteRowsBySingleColumn(
+  table: string,
+  userId: string,
+  column: string,
+  values: Array<string | number>,
+  supabase: SupabaseClient,
+) {
+  for (let index = 0; index < values.length; index += 200) {
+    const batch = values.slice(index, index + 200);
+    if (batch.length === 0) {
+      continue;
+    }
+    const { error } = await supabase.from(table).delete().eq("user_id", userId).in(column, batch);
+    if (error) {
+      throw new Error(`${table}: ${error.message}`);
+    }
+  }
+}
+
+async function deleteScheduleBlockRowsByKey(
+  keys: string[],
+  supabase: SupabaseClient,
+  input: Pick<DeltaSyncTableInput, "table" | "nextRows" | "previousRows"> & { userId: string },
+) {
+  const grouped = new Map<number, string[]>();
+  for (const key of keys) {
+    const [dayNumberRaw, blockKey] = key.split(":");
+    const dayNumber = Number(dayNumberRaw);
+    if (!Number.isFinite(dayNumber) || !blockKey) {
+      continue;
+    }
+    grouped.set(dayNumber, [...(grouped.get(dayNumber) ?? []), blockKey]);
+  }
+
+  for (const [dayNumber, blockKeys] of grouped) {
+    const { error } = await supabase
+      .from(input.table)
+      .delete()
+      .eq("user_id", input.userId)
+      .eq("day_number", dayNumber)
+      .in("block_key", blockKeys);
+    if (error) {
+      throw new Error(`${input.table}: ${error.message}`);
+    }
+  }
+}
+
+async function deleteAllRowsForUser(table: string, userId: string, supabase: SupabaseClient) {
+  const { error } = await supabase.from(table).delete().eq("user_id", userId);
+  if (error) {
+    throw new Error(`${table}: ${error.message}`);
+  }
+}
+
+function rowChanged(nextRow: Record<string, unknown>, previousRow: Record<string, unknown>) {
+  return JSON.stringify(nextRow) !== JSON.stringify(previousRow);
+}
+
+function buildDeltaSyncPlan({
+  nextRows,
+  previousRows,
+  rowKey,
+}: Pick<DeltaSyncTableInput, "nextRows" | "previousRows" | "rowKey">): DeltaSyncPlan {
+  const nextByKey = new Map<string, Record<string, unknown>>();
+  for (const row of nextRows) {
+    nextByKey.set(rowKey(row), row);
+  }
+
+  const previousByKey = new Map<string, Record<string, unknown>>();
+  for (const row of previousRows) {
+    previousByKey.set(rowKey(row), row);
+  }
+
+  const changedRows: Record<string, unknown>[] = [];
+  for (const [key, nextRow] of nextByKey) {
+    const previousRow = previousByKey.get(key);
+    if (!previousRow || rowChanged(nextRow, previousRow)) {
+      changedRows.push(nextRow);
+    }
+  }
+
+  const removedKeys: string[] = [];
+  for (const key of previousByKey.keys()) {
+    if (!nextByKey.has(key)) {
+      removedKeys.push(key);
+    }
+  }
+
+  return { changedRows, removedKeys };
+}
+
+async function syncUserRowsFull(
+  table: string,
+  rows: Record<string, unknown>[],
+  onConflict: string,
+  previousCount: number,
+  userId: string,
   supabase: SupabaseClient,
 ) {
   if (rows.length > 0) {
@@ -2203,407 +2593,541 @@ async function syncUserRows(
       onConflict,
       ignoreDuplicates: false,
     });
-
     if (error) {
       throw new Error(`${table}: ${error.message}`);
     }
   }
 
   if (rows.length === 0 && previousCount > 0) {
-    const { error } = await supabase.from(table).delete().eq("user_id", userId);
+    await deleteAllRowsForUser(table, userId, supabase);
+  }
+}
+
+async function syncUserRowsDelta(
+  {
+    table,
+    nextRows,
+    previousRows,
+    onConflict,
+    rowKey,
+    deleteMissing,
+    userId,
+  }: DeltaSyncTableInput,
+  supabase: SupabaseClient,
+) {
+  const { changedRows, removedKeys } = buildDeltaSyncPlan({
+    nextRows,
+    previousRows,
+    rowKey,
+  });
+
+  if (changedRows.length > 0) {
+    const { error } = await supabase.from(table).upsert(changedRows, {
+      onConflict,
+      ignoreDuplicates: false,
+    });
     if (error) {
       throw new Error(`${table}: ${error.message}`);
     }
   }
+
+  if (removedKeys.length > 0) {
+    await deleteMissing(removedKeys, supabase, { table, nextRows, previousRows, userId });
+  }
+
+  logSupabasePersistence("row_delta", {
+    table,
+    userId,
+    changed: changedRows.length,
+    removed: removedKeys.length,
+  });
 }
 
-async function syncRevisionCompletionRows(
-  userId: string,
-  rows: Record<string, unknown>[],
+async function syncUserRows(
+  input: DeltaSyncTableInput,
   supabase: SupabaseClient,
 ) {
-  const { error: deleteError } = await supabase.from("revision_completions").delete().eq("user_id", userId);
-  if (deleteError) {
-    throw new Error(`revision_completions: ${deleteError.message}`);
-  }
-
-  if (rows.length === 0) {
+  if (!isSupabaseDeltaWritesEnabled()) {
+    await syncUserRowsFull(
+      input.table,
+      input.nextRows,
+      input.onConflict,
+      input.previousRows.length,
+      input.userId,
+      supabase,
+    );
     return;
   }
+  await syncUserRowsDelta(input, supabase);
+}
 
-  const { error: upsertError } = await supabase.from("revision_completions").upsert(rows, {
-    onConflict: "user_id,revision_id",
-    ignoreDuplicates: false,
+function buildSupabaseAtomicMutationPayload(tables: DeltaSyncTableInput[]): SupabaseAtomicMutationPayload {
+  return Object.fromEntries(
+    tables.map((tableInput) => {
+      const { changedRows, removedKeys } = buildDeltaSyncPlan(tableInput);
+      const serializeRemovedKey = tableInput.serializeRemovedKey ?? ((key: string) => key);
+      return [
+        tableInput.table,
+        {
+          changed: changedRows,
+          removed: removedKeys
+            .map(serializeRemovedKey)
+            .filter((value) => value !== null),
+        },
+      ];
+    }),
+  );
+}
+
+async function applySupabaseAtomicMutationRpc(
+  {
+    userId,
+    expectedStateVersion,
+    nextStateVersion,
+    settingsPayload,
+    deltasPayload,
+  }: {
+    userId: string;
+    expectedStateVersion: number;
+    nextStateVersion: number;
+    settingsPayload: Record<string, unknown>;
+    deltasPayload: SupabaseAtomicMutationPayload;
+  },
+  supabase: SupabaseClient,
+) {
+  const { data, error } = await supabase.rpc("apply_user_state_mutation_atomic", {
+    p_user_id: userId,
+    p_expected_state_version: expectedStateVersion,
+    p_next_state_version: nextStateVersion,
+    p_settings: settingsPayload,
+    p_deltas: deltasPayload,
   });
 
-  if (upsertError) {
-    throw new Error(`revision_completions: ${upsertError.message}`);
+  if (error) {
+    throw new Error(`apply_user_state_mutation_atomic: ${error.message}`);
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || row.applied !== true) {
+    logSupabasePersistence("cas_conflict", {
+      userId,
+      expectedStateVersion,
+      reason: row?.conflict_reason ?? "version_mismatch",
+    });
+    throw new SupabaseRetryableConflictError();
+  }
+
+  return parseSupabaseStateVersion(row.state_version);
+}
+
+// Keep lock TTL comfortably above typical server-action execution time so the
+// lock cannot expire mid-mutation and allow a second writer to overlap.
+const SUPABASE_WRITE_LOCK_TTL_MS = 120_000;
+
+type SupabaseWriteLock = {
+  mutationId: string;
+  expectedStateVersion: number;
+  nextStateVersion: number;
+};
+
+function resolveExpectedStateVersion(
+  nextStore: LocalStore,
+  userId: string,
+  expectedStateVersion?: number | null,
+) {
+  if (typeof expectedStateVersion === "number" && Number.isFinite(expectedStateVersion)) {
+    return Math.max(0, Math.floor(expectedStateVersion));
+  }
+  return getSupabaseStoreStateVersion(nextStore, userId) ?? 0;
+}
+
+async function acquireSupabaseWriteLock(
+  userId: string,
+  nextStore: LocalStore,
+  supabase: SupabaseClient,
+  expectedStateVersion?: number | null,
+) {
+  const resolvedExpectedStateVersion = resolveExpectedStateVersion(nextStore, userId, expectedStateVersion);
+  const mutationId = randomUUID();
+  const lockExpiresAt = new Date(Date.now() + SUPABASE_WRITE_LOCK_TTL_MS).toISOString();
+
+  const { data, error } = await supabase
+    .from("app_settings")
+    .update({
+      write_lock_token: mutationId,
+      write_lock_expires_at: lockExpiresAt,
+    })
+    .eq("user_id", userId)
+    .eq("state_version", resolvedExpectedStateVersion)
+    .or(`write_lock_token.is.null,write_lock_expires_at.lt.${new Date().toISOString()}`)
+    .select("state_version")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`app_settings: ${error.message}`);
+  }
+
+  if (!data) {
+    const existing = await supabase
+      .from("app_settings")
+      .select("state_version")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (existing.error) {
+      throw new Error(`app_settings: ${existing.error.message}`);
+    }
+
+    if (!existing.data) {
+      const bootstrapState = nextStore.userState[userId] ?? createEmptyUserState();
+      const { error: bootstrapError } = await supabase.from("app_settings").upsert(
+        buildAppSettingsRow(userId, nextStore, bootstrapState, 0),
+        {
+          onConflict: "user_id",
+          ignoreDuplicates: false,
+        },
+      );
+      if (bootstrapError) {
+        throw new Error(`app_settings: ${bootstrapError.message}`);
+      }
+
+      return acquireSupabaseWriteLock(userId, nextStore, supabase, expectedStateVersion);
+    }
+
+    logSupabasePersistence("cas_conflict", {
+      userId,
+      expectedStateVersion: resolvedExpectedStateVersion,
+    });
+    throw new SupabaseRetryableConflictError();
+  }
+
+  return {
+    mutationId,
+    expectedStateVersion: resolvedExpectedStateVersion,
+    nextStateVersion: resolvedExpectedStateVersion + 1,
+  } satisfies SupabaseWriteLock;
+}
+
+async function releaseSupabaseWriteLock(
+  userId: string,
+  mutationId: string,
+  supabase: SupabaseClient,
+) {
+  const { error } = await supabase
+    .from("app_settings")
+    .update({
+      write_lock_token: null,
+      write_lock_expires_at: null,
+    })
+    .eq("user_id", userId)
+    .eq("write_lock_token", mutationId);
+  if (error) {
+    throw new Error(`app_settings: ${error.message}`);
   }
 }
 
-async function persistSupabaseStore(nextStore: LocalStore, previousStore: LocalStore) {
+async function finalizeSupabaseSettingsWithCas(
+  userId: string,
+  nextStore: LocalStore,
+  nextState: UserState,
+  writeLock: SupabaseWriteLock,
+  supabase: SupabaseClient,
+) {
+  const settingsPayload = buildAppSettingsRow(
+    userId,
+    nextStore,
+    nextState,
+    writeLock.nextStateVersion,
+  );
+
+  const { data, error } = await supabase
+    .from("app_settings")
+    .update({
+      ...settingsPayload,
+      write_lock_token: null,
+      write_lock_expires_at: null,
+    })
+    .eq("user_id", userId)
+    .eq("state_version", writeLock.expectedStateVersion)
+    .eq("write_lock_token", writeLock.mutationId)
+    .select("state_version")
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`app_settings: ${error.message}`);
+  }
+  if (!data) {
+    throw new SupabaseRetryableConflictError();
+  }
+
+  setSupabaseStoreStateVersion(nextStore, userId, parseSupabaseStateVersion(data.state_version));
+}
+
+async function persistSupabaseState(
+  nextStore: LocalStore,
+  previousStore: LocalStore,
+  {
+    expectedStateVersion,
+    includeActivityTables,
+  }: PersistSupabaseOptions,
+  supabaseClient?: SupabaseClient,
+) {
   const userId = Object.keys(nextStore.userState)[0];
   if (!userId) {
     return;
   }
 
-  const supabase = await createSupabaseServerClient();
+  const supabase = supabaseClient ?? await createSupabaseServerClient();
   if (!supabase) {
     throw new Error("Supabase runtime is active, but the Supabase server client is unavailable.");
   }
 
   const nextState = nextStore.userState[userId] ?? createEmptyUserState();
   const previousState = previousStore.userState[userId] ?? createEmptyUserState();
+  const useTransactionalRpc = isSupabaseOptimisticCasEnabled() && isSupabaseTransactionalRpcEnabled();
+  const resolvedExpectedStateVersion = resolveExpectedStateVersion(nextStore, userId, expectedStateVersion);
+  const nextStateVersion = resolvedExpectedStateVersion + 1;
+  const writeLock = isSupabaseOptimisticCasEnabled() && !useTransactionalRpc
+    ? await acquireSupabaseWriteLock(
+      userId,
+      nextStore,
+      supabase,
+      expectedStateVersion,
+    )
+    : null;
 
-  const { error: settingsError } = await supabase.from("app_settings").upsert(
-    {
-      user_id: userId,
-      day_one_date: nextState.settings.dayOneDate,
-      theme: nextState.settings.theme,
-      schedule_shift_days: nextState.settings.scheduleShiftDays,
-      shift_applied_at: nextState.settings.shiftAppliedAt,
-      shift_events: nextState.settings.shiftEvents,
-      schedule_seed_version: nextState.settings.scheduleSeedVersion,
-      schedule_seeded_at: nextState.settings.scheduleSeededAt,
-      quote_state: nextState.quoteState,
-      processed_dates: nextState.processedDates,
-      morning_revision_selections: nextState.morningRevisionSelections,
-      morning_revision_actual_minutes: nextState.morningRevisionActualMinutes,
-      morning_revision_auto_add_notice: nextState.morningRevisionAutoAddNotice,
-      simulated_now_iso: nextStore.dev.simulatedNowIso,
-    },
-    {
-      onConflict: "user_id",
-      ignoreDuplicates: false,
-    },
-  );
-
-  if (settingsError) {
-    throw new Error(`app_settings: ${settingsError.message}`);
+  if (!isSupabaseOptimisticCasEnabled()) {
+    const { error: settingsError } = await supabase.from("app_settings").upsert(
+      buildAppSettingsRow(userId, nextStore, nextState),
+      {
+        onConflict: "user_id",
+        ignoreDuplicates: false,
+      },
+    );
+    if (settingsError) {
+      throw new Error(`app_settings: ${settingsError.message}`);
+    }
   }
 
   const scheduleDayRows = buildScheduleDayRows(userId, nextState.schedule);
+  const previousScheduleDayRows = buildScheduleDayRows(userId, previousState.schedule);
   const scheduleBlockRows = buildScheduleBlockRows(userId, nextState.schedule);
+  const previousScheduleBlockRows = buildScheduleBlockRows(userId, previousState.schedule);
   const scheduleTopicAssignmentRows = buildScheduleTopicAssignmentRows(userId, nextState.schedule);
+  const previousScheduleTopicAssignmentRows = buildScheduleTopicAssignmentRows(userId, previousState.schedule);
   const phaseConfigRows = buildPhaseConfigRows(userId, nextState.schedule);
-  const revisionCompletionRows = Object.values(nextState.revisionCompletions).map((entry) => ({
-    user_id: userId,
-    revision_id: entry.revisionId,
-    source_item_id: entry.sourceItemId,
-    source_day: entry.sourceDay,
-    source_block_key: entry.sourceBlockKey,
-    revision_type: entry.revisionType,
-    completed_at: entry.completedAt,
-  }));
+  const previousPhaseConfigRows = buildPhaseConfigRows(userId, previousState.schedule);
+  const revisionCompletionRows = buildRevisionCompletionRows(userId, nextState);
+  const previousRevisionCompletionRows = buildRevisionCompletionRows(userId, previousState);
+  const backlogRows = buildBacklogRows(userId, nextState);
+  const previousBacklogRows = buildBacklogRows(userId, previousState);
 
-  await Promise.all([
-    syncUserRows(
-      {
-        table: "schedule_days",
-        userId,
-        onConflict: "user_id,day_number",
-        previousCount: Object.keys(previousState.schedule.days).length,
-        rows: scheduleDayRows,
+  const tables: DeltaSyncTableInput[] = [
+    {
+      table: "schedule_days",
+      userId,
+      onConflict: "user_id,day_number",
+      nextRows: scheduleDayRows,
+      previousRows: previousScheduleDayRows,
+      rowKey: (row) => String(row.day_number),
+      deleteMissing: (keys, client, input) =>
+        deleteRowsBySingleColumn(
+          input.table,
+          input.userId,
+          "day_number",
+          keys.map((value) => Number(value)).filter((value) => Number.isFinite(value)),
+          client,
+        ),
+    },
+    {
+      table: "schedule_blocks",
+      userId,
+      onConflict: "user_id,day_number,block_key",
+      nextRows: scheduleBlockRows,
+      previousRows: previousScheduleBlockRows,
+      rowKey: (row) => `${String(row.day_number)}:${String(row.block_key)}`,
+      serializeRemovedKey: (key) => {
+        const [dayNumberRaw, blockKey] = key.split(":");
+        const dayNumber = Number(dayNumberRaw);
+        if (!Number.isFinite(dayNumber) || !blockKey) {
+          return null;
+        }
+        return {
+          day_number: dayNumber,
+          block_key: blockKey,
+        };
       },
-      supabase,
-    ),
-    syncUserRows(
-      {
-        table: "schedule_blocks",
-        userId,
-        onConflict: "user_id,day_number,block_key",
-        previousCount: Object.keys(previousState.schedule.blocks).length,
-        rows: scheduleBlockRows,
-      },
-      supabase,
-    ),
-    syncUserRows(
-      {
-        table: "schedule_topic_assignments",
-        userId,
-        onConflict: "user_id,source_item_id",
-        previousCount: Object.keys(previousState.schedule.topicAssignments).length,
-        rows: scheduleTopicAssignmentRows,
-      },
-      supabase,
-    ),
-    syncUserRows(
-      {
-        table: "phase_config",
-        userId,
-        onConflict: "user_id,phase_number",
-        previousCount: Object.keys(previousState.schedule.phaseConfig).length,
-        rows: phaseConfigRows,
-      },
-      supabase,
-    ),
-    syncRevisionCompletionRows(userId, revisionCompletionRows, supabase),
-    syncUserRows(
-      {
-        table: "backlog_items",
-        userId,
-        onConflict: "id",
-        previousCount: Object.keys(previousState.backlogItems).length,
-        rows: Object.values(nextState.backlogItems).map((entry) => ({
-          id: entry.id,
-          user_id: userId,
-          original_day: entry.originalDay,
-          original_block_key: entry.originalBlockKey,
-          original_start: entry.originalStart,
-          original_end: entry.originalEnd,
-          priority_order: entry.priorityOrder,
-          topic_description: entry.topicDescription,
-          subject: entry.subject,
-          source_tag: entry.sourceTag,
-          status: entry.status,
-          suggested_day: entry.suggestedDay,
-          suggested_block_key: entry.suggestedBlockKey,
-          suggested_note: entry.suggestedNote,
-          rescheduled_to_day: entry.rescheduledToDay,
-          rescheduled_to_block_key: entry.rescheduledToBlockKey,
-          created_at: entry.createdAt,
-          completed_at: entry.completedAt,
-          dismissed_at: entry.dismissedAt,
-        })),
-      },
-      supabase,
-    ),
-    syncUserRows(
+      deleteMissing: deleteScheduleBlockRowsByKey,
+    },
+    {
+      table: "schedule_topic_assignments",
+      userId,
+      onConflict: "user_id,source_item_id",
+      nextRows: scheduleTopicAssignmentRows,
+      previousRows: previousScheduleTopicAssignmentRows,
+      rowKey: (row) => String(row.source_item_id),
+      deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "source_item_id", keys, client),
+    },
+    {
+      table: "phase_config",
+      userId,
+      onConflict: "user_id,phase_number",
+      nextRows: phaseConfigRows,
+      previousRows: previousPhaseConfigRows,
+      rowKey: (row) => String(row.phase_number),
+      deleteMissing: (keys, client, input) =>
+        deleteRowsBySingleColumn(
+          input.table,
+          input.userId,
+          "phase_number",
+          keys.map((value) => Number(value)).filter((value) => Number.isFinite(value)),
+          client,
+        ),
+    },
+    {
+      table: "revision_completions",
+      userId,
+      onConflict: "user_id,revision_id",
+      nextRows: revisionCompletionRows,
+      previousRows: previousRevisionCompletionRows,
+      rowKey: (row) => String(row.revision_id),
+      deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "revision_id", keys, client),
+    },
+    {
+      table: "backlog_items",
+      userId,
+      onConflict: "id",
+      nextRows: backlogRows,
+      previousRows: previousBacklogRows,
+      rowKey: (row) => String(row.id),
+      deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "id", keys, client),
+    },
+  ];
+
+  if (includeActivityTables) {
+    tables.push(
       {
         table: "mcq_bulk_logs",
         userId,
         onConflict: "id",
-        previousCount: Object.keys(previousState.mcqBulkLogs).length,
-        rows: Object.values(nextState.mcqBulkLogs).map((entry) => ({
-          id: entry.id,
-          user_id: userId,
-          entry_date: entry.entryDate,
-          total_attempted: entry.totalAttempted,
-          correct: entry.correct,
-          wrong: entry.wrong,
-          subject: entry.subject,
-          source: entry.source,
-          created_at: entry.createdAt,
-        })),
+        nextRows: buildMcqBulkRows(userId, nextState),
+        previousRows: buildMcqBulkRows(userId, previousState),
+        rowKey: (row) => String(row.id),
+        deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "id", keys, client),
       },
-      supabase,
-    ),
-    syncUserRows(
       {
         table: "mcq_item_logs",
         userId,
         onConflict: "id",
-        previousCount: Object.keys(previousState.mcqItemLogs).length,
-        rows: Object.values(nextState.mcqItemLogs).map((entry) => ({
-          id: entry.id,
-          user_id: userId,
-          entry_date: entry.entryDate,
-          mcq_id: entry.mcqId,
-          result: entry.result,
-          subject: entry.subject,
-          topic: entry.topic,
-          source: entry.source,
-          cause_code: entry.causeCode,
-          priority: entry.priority,
-          correct_rule: entry.correctRule,
-          what_fooled_me: entry.whatFooledMe,
-          fix_codes: entry.fixCodes,
-          tags: entry.tags,
-          created_at: entry.createdAt,
-        })),
+        nextRows: buildMcqItemRows(userId, nextState),
+        previousRows: buildMcqItemRows(userId, previousState),
+        rowKey: (row) => String(row.id),
+        deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "id", keys, client),
       },
-      supabase,
-    ),
-    syncUserRows(
       {
         table: "gt_logs",
         userId,
         onConflict: "id",
-        previousCount: Object.keys(previousState.gtLogs).length,
-        rows: Object.values(nextState.gtLogs).map((entry) => ({
-          id: entry.id,
-          user_id: userId,
-          gt_number: entry.gtNumber,
-          gt_date: entry.gtDate,
-          day_number: entry.dayNumber,
-          score: entry.score,
-          correct: entry.correct,
-          wrong: entry.wrong,
-          unattempted: entry.unattempted,
-          air_percentile: entry.airPercentile,
-          device: entry.device,
-          attempted_live: entry.attemptedLive,
-          overall_feeling: entry.overallFeeling,
-          section_a: entry.sectionA,
-          section_b: entry.sectionB,
-          section_c: entry.sectionC,
-          section_d: entry.sectionD,
-          section_e: entry.sectionE,
-          error_types: entry.errorTypes,
-          recurring_topics: entry.recurringTopics,
-          weakest_subjects: entry.weakestSubjects,
-          knowledge_vs_behaviour: entry.knowledgeVsBehaviour,
-          unsure_right_count: entry.unsureRightCount,
-          change_before_next_gt: entry.changeBeforeNextGt,
-          created_at: entry.createdAt,
-        })),
+        nextRows: buildGtRows(userId, nextState),
+        previousRows: buildGtRows(userId, previousState),
+        rowKey: (row) => String(row.id),
+        deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "id", keys, client),
       },
-      supabase,
-    ),
-    syncUserRows(
       {
         table: "weekly_summaries",
         userId,
         onConflict: "user_id,week_key",
-        previousCount: Object.keys(previousState.weeklySummaries).length,
-        rows: Object.values(nextState.weeklySummaries).map((entry) => ({
-          id: entry.id,
-          user_id: userId,
-          week_key: entry.weekKey,
-          week_start_date: entry.weekStartDate,
-          week_end_date: entry.weekEndDate,
-          payload: entry,
-          generated_at: entry.generatedAt,
-        })),
+        nextRows: buildWeeklySummaryRows(userId, nextState),
+        previousRows: buildWeeklySummaryRows(userId, previousState),
+        rowKey: (row) => String(row.week_key),
+        deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "week_key", keys, client),
       },
-      supabase,
-    ),
-  ]);
+    );
+  }
+
+  try {
+    if (useTransactionalRpc) {
+      const stateVersion = await applySupabaseAtomicMutationRpc(
+        {
+          userId,
+          expectedStateVersion: resolvedExpectedStateVersion,
+          nextStateVersion,
+          settingsPayload: buildAppSettingsRow(userId, nextStore, nextState, nextStateVersion),
+          deltasPayload: buildSupabaseAtomicMutationPayload(tables),
+        },
+        supabase,
+      );
+      setSupabaseStoreStateVersion(nextStore, userId, stateVersion);
+      return;
+    }
+
+    // Sync FK-parent tables first to avoid constraint violations:
+    // schedule_days → schedule_blocks → schedule_topic_assignments
+    const parentTables = tables.filter((t) => t.table === "schedule_days" || t.table === "schedule_blocks");
+    const childTables = tables.filter((t) => t.table !== "schedule_days" && t.table !== "schedule_blocks");
+    for (const parent of parentTables) {
+      await syncUserRows(parent, supabase);
+    }
+    await Promise.all(childTables.map((tableInput) => syncUserRows(tableInput, supabase)));
+    if (writeLock) {
+      await finalizeSupabaseSettingsWithCas(
+        userId,
+        nextStore,
+        nextState,
+        writeLock,
+        supabase,
+      );
+    }
+  } catch (error) {
+    if (writeLock) {
+      try {
+        await releaseSupabaseWriteLock(userId, writeLock.mutationId, supabase);
+      } catch (unlockError) {
+        console.warn("Failed to release Supabase write lock:", unlockError);
+      }
+    }
+    throw error;
+  }
 }
 
-async function persistSupabaseScheduleStore(nextStore: LocalStore, previousStore: LocalStore) {
-  const userId = Object.keys(nextStore.userState)[0];
-  if (!userId) {
-    return;
-  }
-
-  const supabase = await createSupabaseServerClient();
-  if (!supabase) {
-    throw new Error("Supabase runtime is active, but the Supabase server client is unavailable.");
-  }
-
-  const nextState = nextStore.userState[userId] ?? createEmptyUserState();
-  const previousState = previousStore.userState[userId] ?? createEmptyUserState();
-
-  const { error: settingsError } = await supabase.from("app_settings").upsert(
+async function persistSupabaseStore(
+  nextStore: LocalStore,
+  previousStore: LocalStore,
+  supabaseClient?: SupabaseClient,
+  expectedStateVersion?: number | null,
+) {
+  await persistSupabaseState(
+    nextStore,
+    previousStore,
     {
-      user_id: userId,
-      day_one_date: nextState.settings.dayOneDate,
-      theme: nextState.settings.theme,
-      schedule_shift_days: nextState.settings.scheduleShiftDays,
-      shift_applied_at: nextState.settings.shiftAppliedAt,
-      shift_events: nextState.settings.shiftEvents,
-      schedule_seed_version: nextState.settings.scheduleSeedVersion,
-      schedule_seeded_at: nextState.settings.scheduleSeededAt,
-      quote_state: nextState.quoteState,
-      processed_dates: nextState.processedDates,
-      morning_revision_selections: nextState.morningRevisionSelections,
-      morning_revision_actual_minutes: nextState.morningRevisionActualMinutes,
-      morning_revision_auto_add_notice: nextState.morningRevisionAutoAddNotice,
-      simulated_now_iso: nextStore.dev.simulatedNowIso,
+      expectedStateVersion,
+      includeActivityTables: true,
     },
+    supabaseClient,
+  );
+}
+
+async function persistSupabaseScheduleStore(
+  nextStore: LocalStore,
+  previousStore: LocalStore,
+  expectedStateVersion?: number | null,
+) {
+  await persistSupabaseState(
+    nextStore,
+    previousStore,
     {
-      onConflict: "user_id",
-      ignoreDuplicates: false,
+      expectedStateVersion,
+      includeActivityTables: false,
     },
   );
-
-  if (settingsError) {
-    throw new Error(`app_settings: ${settingsError.message}`);
-  }
-
-  const scheduleDayRows = buildScheduleDayRows(userId, nextState.schedule);
-  const scheduleBlockRows = buildScheduleBlockRows(userId, nextState.schedule);
-  const scheduleTopicAssignmentRows = buildScheduleTopicAssignmentRows(userId, nextState.schedule);
-  const phaseConfigRows = buildPhaseConfigRows(userId, nextState.schedule);
-  const revisionCompletionRows = Object.values(nextState.revisionCompletions).map((entry) => ({
-    user_id: userId,
-    revision_id: entry.revisionId,
-    source_item_id: entry.sourceItemId,
-    source_day: entry.sourceDay,
-    source_block_key: entry.sourceBlockKey,
-    revision_type: entry.revisionType,
-    completed_at: entry.completedAt,
-  }));
-
-  await Promise.all([
-    syncUserRows(
-      {
-        table: "schedule_days",
-        userId,
-        onConflict: "user_id,day_number",
-        previousCount: Object.keys(previousState.schedule.days).length,
-        rows: scheduleDayRows,
-      },
-      supabase,
-    ),
-    syncUserRows(
-      {
-        table: "schedule_blocks",
-        userId,
-        onConflict: "user_id,day_number,block_key",
-        previousCount: Object.keys(previousState.schedule.blocks).length,
-        rows: scheduleBlockRows,
-      },
-      supabase,
-    ),
-    syncUserRows(
-      {
-        table: "schedule_topic_assignments",
-        userId,
-        onConflict: "user_id,source_item_id",
-        previousCount: Object.keys(previousState.schedule.topicAssignments).length,
-        rows: scheduleTopicAssignmentRows,
-      },
-      supabase,
-    ),
-    syncUserRows(
-      {
-        table: "phase_config",
-        userId,
-        onConflict: "user_id,phase_number",
-        previousCount: Object.keys(previousState.schedule.phaseConfig).length,
-        rows: phaseConfigRows,
-      },
-      supabase,
-    ),
-    syncRevisionCompletionRows(userId, revisionCompletionRows, supabase),
-    syncUserRows(
-      {
-        table: "backlog_items",
-        userId,
-        onConflict: "id",
-        previousCount: Object.keys(previousState.backlogItems).length,
-        rows: Object.values(nextState.backlogItems).map((entry) => ({
-          id: entry.id,
-          user_id: userId,
-          original_day: entry.originalDay,
-          original_block_key: entry.originalBlockKey,
-          original_start: entry.originalStart,
-          original_end: entry.originalEnd,
-          priority_order: entry.priorityOrder,
-          topic_description: entry.topicDescription,
-          subject: entry.subject,
-          source_tag: entry.sourceTag,
-          status: entry.status,
-          suggested_day: entry.suggestedDay,
-          suggested_block_key: entry.suggestedBlockKey,
-          suggested_note: entry.suggestedNote,
-          rescheduled_to_day: entry.rescheduledToDay,
-          rescheduled_to_block_key: entry.rescheduledToBlockKey,
-          created_at: entry.createdAt,
-          completed_at: entry.completedAt,
-          dismissed_at: entry.dismissedAt,
-        })),
-      },
-      supabase,
-    ),
-  ]);
 }
 
-export async function persistSupabaseStoreForUser(nextStore: LocalStore, previousStore: LocalStore, supabase: SupabaseClient) {
-  void supabase;
-  await persistSupabaseStore(nextStore, previousStore);
+export async function persistSupabaseStoreForUser(
+  nextStore: LocalStore,
+  previousStore: LocalStore,
+  supabase: SupabaseClient,
+  expectedStateVersion?: number | null,
+) {
+  await persistSupabaseStore(nextStore, previousStore, supabase, expectedStateVersion);
 }
 
 function reconcileStoreScheduleState(store: LocalStore) {
@@ -2628,12 +3152,22 @@ export async function readStore(): Promise<LocalStore> {
   return withLocalMutationLock(() => readLocalStore());
 }
 
+export async function readPassiveStore<T>(reader: (store: LocalStore) => T | Promise<T>): Promise<T> {
+  if (getRuntimeMode() === "supabase") {
+    const store = await loadSupabaseGuardedStore();
+    return reader(store);
+  }
+  return mutateStore(reader);
+}
+
 export async function writeStore(store: LocalStore) {
   reconcileStoreScheduleState(store);
 
   if (getRuntimeMode() === "supabase") {
     const previous = await loadSupabaseStore();
-    await persistSupabaseStore(store, previous);
+    const userId = Object.keys(previous.userState)[0];
+    const expectedStateVersion = userId ? getSupabaseStoreStateVersion(previous, userId) : null;
+    await persistSupabaseStore(store, previous, undefined, expectedStateVersion);
     return;
   }
 
@@ -2644,16 +3178,33 @@ export async function writeStore(store: LocalStore) {
 
 export async function mutateStore<T>(mutator: (store: LocalStore) => T | Promise<T>): Promise<T> {
   if (getRuntimeMode() === "supabase") {
-    const store = await loadSupabaseStore();
-    const previous = structuredClone(store);
-    const result = await mutator(store);
-    reconcileStoreScheduleState(store);
+    for (let attempt = 0; attempt < SUPABASE_CAS_MAX_ATTEMPTS; attempt += 1) {
+      const store = await loadSupabaseStore();
+      const userId = Object.keys(store.userState)[0];
+      const expectedStateVersion = userId ? getSupabaseStoreStateVersion(store, userId) : null;
+      const previous = structuredClone(store);
+      const result = await mutator(store);
+      reconcileStoreScheduleState(store);
 
-    if (JSON.stringify(store) !== JSON.stringify(previous)) {
-      await persistSupabaseStore(store, previous);
+      if (JSON.stringify(store) === JSON.stringify(previous)) {
+        return result;
+      }
+
+      try {
+        await persistSupabaseStore(store, previous, undefined, expectedStateVersion);
+        return result;
+      } catch (error) {
+        if (!isSupabaseRetryableConflictError(error) || attempt === SUPABASE_CAS_MAX_ATTEMPTS - 1) {
+          throw error;
+        }
+        logSupabasePersistence("cas_retry", {
+          scope: "full_store",
+          attempt: attempt + 1,
+        });
+      }
     }
 
-    return result;
+    throw new SupabaseRetryableConflictError();
   }
 
   return withLocalMutationLock(async () => {
@@ -2670,16 +3221,33 @@ export async function mutateStore<T>(mutator: (store: LocalStore) => T | Promise
 
 export async function mutateScheduleStore<T>(mutator: (store: LocalStore) => T | Promise<T>): Promise<T> {
   if (getRuntimeMode() === "supabase") {
-    const store = await loadSupabaseScheduleStore();
-    const previous = structuredClone(store);
-    const result = await mutator(store);
-    reconcileStoreScheduleState(store);
+    for (let attempt = 0; attempt < SUPABASE_CAS_MAX_ATTEMPTS; attempt += 1) {
+      const store = await loadSupabaseScheduleStore();
+      const userId = Object.keys(store.userState)[0];
+      const expectedStateVersion = userId ? getSupabaseStoreStateVersion(store, userId) : null;
+      const previous = structuredClone(store);
+      const result = await mutator(store);
+      reconcileStoreScheduleState(store);
 
-    if (JSON.stringify(store) !== JSON.stringify(previous)) {
-      await persistSupabaseScheduleStore(store, previous);
+      if (JSON.stringify(store) === JSON.stringify(previous)) {
+        return result;
+      }
+
+      try {
+        await persistSupabaseScheduleStore(store, previous, expectedStateVersion);
+        return result;
+      } catch (error) {
+        if (!isSupabaseRetryableConflictError(error) || attempt === SUPABASE_CAS_MAX_ATTEMPTS - 1) {
+          throw error;
+        }
+        logSupabasePersistence("cas_retry", {
+          scope: "schedule_store",
+          attempt: attempt + 1,
+        });
+      }
     }
 
-    return result;
+    throw new SupabaseRetryableConflictError();
   }
 
   return mutateStore(mutator);
@@ -2725,6 +3293,10 @@ async function runScopedScheduleReader<T>(
   const store = await loader();
   const previous = structuredClone(store);
   const result = await reader(store);
+  if (isSupabaseReadGuardedEnabled()) {
+    await persistSupabaseScopedQuoteState(store, previous);
+    return result;
+  }
 
   if (JSON.stringify(store) !== JSON.stringify(previous)) {
     await persistSupabaseScheduleReadStore(store, previous);

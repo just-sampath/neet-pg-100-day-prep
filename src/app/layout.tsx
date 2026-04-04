@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { readStore } from "@/lib/data/local-store";
 import { APP_NAME } from "@/lib/domain/constants";
 import { APP_DESCRIPTION, PWA_THEME_COLOR } from "@/lib/domain/app-meta";
+import { getRuntimeMode } from "@/lib/runtime/mode";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 import "./globals.css";
 
@@ -59,8 +61,20 @@ export default async function RootLayout({
   const user = await getCurrentUser();
   let theme = "dark";
   if (user) {
-    const store = await readStore();
-    theme = store.userState[user.id]?.settings.theme ?? "dark";
+    if (getRuntimeMode() === "supabase") {
+      const supabase = await createSupabaseServerClient();
+      if (supabase) {
+        const { data } = await supabase
+          .from("app_settings")
+          .select("theme")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        theme = data?.theme === "light" ? "light" : "dark";
+      }
+    } else {
+      const store = await readStore();
+      theme = store.userState[user.id]?.settings.theme ?? "dark";
+    }
   }
 
   return (

@@ -1,7 +1,12 @@
 import "server-only";
 
 import { getCurrentDayNumber, getScheduleHealth } from "@/lib/domain/schedule";
-import { createRemoteUser, persistSupabaseStoreForUser, readSupabaseStoreForUser } from "@/lib/data/local-store";
+import {
+  createRemoteUser,
+  isSupabaseRetryableConflictError,
+  persistSupabaseStoreForUser,
+  readSupabaseStoreForUser,
+} from "@/lib/data/local-store";
 import { runMidnightRollover, runMidnightRepack, runWeeklySummaryAutomation } from "@/lib/data/app-state";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { getWeekdayInTimeZone, IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
@@ -16,6 +21,8 @@ type JobResult = {
   metadata: Record<string, unknown>;
   skipped: boolean;
 };
+
+const AUTOMATION_CAS_MAX_ATTEMPTS = 2;
 
 function requireAdminClient() {
   const supabase = createSupabaseAdminClient();
@@ -102,6 +109,35 @@ async function getAutomationUserIds() {
   return [...new Set((data ?? []).map((entry) => entry.user_id as string))];
 }
 
+async function runUserMutationWithRetry<T>(
+  userId: string,
+  supabase: ReturnType<typeof requireAdminClient>,
+  mutator: (store: Awaited<ReturnType<typeof readSupabaseStoreForUser>>) => T,
+) {
+  for (let attempt = 0; attempt < AUTOMATION_CAS_MAX_ATTEMPTS; attempt += 1) {
+    const user = createRemoteUser(userId);
+    const store = await readSupabaseStoreForUser(user, supabase);
+    const previous = structuredClone(store);
+    const result = mutator(store);
+
+    if (JSON.stringify(store) === JSON.stringify(previous)) {
+      return result;
+    }
+
+    try {
+      await persistSupabaseStoreForUser(store, previous, supabase);
+      return result;
+    } catch (error) {
+      if (!isSupabaseRetryableConflictError(error) || attempt === AUTOMATION_CAS_MAX_ATTEMPTS - 1) {
+        throw error;
+      }
+      console.warn(`Automation retry due to CAS conflict for user ${userId} (attempt ${attempt + 1}).`);
+    }
+  }
+
+  throw new Error("Automation mutation failed due to repeated CAS conflicts.");
+}
+
 export async function runMidnightCronJob(runAt = new Date()): Promise<JobResult> {
   const scheduledDate = toDateOnlyInTimeZone(runAt, IST_TIME_ZONE);
   const runKey = `ist:${scheduledDate}`;
@@ -125,34 +161,34 @@ export async function runMidnightCronJob(runAt = new Date()): Promise<JobResult>
 
   try {
     for (const userId of userIds) {
-      const user = createRemoteUser(userId);
-      const store = await readSupabaseStoreForUser(user, supabase);
-      const previous = structuredClone(store);
-      const userState = store.userState[userId];
-      const todayDayNumber = getCurrentDayNumber(userState, scheduledDate);
-      const midnight = runMidnightRollover(userState, userState.settings, scheduledDate, todayDayNumber, store.referenceData);
-      const repack = runMidnightRepack(userState, userState.settings, scheduledDate, todayDayNumber, store.referenceData);
-      const shiftHealth = getScheduleHealth(userState, userState.settings, todayDayNumber, store.referenceData);
-
-      if (JSON.stringify(store) !== JSON.stringify(previous)) {
-        await persistSupabaseStoreForUser(store, previous, supabase);
-      }
+      const summary = await runUserMutationWithRetry(userId, supabase, (store) => {
+        const userState = store.userState[userId];
+        const todayDayNumber = getCurrentDayNumber(userState, scheduledDate, store.referenceData);
+        const midnight = runMidnightRollover(userState, userState.settings, scheduledDate, todayDayNumber, store.referenceData);
+        const repack = runMidnightRepack(userState, userState.settings, scheduledDate, todayDayNumber, store.referenceData);
+        const shiftHealth = getScheduleHealth(userState, userState.settings, todayDayNumber, store.referenceData);
+        return {
+          midnight,
+          repack,
+          shiftHealth,
+        };
+      });
 
       processedUsers += 1;
       perUser.push({
         userId,
-        missedBlocks: midnight.missedBlocks,
-        backlogCreated: midnight.backlogCreated,
-        processedDate: midnight.processedDate,
-        revisionRollover: midnight.revisionRollover,
-        shiftSuggested: shiftHealth.suggestShift,
-        shiftPressureDays: shiftHealth.missedDays.length,
-        repackSkipped: repack.skipped,
-        repackPlaced: repack.placed,
-        repackOverflow: repack.overflowBacklog + repack.overflowTopics,
-        repackExtensionDays: repack.extensionDaysCreated,
-        repackPhaseClosed: repack.phaseClosed + repack.phaseTransitionClosed,
-        repackBacklogRescheduled: repack.backlogRescheduled,
+        missedBlocks: summary.midnight.missedBlocks,
+        backlogCreated: summary.midnight.backlogCreated,
+        processedDate: summary.midnight.processedDate,
+        revisionRollover: summary.midnight.revisionRollover,
+        shiftSuggested: summary.shiftHealth.suggestShift,
+        shiftPressureDays: summary.shiftHealth.missedDays.length,
+        repackSkipped: summary.repack.skipped,
+        repackPlaced: summary.repack.placed,
+        repackOverflow: summary.repack.overflowBacklog + summary.repack.overflowTopics,
+        repackExtensionDays: summary.repack.extensionDaysCreated,
+        repackPhaseClosed: summary.repack.phaseClosed + summary.repack.phaseTransitionClosed,
+        repackBacklogRescheduled: summary.repack.backlogRescheduled,
       });
     }
 
@@ -208,15 +244,10 @@ export async function runWeeklySummaryCronJob(runAt = new Date()): Promise<JobRe
 
   try {
     for (const userId of userIds) {
-      const user = createRemoteUser(userId);
-      const store = await readSupabaseStoreForUser(user, supabase);
-      const previous = structuredClone(store);
-      const userState = store.userState[userId];
-      const weekly = runWeeklySummaryAutomation(userState, userState.settings, runAt, store.referenceData);
-
-      if (JSON.stringify(store) !== JSON.stringify(previous)) {
-        await persistSupabaseStoreForUser(store, previous, supabase);
-      }
+      const weekly = await runUserMutationWithRetry(userId, supabase, (store) => {
+        const userState = store.userState[userId];
+        return runWeeklySummaryAutomation(userState, userState.settings, runAt, store.referenceData);
+      });
 
       processedUsers += 1;
       perUser.push({

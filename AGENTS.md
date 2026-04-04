@@ -157,6 +157,11 @@ Defaults:
 - `supabase/migrations/0001_initial_schema.sql`: consolidated baseline — schedule tables, phase config, reference tables, user-state tables, mutable logs, backlog, and all indexes/constraints
 - `supabase/migrations/0002_runtime_rls_realtime.sql`: RLS policies (per-user auth.uid(), reference read-only, automation deny-all) and realtime publication coverage
 - `supabase/migrations/0003_automation_job_runs.sql`: hosted job ledger for cron telemetry and idempotence
+- `supabase/migrations/0004_backlog_items_evolution.sql`: backlog metadata expansion, source-item identity, and queue indexes
+- `supabase/migrations/0005_sweep_source_tags.sql`: late sweep and 22:45 overrun source-tag support
+- `supabase/migrations/0006_repack_overflow_source_tag.sql`: repack overflow source tags plus `phase_closed` status support
+- `supabase/migrations/0007_phase_closed_source_tag.sql`: allows `phase_closed` source tags for terminal repack closures
+- `supabase/migrations/0008_schedule_days_original_day_number.sql`: aligns `schedule_days` schema with runtime `originalDayNumber` persistence
 - `supabase/sql/005_setup_cron.sql`: `pg_cron` setup for midnight and weekly jobs
 
 ### Server Automation

@@ -1,6 +1,6 @@
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getRevisionQueuePageData } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { readPassiveStore } from "@/lib/data/local-store";
 import { getRevisionSessionLaneLabel } from "@/lib/domain/schedule";
 import type { RevisionSession } from "@/lib/domain/types";
 import { formatDateLabel } from "@/lib/utils/format";
@@ -24,7 +24,7 @@ function getLaneTone(lane: RevisionSession["lane"]) {
 export default async function RevisionQueuePage() {
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
-  const data = await mutateStore((store) => getRevisionQueuePageData(store, user.id));
+  const data = await readPassiveStore((store) => getRevisionQueuePageData(store, user.id));
 
   const queueSessions = data.revisionPlan?.queueSessions ?? [];
   const waitingSessions = data.waitingSessions;

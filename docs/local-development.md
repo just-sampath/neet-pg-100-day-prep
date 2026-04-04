@@ -66,18 +66,16 @@ Apply the schema first:
 supabase db push
 ```
 
-This applies both:
+This applies:
 
 - `supabase/migrations/0001_initial_schema.sql`
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
 - `supabase/migrations/0003_automation_job_runs.sql`
-- `supabase/migrations/0004_revision_completion_identity.sql`
-- `supabase/migrations/0005_backlog_creation_metadata.sql`
-- `supabase/migrations/0006_backlog_queue_priority.sql`
-- `supabase/migrations/0007_schedule_shift_events.sql`
-- `supabase/migrations/0008_gt_weakest_subjects.sql`
-- `supabase/migrations/0009_weekly_summary_uniqueness.sql`
-- `supabase/migrations/0010_quote_state_history.sql`
+- `supabase/migrations/0004_backlog_items_evolution.sql`
+- `supabase/migrations/0005_sweep_source_tags.sql`
+- `supabase/migrations/0006_repack_overflow_source_tag.sql`
+- `supabase/migrations/0007_phase_closed_source_tag.sql`
+- `supabase/migrations/0008_schedule_days_original_day_number.sql`
 
 Expected behavior in Supabase mode:
 

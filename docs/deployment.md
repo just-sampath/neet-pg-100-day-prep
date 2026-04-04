@@ -33,13 +33,11 @@ This must apply:
 - `supabase/migrations/0001_initial_schema.sql`
 - `supabase/migrations/0002_runtime_rls_realtime.sql`
 - `supabase/migrations/0003_automation_job_runs.sql`
-- `supabase/migrations/0004_revision_completion_identity.sql`
-- `supabase/migrations/0005_backlog_creation_metadata.sql`
-- `supabase/migrations/0006_backlog_queue_priority.sql`
-- `supabase/migrations/0007_schedule_shift_events.sql`
-- `supabase/migrations/0008_gt_weakest_subjects.sql`
-- `supabase/migrations/0009_weekly_summary_uniqueness.sql`
-- `supabase/migrations/0010_quote_state_history.sql`
+- `supabase/migrations/0004_backlog_items_evolution.sql`
+- `supabase/migrations/0005_sweep_source_tags.sql`
+- `supabase/migrations/0006_repack_overflow_source_tag.sql`
+- `supabase/migrations/0007_phase_closed_source_tag.sql`
+- `supabase/migrations/0008_schedule_days_original_day_number.sql`
 
 `0002_runtime_rls_realtime.sql` is required for:
 
@@ -54,33 +52,32 @@ This must apply:
 - failure inspection and run telemetry
 - safe auditing of midnight and weekly automation
 
-`0004_revision_completion_identity.sql` is required for:
+`0004_backlog_items_evolution.sql` is required for:
 
-- block-aware revision completion identity
-- separate revision series for `block_a` and `block_b`
-- safe retroactive-completion recomputation without key collisions
+- backlog evolution columns (`source_item_id`, subject metadata, phase metadata)
+- `(user_id, source_item_id)` uniqueness and backlog indexing
+- expanded backlog source tags for runtime queue behavior
 
-`0005_backlog_creation_metadata.sql` is required for:
+`0005_sweep_source_tags.sql` is required for:
 
-- preserving original scheduled slot timing on backlog items
-- queue displays that explain exactly where a moved block came from
+- automated sweep source tags (`end_of_day_sweep`, `block_overrun_2245`)
+- aligned `processed_dates` default payload in `app_settings`
 
-`0006_backlog_queue_priority.sql` is required for:
+`0006_repack_overflow_source_tag.sql` is required for:
 
-- stable backlog priority ordering
-- queue reordering that persists cleanly across sessions and runtimes
+- repack overflow source tag support
+- `phase_closed` backlog status support
+- schedule topic source tags for repack automation
 
-`0007_schedule_shift_events.sql` is required for:
+`0007_phase_closed_source_tag.sql` is required for:
 
-- anchored shift-event persistence
-- repeated-shift safety across local and Supabase runtimes
-- preview/apply consistency for schedule remapping after deployment
+- runtime writes using `source_tag='phase_closed'` on both backlog and topic assignments
+- prevention of check-constraint failures during midnight repack/phase-close flows
 
-`0010_quote_state_history.sql` is required for:
+`0008_schedule_days_original_day_number.sql` is required for:
 
-- persisted per-user quote-cycle history
-- stable quote selections across refreshes and devices
-- consistent Green/Yellow/Red quote restoration on hosted Supabase runtime
+- persisted `original_day_number` support on `schedule_days`
+- compatibility with current runtime schedule-day upsert payload
 
 ## Auth Setup
 

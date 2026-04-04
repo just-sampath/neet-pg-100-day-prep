@@ -1,13 +1,13 @@
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getWeeklyPageData } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { readPassiveStore } from "@/lib/data/local-store";
 import { generateWeeklySummaryAction } from "@/lib/server/actions";
 import { WeeklySummaryCard } from "@/components/app/weekly-summary-card";
 
 export default async function WeeklyPage() {
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
-  const data = await mutateStore((store) => getWeeklyPageData(store, user.id));
+  const data = await readPassiveStore((store) => getWeeklyPageData(store, user.id));
 
   return (
     <div className="grid gap-5">

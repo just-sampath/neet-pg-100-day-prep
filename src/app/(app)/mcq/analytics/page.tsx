@@ -5,12 +5,12 @@ import {
 } from "@/components/app/mcq-analytics-panels";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getMcqAnalyticsData } from "@/lib/data/app-state";
-import { mutateStore } from "@/lib/data/local-store";
+import { readPassiveStore } from "@/lib/data/local-store";
 
 export default async function McqAnalyticsPage() {
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
-  const data = await mutateStore((store) => getMcqAnalyticsData(store, user.id));
+  const data = await readPassiveStore((store) => getMcqAnalyticsData(store, user.id));
   const hasMcqData = data.summary.totalSolved > 0;
 
   return (
