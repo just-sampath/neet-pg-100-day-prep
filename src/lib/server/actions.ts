@@ -28,6 +28,8 @@ import {
   runBlockOverrunCutoff,
   runEndOfDaySweep,
   runMidnightRepack,
+  runMidnightRollover,
+  applyAutomationsWithMode,
   skipTopicItem,
   upsertWeeklySummary,
 } from "@/lib/data/app-state";
@@ -707,6 +709,7 @@ export async function runRepackAction() {
     const now = getEffectiveNow(store);
     const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
     const todayDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
+    runMidnightRollover(userState, userState.settings, todayDate, todayDayNumber, store.referenceData);
     result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, store.referenceData);
   });
   refreshScheduleViews();
@@ -733,18 +736,20 @@ export async function acceptEarlyFinishAction(formData: FormData) {
 }
 
 export async function setSimulatedNowAction(formData: FormData) {
-  await requireCurrentUser();
+  const user = await requireCurrentUser();
   const value = asString(formData.get("simulatedNow"));
   await mutateScheduleStoreWithConflictHandling((store) => {
     store.dev.simulatedNowIso = value ? new Date(value).toISOString() : null;
+    applyAutomationsWithMode(store, user.id, "full_mutation");
   });
   refreshScheduleViews();
 }
 
 export async function clearSimulatedNowAction() {
-  await requireCurrentUser();
+  const user = await requireCurrentUser();
   await mutateScheduleStoreWithConflictHandling((store) => {
     store.dev.simulatedNowIso = null;
+    applyAutomationsWithMode(store, user.id, "full_mutation");
   });
   refreshScheduleViews();
 }

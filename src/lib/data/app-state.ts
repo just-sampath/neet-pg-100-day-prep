@@ -103,7 +103,7 @@ import type {
   WeeklySummary,
 } from "@/lib/domain/types";
 import { getEffectiveNow, isSupabaseGuardedReadStore } from "@/lib/data/local-store";
-import { getRuntimeMode } from "@/lib/runtime/mode";
+
 import {
   addDaysToDateOnly,
   getMinutesInTimeZone,
@@ -1780,12 +1780,17 @@ function applyRepackResult(
   const now = new Date().toISOString();
   const schedule = userState.schedule;
   let backlogRescheduled = 0;
+  const touchedSlots = new Set<string>();
+  const placementOrderBySlot = new Map<string, Map<string, number>>();
 
   // --- Apply placements ---
-  for (const placement of output.placements) {
+  for (let placementIndex = 0; placementIndex < output.placements.length; placementIndex += 1) {
+    const placement = output.placements[placementIndex]!;
     const row = schedule.topicAssignments[placement.sourceItemId];
     if (!row) continue;
 
+    const previousSlotKey = `${row.dayNumber}:${row.blockKey}`;
+    const nextSlotKey = `${placement.dayNumber}:${placement.blockKey}`;
     const dayChanged = row.dayNumber !== placement.dayNumber || row.blockKey !== placement.blockKey;
 
     row.dayNumber = placement.dayNumber;
@@ -1811,9 +1816,19 @@ function applyRepackResult(
       backlogRescheduled++;
     }
 
+    touchedSlots.add(previousSlotKey);
+    touchedSlots.add(nextSlotKey);
+    const placementOrder = placementOrderBySlot.get(nextSlotKey) ?? new Map<string, number>();
+    placementOrder.set(placement.sourceItemId, placementIndex);
+    placementOrderBySlot.set(nextSlotKey, placementOrder);
+
     if (dayChanged) {
       invalidateRuntimeScheduleIndex(userState);
     }
+  }
+
+  if (normalizeTouchedSlotOrders(schedule, touchedSlots, placementOrderBySlot, now)) {
+    invalidateRuntimeScheduleIndex(userState);
   }
 
   // --- Handle phase_closed original topics ---
@@ -1873,6 +1888,65 @@ function applyRepackResult(
   }
 
   return backlogRescheduled;
+}
+
+function normalizeTouchedSlotOrders(
+  schedule: UserState["schedule"],
+  touchedSlots: Set<string>,
+  placementOrderBySlot: Map<string, Map<string, number>>,
+  nowIso: string,
+) {
+  if (touchedSlots.size === 0) {
+    return false;
+  }
+
+  let changed = false;
+  const assignmentsBySlot = new Map<string, ScheduleTopicAssignmentRow[]>();
+  for (const row of Object.values(schedule.topicAssignments)) {
+    const slotKey = `${row.dayNumber}:${row.blockKey}`;
+    if (!touchedSlots.has(slotKey)) {
+      continue;
+    }
+    const slotRows = assignmentsBySlot.get(slotKey) ?? [];
+    slotRows.push(row);
+    assignmentsBySlot.set(slotKey, slotRows);
+  }
+
+  for (const [slotKey, slotRows] of assignmentsBySlot) {
+    const placementOrder = placementOrderBySlot.get(slotKey);
+    slotRows.sort((left, right) => {
+      const leftPlacedAt = placementOrder?.get(left.sourceItemId);
+      const rightPlacedAt = placementOrder?.get(right.sourceItemId);
+      const leftWasPlaced = leftPlacedAt !== undefined;
+      const rightWasPlaced = rightPlacedAt !== undefined;
+
+      if (leftWasPlaced && rightWasPlaced) {
+        return leftPlacedAt - rightPlacedAt;
+      }
+      if (leftWasPlaced) {
+        return -1;
+      }
+      if (rightWasPlaced) {
+        return 1;
+      }
+      if (left.itemOrder !== right.itemOrder) {
+        return left.itemOrder - right.itemOrder;
+      }
+      return left.sourceItemId.localeCompare(right.sourceItemId);
+    });
+
+    for (let index = 0; index < slotRows.length; index += 1) {
+      const row = slotRows[index]!;
+      const nextOrder = index + 1;
+      if (row.itemOrder !== nextOrder) {
+        row.itemOrder = nextOrder;
+        row.updatedAt = nowIso;
+        changed = true;
+      }
+    }
+  }
+
+  return changed;
 }
 
 function resolvePhaseFromConfig(dayNumber: number, userState: UserState): number | null {
@@ -2182,9 +2256,7 @@ function runCatchUpAutomations(store: LocalStore, userId: string, todayDate: str
   while (walkDate < todayDate) {
     const walkDayNumber = getCurrentDayNumber(userState, walkDate, store.referenceData);
 
-    if (getRuntimeMode() === "local") {
-      runMidnightRollover(userState, settings, walkDate, walkDayNumber, store.referenceData, { includeRevisionSnapshot: false });
-    }
+    runMidnightRollover(userState, settings, walkDate, walkDayNumber, store.referenceData, { includeRevisionSnapshot: false });
 
     runMidnightRepack(userState, settings, walkDate, walkDayNumber, store.referenceData);
     walkDate = addDaysToDateOnly(walkDate, 1);
@@ -2218,13 +2290,11 @@ export function applyAutomationsWithMode(
   runBlockOverrunCutoff(userState, settings, todayDate, todayDayNumber, minutes, store.referenceData);
   runEndOfDaySweep(userState, settings, todayDate, todayDayNumber, minutes, store.referenceData);
 
-  if (getRuntimeMode() === "local") {
-    runMidnightRollover(userState, settings, todayDate, todayDayNumber, store.referenceData);
-    runWeeklySummaryAutomation(userState, settings, now, store.referenceData);
-  }
-
-  // Repack runs in both modes: scheduled via cron (Supabase) + catch-up on
-  // app load if midnight was missed. Idempotency prevents double-runs.
+  // All automations run in both local and Supabase modes. Each function is
+  // individually idempotent via processedDates arrays, so double-runs from
+  // cron + page-load catch-up are safe no-ops.
+  runMidnightRollover(userState, settings, todayDate, todayDayNumber, store.referenceData);
+  runWeeklySummaryAutomation(userState, settings, now, store.referenceData);
   runMidnightRepack(userState, settings, todayDate, todayDayNumber, store.referenceData);
 
   refreshBacklogSuggestions(userState, settings, todayDayNumber, store.referenceData);
@@ -2625,7 +2695,7 @@ export function getScheduleListData(store: LocalStore, userId: string) {
     }).filter((day): day is NonNullable<typeof day> => day !== null);
 
     const extensionDays = Object.values(userState.schedule.days)
-      .filter((row) => row.isExtensionDay && row.dayNumber > 100)
+      .filter((row) => row.isExtensionDay === true)
       .toSorted((left, right) => left.dayNumber - right.dayNumber)
       .map((row) => {
         const day = getScheduleDay(row.dayNumber, userState, store.referenceData);

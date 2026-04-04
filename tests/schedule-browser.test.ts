@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { getStaticReferenceData } from "@/lib/data/reference-data";
-import { completeBlockItems, getDayDetailData, getHomeData, getScheduleListData } from "@/lib/data/app-state";
+import { applyAutomationsWithMode, applyTrafficLightToDay, completeBlockItems, getDayDetailData, getHomeData, getScheduleListData } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import { applyScheduleMappingsFromSettings, buildExtensionDayRows, ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getOriginalPlannedDate, getScheduleDay, getScheduleDayEditState } from "@/lib/domain/schedule";
@@ -261,6 +261,24 @@ describe("schedule browser and retroactive editing", () => {
     });
   });
 
+  it("includes mid-phase extension days (dayNumber <= 100) in the browser list", () => {
+    const userState = createEmptyUserState();
+    userState.settings.dayOneDate = "2026-05-01";
+    insertExtensionDayAfter(userState, 63);
+    userState.processedDates.repackDates.push("2026-07-04");
+
+    const days = getScheduleListData(createStore(userState, "2026-07-04T06:30:00.000Z"), "local-user");
+    const extensionDay = days.find((day) => day.dayNumber === 64 && day.originalPlannedDate === null);
+
+    expect(days).toHaveLength(101);
+    expect(extensionDay).toBeDefined();
+    expect(extensionDay).toMatchObject({
+      dayNumber: 64,
+      runtimeDayNumber: 64,
+      originalPlannedDate: null,
+    });
+  });
+
   it("appends literal Day 101+ extension rows to the browser list", () => {
     const userState = createEmptyUserState();
     userState.settings.dayOneDate = "2026-05-01";
@@ -309,5 +327,79 @@ describe("schedule browser and retroactive editing", () => {
     const home = getHomeData(createStore(userState, "2026-07-04T06:30:00.000Z"), "local-user");
 
     expect(home.dayCountLabel).toBe("Day 64");
+  });
+});
+
+describe("automation catch-up for schedule browser", () => {
+  it("midnight rollover + repack catch-up runs regardless of runtime mode", () => {
+    // Simulate: Day 1 was set, a red day pushed blocks to backlog on Day 2,
+    // and now it's Day 3 — but processedDates shows no midnight/repack for Day 2.
+    // applyAutomationsWithMode("full_mutation") should catch up automatically.
+    const userState = createEmptyUserState();
+    userState.settings.dayOneDate = "2026-05-01";
+    ensureUserScheduleSeeded(userState);
+
+    const refData = getStaticReferenceData();
+
+    // Mark Day 1 as Red to move blocks to backlog
+    applyTrafficLightToDay(userState, 1, "red", undefined, refData);
+
+    // Record that Day 1 repack ran
+    userState.processedDates.repackDates.push("2026-05-01");
+
+    // Open the app on Day 3 (Day 2 was missed by cron)
+    const store = createStore(userState, "2026-05-03T06:30:00.000Z");
+
+    // Run full_mutation automations — should catch up Day 2 midnight + repack
+    applyAutomationsWithMode(store, "local-user", "full_mutation");
+
+    // Verify catch-up ran: midnightDates should include Day 1 (processed for Day 2 midnight)
+    expect(userState.processedDates.midnightDates).toContain("2026-05-01");
+    // Repack should have run for Day 2
+    expect(userState.processedDates.repackDates).toContain("2026-05-02");
+    // Also Day 3 automations should have fired
+    expect(userState.processedDates.repackDates).toContain("2026-05-03");
+  });
+
+  it("catch-up is idempotent — double run produces no additional state changes", () => {
+    const userState = createEmptyUserState();
+    userState.settings.dayOneDate = "2026-05-01";
+    ensureUserScheduleSeeded(userState);
+
+    const refData = getStaticReferenceData();
+    applyTrafficLightToDay(userState, 1, "red", undefined, refData);
+    userState.processedDates.repackDates.push("2026-05-01");
+
+    const store = createStore(userState, "2026-05-03T06:30:00.000Z");
+
+    // First run
+    applyAutomationsWithMode(store, "local-user", "full_mutation");
+    const midnightAfterFirst = [...userState.processedDates.midnightDates];
+    const repackAfterFirst = [...userState.processedDates.repackDates];
+    const scheduleRowCountAfterFirst = Object.keys(userState.schedule.days).length;
+    const backlogCountAfterFirst = Object.keys(userState.backlogItems).length;
+    const assignmentCountAfterFirst = Object.keys(userState.schedule.topicAssignments).length;
+
+    // Second run — rollover + repack should not re-execute
+    applyAutomationsWithMode(store, "local-user", "full_mutation");
+    expect(userState.processedDates.midnightDates).toEqual(midnightAfterFirst);
+    expect(userState.processedDates.repackDates).toEqual(repackAfterFirst);
+    expect(Object.keys(userState.schedule.days).length).toBe(scheduleRowCountAfterFirst);
+    expect(Object.keys(userState.backlogItems).length).toBe(backlogCountAfterFirst);
+    expect(Object.keys(userState.schedule.topicAssignments).length).toBe(assignmentCountAfterFirst);
+  });
+
+  it("read_guarded mode skips automations entirely", () => {
+    const userState = createEmptyUserState();
+    userState.settings.dayOneDate = "2026-05-01";
+    ensureUserScheduleSeeded(userState);
+
+    userState.processedDates.repackDates.push("2026-05-01");
+    const store = createStore(userState, "2026-05-03T06:30:00.000Z");
+
+    // read_guarded should not run any automation
+    applyAutomationsWithMode(store, "local-user", "read_guarded");
+    expect(userState.processedDates.midnightDates).toHaveLength(0);
+    expect(userState.processedDates.repackDates).toEqual(["2026-05-01"]);
   });
 });

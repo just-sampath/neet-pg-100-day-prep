@@ -59,9 +59,9 @@ export default async function SchedulePage() {
 
       {days.map((day) => (
         <Link
-          key={day.dayNumber}
+          key={day.runtimeDayNumber}
           id={day.today ? TODAY_CARD_ID : undefined}
-          href={`/schedule/${day.dayNumber}`}
+          href={`/schedule/${day.runtimeDayNumber}`}
           className="list-card p-5"
           data-schedule-status={day.status}
           aria-current={day.today ? "date" : undefined}

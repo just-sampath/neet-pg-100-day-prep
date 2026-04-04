@@ -53,6 +53,7 @@ let localMutationQueue: Promise<void> = Promise.resolve();
 
 const SUPABASE_RETRYABLE_CONFLICT = "SUPABASE_CONFLICT_RETRYABLE";
 const SUPABASE_CAS_MAX_ATTEMPTS = 2;
+const SUPABASE_READ_PAGE_SIZE = 1000;
 type SupabaseStoreReadScope = "full" | "schedule_full" | "today_scoped" | "browser_scoped" | "day_scoped";
 type SupabaseStoreReadMode = "full_mutation" | "read_guarded";
 type SupabaseStoreMetadata = {
@@ -172,6 +173,14 @@ export function isSupabaseRetryableConflictError(error: unknown): error is Supab
   return (
     error instanceof SupabaseRetryableConflictError ||
     (typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === SUPABASE_RETRYABLE_CONFLICT)
+  );
+}
+
+function isSupabaseScheduleSlotOrderCollisionError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return (
+    message.includes("schedule_topic_assignments_user_slot_order_unique") ||
+    (message.includes("schedule_topic_assignments") && message.includes("duplicate key value violates unique constraint"))
   );
 }
 
@@ -1426,46 +1435,40 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
 
   const [
     settingsResult,
-    scheduleDaysResult,
-    scheduleBlocksResult,
-    scheduleTopicAssignmentsResult,
-    phaseConfigResult,
-    revisionCompletionsResult,
-    backlogItemsResult,
-    mcqBulkLogsResult,
-    mcqItemLogsResult,
-    gtLogsResult,
-    weeklySummariesResult,
+    scheduleDayRows,
+    scheduleBlockRows,
+    scheduleTopicAssignmentRows,
+    phaseConfigRows,
+    revisionCompletionRows,
+    backlogItemRows,
+    mcqBulkLogRows,
+    mcqItemLogRows,
+    gtLogRows,
+    weeklySummaryRows,
   ] = await Promise.all([
     supabase.from("app_settings").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase.from("schedule_days").select("*").eq("user_id", user.id),
-    supabase.from("schedule_blocks").select("*").eq("user_id", user.id),
-    supabase.from("schedule_topic_assignments").select("*").eq("user_id", user.id),
-    supabase.from("phase_config").select("*").eq("user_id", user.id),
-    supabase.from("revision_completions").select("*").eq("user_id", user.id),
-    supabase.from("backlog_items").select("*").eq("user_id", user.id),
-    supabase.from("mcq_bulk_logs").select("*").eq("user_id", user.id),
-    supabase.from("mcq_item_logs").select("*").eq("user_id", user.id),
-    supabase.from("gt_logs").select("*").eq("user_id", user.id),
-    supabase.from("weekly_summaries").select("*").eq("user_id", user.id),
+    loadAllUserRows("schedule_days", user.id, supabase, [{ column: "day_number" }]),
+    loadAllUserRows("schedule_blocks", user.id, supabase, [
+      { column: "day_number" },
+      { column: "block_key" },
+    ]),
+    loadAllUserRows("schedule_topic_assignments", user.id, supabase, [
+      { column: "day_number" },
+      { column: "block_key" },
+      { column: "item_order" },
+      { column: "source_item_id" },
+    ]),
+    loadAllUserRows("phase_config", user.id, supabase, [{ column: "phase_number" }]),
+    loadAllUserRows("revision_completions", user.id, supabase, [{ column: "revision_id" }]),
+    loadAllUserRows("backlog_items", user.id, supabase, [{ column: "id" }]),
+    loadAllUserRows("mcq_bulk_logs", user.id, supabase, [{ column: "id" }]),
+    loadAllUserRows("mcq_item_logs", user.id, supabase, [{ column: "id" }]),
+    loadAllUserRows("gt_logs", user.id, supabase, [{ column: "id" }]),
+    loadAllUserRows("weekly_summaries", user.id, supabase, [{ column: "id" }]),
   ]);
 
-  const errors = [
-    settingsResult.error,
-    scheduleDaysResult.error,
-    scheduleBlocksResult.error,
-    scheduleTopicAssignmentsResult.error,
-    phaseConfigResult.error,
-    revisionCompletionsResult.error,
-    backlogItemsResult.error,
-    mcqBulkLogsResult.error,
-    mcqItemLogsResult.error,
-    gtLogsResult.error,
-    weeklySummariesResult.error,
-  ].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-
-  if (errors.length > 0) {
-    throw new Error(errors.map((entry) => entry.message).join(" | "));
+  if (settingsResult.error) {
+    throw new Error(settingsResult.error.message);
   }
 
   if (settingsResult.data) {
@@ -1491,7 +1494,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     setSupabaseStoreStateVersion(store, user.id, parseSupabaseStateVersion(settingsResult.data.state_version));
   }
 
-  for (const row of scheduleDaysResult.data ?? []) {
+  for (const row of scheduleDayRows) {
     userState.schedule.days[String(row.day_number)] = {
       dayNumber: row.day_number,
       originalDayNumber: row.original_day_number ?? null,
@@ -1523,7 +1526,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     };
   }
 
-  for (const row of scheduleBlocksResult.data ?? []) {
+  for (const row of scheduleBlockRows) {
     userState.schedule.blocks[`${row.day_number}:${row.block_key}`] = {
       dayNumber: row.day_number,
       blockKey: row.block_key,
@@ -1554,7 +1557,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     };
   }
 
-  for (const row of scheduleTopicAssignmentsResult.data ?? []) {
+  for (const row of scheduleTopicAssignmentRows) {
     userState.schedule.topicAssignments[row.source_item_id] = {
       sourceItemId: row.source_item_id,
       dayNumber: row.day_number,
@@ -1585,7 +1588,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     };
   }
 
-  for (const row of phaseConfigResult.data ?? []) {
+  for (const row of phaseConfigRows) {
     userState.schedule.phaseConfig[String(row.phase_number)] = {
       phaseNumber: row.phase_number,
       phaseId: row.phase_id,
@@ -1600,7 +1603,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     };
   }
 
-  for (const row of revisionCompletionsResult.data ?? []) {
+  for (const row of revisionCompletionRows) {
     const sourceItemId =
       row.source_item_id ?? parseSourceItemIdFromRevisionId(row.revision_id, row.revision_type);
     userState.revisionCompletions[row.revision_id] = {
@@ -1613,7 +1616,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     };
   }
 
-  for (const row of backlogItemsResult.data ?? []) {
+  for (const row of backlogItemRows) {
     const sourceItemId = row.source_item_id ?? row.id;
     const scheduleItem = getScheduleItemById(sourceItemId, undefined, store.referenceData);
     const rowSubjectIds = (row.subject_ids as string[] | null | undefined)?.length
@@ -1654,7 +1657,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     );
   }
 
-  for (const row of mcqBulkLogsResult.data ?? []) {
+  for (const row of mcqBulkLogRows) {
     const log = normalizeStoredMcqBulkLog({
       id: row.id,
       entryDate: row.entry_date,
@@ -1668,7 +1671,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     userState.mcqBulkLogs[log.id] = log;
   }
 
-  for (const row of mcqItemLogsResult.data ?? []) {
+  for (const row of mcqItemLogRows) {
     const log = normalizeStoredMcqItemLog({
       id: row.id,
       entryDate: row.entry_date,
@@ -1688,7 +1691,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     userState.mcqItemLogs[log.id] = log;
   }
 
-  for (const row of gtLogsResult.data ?? []) {
+  for (const row of gtLogRows) {
     const log = normalizeStoredGtLog({
       id: row.id,
       gtNumber: row.gt_number,
@@ -1718,7 +1721,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
     userState.gtLogs[log.id] = log;
   }
 
-  for (const row of weeklySummariesResult.data ?? []) {
+  for (const row of weeklySummaryRows) {
     const summary = normalizeStoredWeeklySummary({
       ...(row.payload as WeeklySummary),
       id: row.id,
@@ -1750,34 +1753,32 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
 
   const [
     settingsResult,
-    scheduleDaysResult,
-    scheduleBlocksResult,
-    scheduleTopicAssignmentsResult,
-    phaseConfigResult,
-    revisionCompletionsResult,
-    backlogItemsResult,
+    scheduleDayRows,
+    scheduleBlockRows,
+    scheduleTopicAssignmentRows,
+    phaseConfigRows,
+    revisionCompletionRows,
+    backlogItemRows,
   ] = await Promise.all([
     supabase.from("app_settings").select("*").eq("user_id", user.id).maybeSingle(),
-    supabase.from("schedule_days").select("*").eq("user_id", user.id),
-    supabase.from("schedule_blocks").select("*").eq("user_id", user.id),
-    supabase.from("schedule_topic_assignments").select("*").eq("user_id", user.id),
-    supabase.from("phase_config").select("*").eq("user_id", user.id),
-    supabase.from("revision_completions").select("*").eq("user_id", user.id),
-    supabase.from("backlog_items").select("*").eq("user_id", user.id),
+    loadAllUserRows("schedule_days", user.id, supabase, [{ column: "day_number" }]),
+    loadAllUserRows("schedule_blocks", user.id, supabase, [
+      { column: "day_number" },
+      { column: "block_key" },
+    ]),
+    loadAllUserRows("schedule_topic_assignments", user.id, supabase, [
+      { column: "day_number" },
+      { column: "block_key" },
+      { column: "item_order" },
+      { column: "source_item_id" },
+    ]),
+    loadAllUserRows("phase_config", user.id, supabase, [{ column: "phase_number" }]),
+    loadAllUserRows("revision_completions", user.id, supabase, [{ column: "revision_id" }]),
+    loadAllUserRows("backlog_items", user.id, supabase, [{ column: "id" }]),
   ]);
 
-  const errors = [
-    settingsResult.error,
-    scheduleDaysResult.error,
-    scheduleBlocksResult.error,
-    scheduleTopicAssignmentsResult.error,
-    phaseConfigResult.error,
-    revisionCompletionsResult.error,
-    backlogItemsResult.error,
-  ].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-
-  if (errors.length > 0) {
-    throw new Error(errors.map((entry) => entry.message).join(" | "));
+  if (settingsResult.error) {
+    throw new Error(settingsResult.error.message);
   }
 
   if (settingsResult.data) {
@@ -1803,7 +1804,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
     setSupabaseStoreStateVersion(store, user.id, parseSupabaseStateVersion(settingsResult.data.state_version));
   }
 
-  for (const row of scheduleDaysResult.data ?? []) {
+  for (const row of scheduleDayRows) {
     userState.schedule.days[String(row.day_number)] = {
       dayNumber: row.day_number,
       originalDayNumber: row.original_day_number ?? null,
@@ -1835,7 +1836,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
     };
   }
 
-  for (const row of scheduleBlocksResult.data ?? []) {
+  for (const row of scheduleBlockRows) {
     userState.schedule.blocks[`${row.day_number}:${row.block_key}`] = {
       dayNumber: row.day_number,
       blockKey: row.block_key,
@@ -1866,7 +1867,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
     };
   }
 
-  for (const row of scheduleTopicAssignmentsResult.data ?? []) {
+  for (const row of scheduleTopicAssignmentRows) {
     userState.schedule.topicAssignments[row.source_item_id] = {
       sourceItemId: row.source_item_id,
       dayNumber: row.day_number,
@@ -1897,7 +1898,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
     };
   }
 
-  for (const row of phaseConfigResult.data ?? []) {
+  for (const row of phaseConfigRows) {
     userState.schedule.phaseConfig[String(row.phase_number)] = {
       phaseNumber: row.phase_number,
       phaseId: row.phase_id,
@@ -1912,7 +1913,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
     };
   }
 
-  for (const row of revisionCompletionsResult.data ?? []) {
+  for (const row of revisionCompletionRows) {
     const sourceItemId =
       row.source_item_id ?? parseSourceItemIdFromRevisionId(row.revision_id, row.revision_type);
     userState.revisionCompletions[row.revision_id] = {
@@ -1925,7 +1926,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
     };
   }
 
-  for (const row of backlogItemsResult.data ?? []) {
+  for (const row of backlogItemRows) {
     const sourceItemId = row.source_item_id ?? row.id;
     const scheduleItem = getScheduleItemById(sourceItemId, userState, store.referenceData);
     const rowSubjectIds = (row.subject_ids as string[] | null | undefined)?.length
@@ -2002,6 +2003,49 @@ function dedupeRows<T>(rows: T[], getKey: (row: T) => string) {
     byKey.set(getKey(row), row);
   }
   return [...byKey.values()];
+}
+
+async function loadAllUserRows(
+  table: string,
+  userId: string,
+  supabase: SupabaseClient,
+  orderColumns: SupabaseOrderColumn[],
+) {
+  const rows: Array<Record<string, never>> = [];
+  let from = 0;
+
+  while (true) {
+    let query = supabase
+      .from(table)
+      .select("*")
+      .eq("user_id", userId) as unknown as {
+      order: (column: string, options?: { ascending?: boolean }) => typeof query;
+      range: (from: number, to: number) => Promise<{
+        data: Array<Record<string, never>> | null;
+        error: { message: string } | null;
+      }>;
+    };
+
+    for (const orderColumn of orderColumns) {
+      query = query.order(orderColumn.column, { ascending: orderColumn.ascending ?? true });
+    }
+
+    const to = from + SUPABASE_READ_PAGE_SIZE - 1;
+    const result = await query.range(from, to);
+    if (result.error) {
+      throw new Error(`${table}: ${result.error.message}`);
+    }
+
+    const batch = result.data ?? [];
+    rows.push(...batch);
+    if (batch.length < SUPABASE_READ_PAGE_SIZE) {
+      break;
+    }
+
+    from += SUPABASE_READ_PAGE_SIZE;
+  }
+
+  return rows;
 }
 
 async function loadVisibleScheduleDaysUpToDate(
@@ -2093,22 +2137,18 @@ async function hydrateSupabaseScheduleBrowserReadStore(user: LocalUser, supabase
   store.referenceData = await loadSupabaseReferenceData(supabase);
   applySupabaseSettingsRow(store, user.id, settingsRow, store.referenceData);
 
-  const [scheduleDaysResult, scheduleAssignmentsResult] = await Promise.all([
-    supabase.from("schedule_days").select("*").eq("user_id", user.id),
-    supabase.from("schedule_topic_assignments").select("*").eq("user_id", user.id),
+  const [scheduleDayRows, scheduleAssignmentRows] = await Promise.all([
+    loadAllUserRows("schedule_days", user.id, supabase, [{ column: "day_number" }]),
+    loadAllUserRows("schedule_topic_assignments", user.id, supabase, [
+      { column: "day_number" },
+      { column: "block_key" },
+      { column: "item_order" },
+      { column: "source_item_id" },
+    ]),
   ]);
 
-  const errors = [
-    scheduleDaysResult.error,
-    scheduleAssignmentsResult.error,
-  ].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-
-  if (errors.length > 0) {
-    throw new Error(errors.map((entry) => entry.message).join(" | "));
-  }
-
-  applySupabaseScheduleDayRows(userState, scheduleDaysResult.data);
-  applySupabaseScheduleAssignmentRows(userState, scheduleAssignmentsResult.data);
+  applySupabaseScheduleDayRows(userState, scheduleDayRows);
+  applySupabaseScheduleAssignmentRows(userState, scheduleAssignmentRows);
 
   store.userState[user.id] = normalizeUserState(userState, store.referenceData);
   return store;
@@ -2374,6 +2414,11 @@ type PersistSupabaseOptions = {
   includeActivityTables: boolean;
 };
 
+type SupabaseOrderColumn = {
+  column: string;
+  ascending?: boolean;
+};
+
 type DeltaSyncTableInput = {
   table: string;
   nextRows: Record<string, unknown>[];
@@ -2387,6 +2432,13 @@ type DeltaSyncTableInput = {
     input: Pick<DeltaSyncTableInput, "table" | "nextRows" | "previousRows"> & { userId: string },
   ) => Promise<void>;
   userId: string;
+  /**
+   * When true, changed rows are deleted by primary key before being re-inserted
+   * instead of using upsert. This avoids transient violations of secondary unique
+   * indexes when a batch upsert would temporarily collide with rows that are also
+   * being moved in the same statement. Mirrors the atomic RPC approach.
+   */
+  useDeleteThenInsert?: boolean;
 };
 
 type DeltaSyncPlan = {
@@ -2611,6 +2663,7 @@ async function syncUserRowsDelta(
     onConflict,
     rowKey,
     deleteMissing,
+    useDeleteThenInsert,
     userId,
   }: DeltaSyncTableInput,
   supabase: SupabaseClient,
@@ -2622,16 +2675,31 @@ async function syncUserRowsDelta(
   });
 
   if (changedRows.length > 0) {
-    const { error } = await supabase.from(table).upsert(changedRows, {
-      onConflict,
-      ignoreDuplicates: false,
-    });
-    if (error) {
-      throw new Error(`${table}: ${error.message}`);
+    if (useDeleteThenInsert) {
+      // Mirror the atomic RPC: delete changed + removed rows by primary key
+      // first, then re-insert changed rows. This avoids transient collisions on
+      // secondary unique indexes (e.g.
+      // schedule_topic_assignments_user_slot_order_unique) when rows move across
+      // slot-order positions in one mutation.
+      const changedKeys = changedRows.map((row) => rowKey(row));
+      const keysToDeleteBeforeInsert = [...new Set([...changedKeys, ...removedKeys])];
+      await deleteMissing(keysToDeleteBeforeInsert, supabase, { table, nextRows, previousRows, userId });
+      const { error } = await supabase.from(table).insert(changedRows);
+      if (error) {
+        throw new Error(`${table}: ${error.message}`);
+      }
+    } else {
+      const { error } = await supabase.from(table).upsert(changedRows, {
+        onConflict,
+        ignoreDuplicates: false,
+      });
+      if (error) {
+        throw new Error(`${table}: ${error.message}`);
+      }
     }
   }
 
-  if (removedKeys.length > 0) {
+  if (removedKeys.length > 0 && !useDeleteThenInsert) {
     await deleteMissing(removedKeys, supabase, { table, nextRows, previousRows, userId });
   }
 
@@ -2648,6 +2716,15 @@ async function syncUserRows(
   supabase: SupabaseClient,
 ) {
   if (!isSupabaseDeltaWritesEnabled()) {
+    if (input.useDeleteThenInsert && input.nextRows.length > 0) {
+      // Full replace: delete all rows for this user, then insert fresh.
+      await deleteAllRowsForUser(input.table, input.userId, supabase);
+      const { error } = await supabase.from(input.table).insert(input.nextRows);
+      if (error) {
+        throw new Error(`${input.table}: ${error.message}`);
+      }
+      return;
+    }
     await syncUserRowsFull(
       input.table,
       input.nextRows,
@@ -2882,6 +2959,7 @@ async function persistSupabaseState(
   }
 
   const nextState = nextStore.userState[userId] ?? createEmptyUserState();
+  normalizeScheduleTopicAssignmentSlotOrder(nextState, getEffectiveNow(nextStore).toISOString());
   const previousState = previousStore.userState[userId] ?? createEmptyUserState();
   const useTransactionalRpc = isSupabaseOptimisticCasEnabled() && isSupabaseTransactionalRpcEnabled();
   const resolvedExpectedStateVersion = resolveExpectedStateVersion(nextStore, userId, expectedStateVersion);
@@ -2966,6 +3044,7 @@ async function persistSupabaseState(
       previousRows: previousScheduleTopicAssignmentRows,
       rowKey: (row) => String(row.source_item_id),
       deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "source_item_id", keys, client),
+      useDeleteThenInsert: true,
     },
     {
       table: "phase_config",
@@ -3138,10 +3217,43 @@ function reconcileStoreScheduleState(store: LocalStore) {
       // ensureUserScheduleSeeded already calls applyScheduleMappingsFromSettings
       // at the end, so no separate mapping call is needed here.
       ensureUserScheduleSeeded(userState, userState.settings.scheduleSeededAt ?? updatedAt);
+      normalizeScheduleTopicAssignmentSlotOrder(userState, updatedAt);
       continue;
     }
 
     userState.schedule = createEmptyScheduleState();
+  }
+}
+
+function normalizeScheduleTopicAssignmentSlotOrder(userState: UserState, updatedAt: string) {
+  const rowsBySlot = new Map<string, UserState["schedule"]["topicAssignments"][string][]>();
+  for (const row of Object.values(userState.schedule.topicAssignments)) {
+    const slotKey = `${row.dayNumber}:${row.blockKey}`;
+    const rows = rowsBySlot.get(slotKey) ?? [];
+    rows.push(row);
+    rowsBySlot.set(slotKey, rows);
+  }
+
+  for (const rows of rowsBySlot.values()) {
+    rows.sort((left, right) => {
+      if (left.itemOrder !== right.itemOrder) {
+        return left.itemOrder - right.itemOrder;
+      }
+      // Prefer recently updated rows when two assignments claim the same slot.
+      if (left.updatedAt !== right.updatedAt) {
+        return right.updatedAt.localeCompare(left.updatedAt);
+      }
+      return left.sourceItemId.localeCompare(right.sourceItemId);
+    });
+
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index]!;
+      const nextOrder = index + 1;
+      if (row.itemOrder !== nextOrder) {
+        row.itemOrder = nextOrder;
+        row.updatedAt = updatedAt;
+      }
+    }
   }
 }
 
@@ -3154,6 +3266,7 @@ export async function readStore(): Promise<LocalStore> {
 
 export async function readPassiveStore<T>(reader: (store: LocalStore) => T | Promise<T>): Promise<T> {
   if (getRuntimeMode() === "supabase") {
+    await ensureSupabaseAutomationsCurrent();
     const store = await loadSupabaseGuardedStore();
     return reader(store);
   }
@@ -3253,6 +3366,68 @@ export async function mutateScheduleStore<T>(mutator: (store: LocalStore) => T |
   return mutateStore(mutator);
 }
 
+/**
+ * Lightweight pre-flight check for Supabase scoped readers.
+ * Queries `app_settings.processed_dates` and compares the last repack date
+ * against today's IST date (accounting for any simulated time override).
+ * If the automations are stale (cron missed or hasn't run yet), escalates
+ * to a full `mutateScheduleStore` cycle that runs midnight rollover, repack,
+ * and other catch-up automations. All automations are individually idempotent
+ * via their `processedDates` arrays so double-runs from cron + this catch-up
+ * are safe no-ops.
+ */
+async function ensureSupabaseAutomationsCurrent() {
+  const { settingsRow, user } = await getSupabaseScheduleReadContext();
+  if (!settingsRow) {
+    return;
+  }
+
+  const dayOneDate = (settingsRow.day_one_date as string | null | undefined) ?? null;
+  if (!dayOneDate) {
+    return; // No schedule configured yet — nothing to catch up
+  }
+
+  const processedDates = normalizeProcessedDates(settingsRow.processed_dates);
+  const simulatedNowIso = (settingsRow.simulated_now_iso as string | null | undefined) ?? null;
+  const now = simulatedNowIso ? new Date(simulatedNowIso) : new Date();
+  const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
+  const lastRepackDate = processedDates.repackDates.at(-1) ?? null;
+
+  // If today's repack has already run, automations are current.
+  if (lastRepackDate && lastRepackDate >= todayDate) {
+    return;
+  }
+
+  // Automations are stale — escalate to full mutation with catch-up.
+  // Use a lazy import to avoid circular dependency at module evaluation time.
+  const { applyAutomationsWithMode } = await import("@/lib/data/app-state");
+  try {
+    await mutateScheduleStore((store) => {
+      applyAutomationsWithMode(store, user.id, "full_mutation");
+    });
+  } catch (error) {
+    // Concurrent server-component renders (e.g. TodayPage + readPassiveStore)
+    // can both detect stale automations and race into mutateScheduleStore.
+    // The loser hits a CAS / write-lock conflict which is benign — the winner
+    // is already persisting the same idempotent automations. Swallow the
+    // conflict and let the subsequent scoped read pick up whatever state the
+    // winner committed (or fall back to slightly stale data on this render).
+    if (isSupabaseRetryableConflictError(error)) {
+      logSupabasePersistence("catch_up_conflict_suppressed", {
+        userId: user.id,
+      });
+      return;
+    }
+    if (isSupabaseScheduleSlotOrderCollisionError(error)) {
+      logSupabasePersistence("catch_up_slot_order_collision_suppressed", {
+        userId: user.id,
+      });
+      return;
+    }
+    throw error;
+  }
+}
+
 async function runScopedScheduleReader<T>(
   loader: () => Promise<LocalStore>,
   reader: (store: LocalStore) => T | Promise<T>,
@@ -3289,6 +3464,12 @@ async function runScopedScheduleReader<T>(
       return result;
     });
   }
+
+  // Supabase mode: check if automations need to catch up before the scoped read.
+  // This is a lightweight pre-flight check using the already-queried app_settings row.
+  // If the last repack date is stale, escalate to a full mutate-and-persist cycle
+  // so the subsequent scoped read returns fresh data.
+  await ensureSupabaseAutomationsCurrent();
 
   const store = await loader();
   const previous = structuredClone(store);

@@ -448,6 +448,47 @@ describe("runMidnightRepack integration", () => {
         });
     });
 
+    it("normalizes slot order across statuses to keep day-block-order uniqueness after repack", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const todayDate = "2026-05-01";
+        const todayDayNumber = getCurrentDayNumber(userState, todayDate);
+        const blockAItems = getBlockItems(todayDayNumber, "block_a");
+        expect(blockAItems.length).toBeGreaterThanOrEqual(2);
+
+        const completedRow = userState.schedule.topicAssignments[blockAItems[0]!.itemId]!;
+        const pendingRow = userState.schedule.topicAssignments[blockAItems[1]!.itemId]!;
+
+        for (const row of Object.values(userState.schedule.topicAssignments)) {
+            if (row.dayNumber >= todayDayNumber && row.status === "pending") {
+                row.status = "completed";
+            }
+        }
+
+        completedRow.status = "completed";
+        completedRow.itemOrder = 1;
+        pendingRow.status = "pending";
+        pendingRow.itemOrder = 2;
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+        expect(result.skipped).toBe(false);
+
+        const slotOwner = new Map<string, string>();
+        const duplicateSlots = new Set<string>();
+        for (const row of Object.values(userState.schedule.topicAssignments)) {
+            const slotKey = `${row.dayNumber}:${row.blockKey}:${row.itemOrder}`;
+            const existing = slotOwner.get(slotKey);
+            if (existing && existing !== row.sourceItemId) {
+                duplicateSlots.add(slotKey);
+            } else {
+                slotOwner.set(slotKey, row.sourceItemId);
+            }
+        }
+
+        expect(duplicateSlots.size).toBe(0);
+    });
+
     it("keeps mcq_practice, final_review, and wrap_up_log assignments anchored in their native slots", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
