@@ -164,7 +164,7 @@ describe("backlog creation and traffic-light handling", () => {
     expect(getBlockProgress(userState, 2, finalReviewKey).status).toBe("rescheduled");
   });
 
-  it("creates manual-skip recovery for study blocks but keeps morning revision out of the backlog queue", () => {
+  it("creates manual-skip recovery for study blocks but keeps no-queue morning revision completed and out of the backlog queue", () => {
     const userState = createConfiguredUserState();
     const morningRevisionKey = getBlockKey(2, "morning_revision");
     const blockAKey = getBlockKey(2, "block_a");
@@ -175,7 +175,7 @@ describe("backlog creation and traffic-light handling", () => {
     const backlogItems = Object.values(userState.backlogItems);
     expect(backlogItems).toHaveLength(getBlockItems(2, blockAKey).length);
     expect(backlogItems.every((item) => item.originalBlockKey === blockAKey)).toBe(true);
-    expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("skipped");
+    expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("completed");
   });
 
   it("moves only visible reschedulable study work during wind-down and leaves no-due morning revision closed", () => {
@@ -196,7 +196,7 @@ describe("backlog creation and traffic-light handling", () => {
         getBlockKey(2, "block_c"),
       ]),
     );
-    expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("pending");
+    expect(getBlockProgress(userState, 2, morningRevisionKey).status).toBe("completed");
     expect(getBlockProgress(userState, 2, finalReviewKey).status).toBe("pending");
   });
 

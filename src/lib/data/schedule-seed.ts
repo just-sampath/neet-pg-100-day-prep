@@ -1,4 +1,4 @@
-import { addDaysToDateOnly } from "@/lib/utils/date";
+import { addDaysToDateOnly, diffDays } from "@/lib/utils/date";
 import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { invalidateRuntimeScheduleIndex } from "@/lib/domain/schedule";
 import type {
@@ -582,4 +582,220 @@ export function getExtensionDayCapacityTemplate(): import("@/lib/domain/repack")
 
   template.sort((a, b) => a.slotOrder - b.slotOrder);
   return template;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy → canonical schedule layout migration
+// ---------------------------------------------------------------------------
+
+function inferOriginalDayNumber(
+  day: UserState["schedule"]["days"][string],
+  dayOneDate: string | null,
+): number | null {
+  if (day.originalDayNumber !== null) {
+    return day.originalDayNumber;
+  }
+
+  if (!dayOneDate) {
+    return null;
+  }
+
+  const inferred = diffDays(day.originalMappedDate, dayOneDate) + 1;
+  if (!Number.isFinite(inferred) || inferred <= 0) {
+    return null;
+  }
+
+  return inferred;
+}
+
+export function detectLegacyScheduleLayout(userState: UserState): boolean {
+  let maxWorkbookDay = 0;
+
+  for (const day of Object.values(userState.schedule.days)) {
+    if (day.isExtensionDay) {
+      if (day.originalDayNumber !== null) {
+        return true;
+      }
+      continue;
+    }
+
+    const inferredOriginalDayNumber = inferOriginalDayNumber(day, userState.settings.dayOneDate);
+    if (inferredOriginalDayNumber !== null) {
+      maxWorkbookDay = Math.max(maxWorkbookDay, inferredOriginalDayNumber);
+    }
+
+    // Missing originalDayNumber on non-extension rows indicates
+    // an old/corrupted layout that should be normalized.
+    if (day.originalDayNumber === null) {
+      return true;
+    }
+
+    if (inferredOriginalDayNumber !== null && day.dayNumber !== inferredOriginalDayNumber) {
+      return true;
+    }
+  }
+
+  for (const day of Object.values(userState.schedule.days)) {
+    // Canonical layout reserves workbook span for non-extension rows.
+    if (day.isExtensionDay && maxWorkbookDay > 0 && day.dayNumber <= maxWorkbookDay) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Migrate a legacy schedule layout to the canonical layout where:
+ * - Workbook days occupy dayNumber 1–N (matching their originalDayNumber)
+ * - Extension days are renumbered sequentially from N+1
+ *
+ * Builds a remapTable and applies it across all schedule data structures.
+ * Idempotent: if layout is already canonical, this is a no-op.
+ *
+ * Returns true if any changes were made.
+ */
+export function migrateToCanonicalLayout(userState: UserState): boolean {
+  if (!detectLegacyScheduleLayout(userState)) {
+    return false;
+  }
+
+  const now = new Date().toISOString();
+  const schedule = userState.schedule;
+
+  // Build remap table: old dayNumber → new dayNumber
+  const remapTable = new Map<number, number>();
+  const workbookDays: typeof schedule.days[string][] = [];
+  const extensionDays: typeof schedule.days[string][] = [];
+
+  for (const day of Object.values(schedule.days)) {
+    if (day.isExtensionDay) {
+      extensionDays.push(day);
+    } else {
+      if (day.originalDayNumber === null) {
+        const inferred = inferOriginalDayNumber(day, userState.settings.dayOneDate);
+        day.originalDayNumber = inferred ?? day.dayNumber;
+        if (userState.settings.dayOneDate) {
+          day.originalMappedDate = addDaysToDateOnly(userState.settings.dayOneDate, day.originalDayNumber - 1);
+        }
+      }
+      workbookDays.push(day);
+    }
+  }
+
+  // Workbook days go back to their originalDayNumber
+  for (const day of workbookDays) {
+    if (day.originalDayNumber !== null && day.dayNumber !== day.originalDayNumber) {
+      remapTable.set(day.dayNumber, day.originalDayNumber);
+    }
+  }
+
+  // Find the highest workbook day number (typically 100)
+  const maxWorkbookDay = Math.max(
+    ...workbookDays.map((d) => d.originalDayNumber ?? d.dayNumber),
+    0,
+  );
+
+  // Extension days get sequential numbers from maxWorkbookDay + 1
+  extensionDays.sort((a, b) => a.dayNumber - b.dayNumber);
+  for (let i = 0; i < extensionDays.length; i++) {
+    const newDay = maxWorkbookDay + 1 + i;
+    if (extensionDays[i]!.dayNumber !== newDay) {
+      remapTable.set(extensionDays[i]!.dayNumber, newDay);
+    }
+  }
+
+  if (remapTable.size === 0) {
+    return false;
+  }
+
+  const remap = (dayNumber: number): number => remapTable.get(dayNumber) ?? dayNumber;
+
+  // --- 1) Remap schedule.days ---
+  const newDays: Record<string, typeof schedule.days[string]> = {};
+  for (const day of Object.values(schedule.days)) {
+    const oldDay = day.dayNumber;
+    day.dayNumber = remap(oldDay);
+    // Recalculate mappedDate for workbook days from their canonical position
+    if (!day.isExtensionDay && day.originalDayNumber !== null) {
+      const dayOneDate = userState.settings.dayOneDate;
+      if (dayOneDate) {
+        day.mappedDate = addDaysToDateOnly(dayOneDate, day.dayNumber - 1);
+      }
+    }
+    // Extension days: recalculate from the last workbook day's mapped date
+    if (day.isExtensionDay) {
+      const dayOneDate = userState.settings.dayOneDate;
+      if (dayOneDate) {
+        day.mappedDate = addDaysToDateOnly(dayOneDate, day.dayNumber - 1);
+        day.originalMappedDate = day.mappedDate;
+      }
+    }
+    day.updatedAt = now;
+    newDays[String(day.dayNumber)] = day;
+  }
+  schedule.days = newDays;
+
+  // --- 2) Remap schedule.blocks ---
+  const newBlocks: Record<string, typeof schedule.blocks[string]> = {};
+  for (const block of Object.values(schedule.blocks)) {
+    block.dayNumber = remap(block.dayNumber);
+    block.updatedAt = now;
+    newBlocks[`${block.dayNumber}:${block.blockKey}`] = block;
+  }
+  schedule.blocks = newBlocks;
+
+  // --- 3) Remap topicAssignments ---
+  for (const topic of Object.values(schedule.topicAssignments)) {
+    topic.dayNumber = remap(topic.dayNumber);
+    if (topic.originalDayNumber !== null) {
+      topic.originalDayNumber = remap(topic.originalDayNumber);
+    }
+    if (topic.referenceDayNumber !== null) {
+      topic.referenceDayNumber = remap(topic.referenceDayNumber);
+    }
+    topic.updatedAt = now;
+  }
+
+  // --- 4) Remap backlogItems ---
+  for (const item of Object.values(userState.backlogItems)) {
+    item.originalDay = remap(item.originalDay);
+    if (item.suggestedDay !== null) {
+      item.suggestedDay = remap(item.suggestedDay);
+    }
+    if (item.rescheduledToDay !== null) {
+      item.rescheduledToDay = remap(item.rescheduledToDay);
+    }
+    item.updatedAt = now;
+  }
+
+  // --- 5) Remap revisionCompletions ---
+  for (const rc of Object.values(userState.revisionCompletions)) {
+    rc.sourceDay = remap(rc.sourceDay);
+  }
+
+  // --- 6) Remap phaseConfig (currentStartDay, currentEndDay only) ---
+  for (const phase of Object.values(schedule.phaseConfig)) {
+    phase.currentStartDay = remap(phase.currentStartDay);
+    phase.currentEndDay = remap(phase.currentEndDay);
+    // Extend Phase 3 end to cover extension days
+    if (phase.phaseNumber === 3 && extensionDays.length > 0) {
+      const maxExtDay = maxWorkbookDay + extensionDays.length;
+      if (phase.currentEndDay < maxExtDay) {
+        phase.currentEndDay = maxExtDay;
+      }
+    }
+    phase.updatedAt = now;
+  }
+
+  // DO NOT remap: gtLogs (store display day numbers), mcqLogs (dates), weeklySummaries (dates)
+
+  // Schedule shape changed without changing mapping inputs.
+  // Force one mapping recompute so mapped dates/hidden flags stay coherent.
+  mappingFingerprintCache.delete(schedule);
+  applyScheduleMappingsFromSettings(schedule, userState.settings, now);
+
+  invalidateRuntimeScheduleIndex(userState);
+
+  return true;
 }

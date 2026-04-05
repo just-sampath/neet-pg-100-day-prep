@@ -154,7 +154,35 @@ describe("TodayPage", () => {
         authMocks.requireCurrentUser.mockResolvedValue({ id: "local-user" });
     });
 
-  it("renders green-day assigned recovery as ordinary topics without recovery framing", async () => {
+    it("renders the completion moment on Day 1 once all non-revision work is done", async () => {
+        const userState = createEmptyUserState();
+        userState.settings.dayOneDate = SIMULATED_DATE;
+        userState.processedDates.repackDates.push(SIMULATED_DATE);
+        ensureUserScheduleSeeded(userState);
+
+        const store = createStore(userState);
+        const dayOne = getScheduleDay(1, userState, store.referenceData)!;
+
+        for (const block of dayOne.blocks.filter((entry) => entry.trackable && entry.semanticBlockKey !== "morning_revision")) {
+            completeBlockItems(userState, 1, block.timeSlotKey, `${SIMULATED_DATE}T12:00:00.000Z`, null, store.referenceData);
+        }
+
+        const data = getHomeData(store, "local-user");
+        expect(data.dayComplete).toBe(true);
+        expect(data.celebrationQuote).toBeTruthy();
+
+        localStoreMocks.readTodayStore.mockResolvedValue({
+            data,
+            userState: store.userState["local-user"],
+            referenceData: store.referenceData,
+        });
+
+        const html = renderToStaticMarkup(await TodayPage());
+
+        expect(html).toContain("Completion Moment");
+    });
+
+    it("renders green-day assigned recovery as ordinary topics without recovery framing", async () => {
         const { store, todayDayNumber, recoveryItemLabel } = createGreenDayRecoveryStore();
         const baseData = getHomeData(store, "local-user");
         const data = {
@@ -182,39 +210,39 @@ describe("TodayPage", () => {
         expect(html).toContain(recoveryItemLabel);
         expect(html).not.toContain("Recovery Radar");
         expect(html).not.toContain("Recovery · Day 5");
-    expect(html).not.toContain(">Rescheduled<");
-  });
-
-  it("uses non-backlog skip copy for final review actions", async () => {
-    const userState = createEmptyUserState();
-    userState.settings.dayOneDate = "2026-04-03";
-    userState.processedDates.midnightDates.push("2026-04-09");
-    userState.processedDates.repackDates.push(SIMULATED_DATE);
-    ensureUserScheduleSeeded(userState);
-
-    const store = createStore(userState);
-    const todayDayNumber = getCurrentDayNumber(userState, SIMULATED_DATE, store.referenceData);
-    const todayDay = getScheduleDay(todayDayNumber, userState, store.referenceData)!;
-    const finalReviewBlock = todayDay.blocks.find((block) => block.semanticBlockKey === "final_review")!;
-
-    for (const block of todayDay.blocks.filter((entry) => entry.trackable && entry.semanticBlockKey !== "final_review")) {
-      completeBlockItems(userState, todayDayNumber, block.timeSlotKey, `${SIMULATED_DATE}T12:00:00.000Z`, null, store.referenceData);
-    }
-
-    const data = getHomeData(store, "local-user");
-    localStoreMocks.readTodayStore.mockResolvedValue({
-      data,
-      userState: store.userState["local-user"],
-      referenceData: store.referenceData,
+        expect(html).not.toContain(">Rescheduled<");
     });
 
-    const html = renderToStaticMarkup(await TodayPage());
-    const finalReviewSkipMatches = [...html.matchAll(
-      new RegExp(`name=\"blockKey\" value=\"${finalReviewBlock.timeSlotKey}\"[\\s\\S]{0,320}name=\"intent\" value=\"skip\"[\\s\\S]{0,160}`, "g"),
-    )].map((match) => match[0]);
-    const finalReviewBlockSkip = finalReviewSkipMatches.find((snippet) => !snippet.includes("name=\"itemId\"")) ?? "";
+    it("uses non-backlog skip copy for final review actions", async () => {
+        const userState = createEmptyUserState();
+        userState.settings.dayOneDate = "2026-04-03";
+        userState.processedDates.midnightDates.push("2026-04-09");
+        userState.processedDates.repackDates.push(SIMULATED_DATE);
+        ensureUserScheduleSeeded(userState);
 
-    expect(finalReviewBlockSkip).toContain("Skip block");
-    expect(finalReviewBlockSkip).not.toContain("Move to backlog");
-  });
+        const store = createStore(userState);
+        const todayDayNumber = getCurrentDayNumber(userState, SIMULATED_DATE, store.referenceData);
+        const todayDay = getScheduleDay(todayDayNumber, userState, store.referenceData)!;
+        const finalReviewBlock = todayDay.blocks.find((block) => block.semanticBlockKey === "final_review")!;
+
+        for (const block of todayDay.blocks.filter((entry) => entry.trackable && entry.semanticBlockKey !== "final_review")) {
+            completeBlockItems(userState, todayDayNumber, block.timeSlotKey, `${SIMULATED_DATE}T12:00:00.000Z`, null, store.referenceData);
+        }
+
+        const data = getHomeData(store, "local-user");
+        localStoreMocks.readTodayStore.mockResolvedValue({
+            data,
+            userState: store.userState["local-user"],
+            referenceData: store.referenceData,
+        });
+
+        const html = renderToStaticMarkup(await TodayPage());
+        const finalReviewSkipMatches = [...html.matchAll(
+            new RegExp(`name=\"blockKey\" value=\"${finalReviewBlock.timeSlotKey}\"[\\s\\S]{0,320}name=\"intent\" value=\"skip\"[\\s\\S]{0,160}`, "g"),
+        )].map((match) => match[0]);
+        const finalReviewBlockSkip = finalReviewSkipMatches.find((snippet) => !snippet.includes("name=\"itemId\"")) ?? "";
+
+        expect(finalReviewBlockSkip).toContain("Skip block");
+        expect(finalReviewBlockSkip).not.toContain("Move to backlog");
+    });
 });

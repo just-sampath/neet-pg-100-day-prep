@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getScheduleListData } from "@/lib/data/app-state";
 import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import type { BacklogItem, LocalStore, RevisionCompletion, RevisionType } from "@/lib/domain/types";
@@ -147,13 +148,20 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: vi.fn(),
 }));
 
+vi.mock("@/lib/supabase/admin", () => ({
+  createSupabaseAdminClient: vi.fn(),
+}));
+
 import {
   createEmptyUserState,
   createRemoteUser,
   isSupabaseRetryableConflictError,
   persistSupabaseStoreForUser,
+  readScheduleBrowserStore,
+  readRuntimeReferenceData,
   readSupabaseStoreForUser,
 } from "@/lib/data/local-store";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function buildRevisionCompletion(sourceItemId: string, revisionType: RevisionType): RevisionCompletion {
@@ -232,6 +240,221 @@ function buildStore(
     dev: {
       simulatedNowIso: null,
     },
+  };
+}
+
+type ReferenceSeedTable = "subject_tiers" | "quote_catalog" | "gt_plan_items" | "revision_map_days";
+
+function compareReferenceOrderValue(left: unknown, right: unknown) {
+  if (left === right) {
+    return 0;
+  }
+
+  return String(left ?? "").localeCompare(String(right ?? ""), undefined, { numeric: true });
+}
+
+function upsertReferenceRows(
+  existingRows: Array<Record<string, unknown>>,
+  incomingRows: Array<Record<string, unknown>>,
+  onConflict: string,
+) {
+  const conflictColumns = onConflict
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+  const nextRows = [...existingRows];
+
+  for (const row of incomingRows) {
+    const matchIndex = nextRows.findIndex((existingRow) =>
+      conflictColumns.every((column) => existingRow[column] === row[column]),
+    );
+
+    if (matchIndex >= 0) {
+      nextRows[matchIndex] = { ...nextRows[matchIndex], ...row };
+      continue;
+    }
+
+    nextRows.push(row);
+  }
+
+  return nextRows;
+}
+
+function createReferenceSeedClients(initialGtPlanRows: Array<Record<string, unknown>> = []) {
+  const tables: Record<ReferenceSeedTable, Array<Record<string, unknown>>> = {
+    subject_tiers: [],
+    quote_catalog: [],
+    gt_plan_items: [...initialGtPlanRows],
+    revision_map_days: [],
+  };
+
+  const admin = {
+    from: vi.fn((table: ReferenceSeedTable) => ({
+      upsert: vi.fn(async (payload: unknown, options: { onConflict: string }) => {
+        const rows = Array.isArray(payload)
+          ? (payload as Array<Record<string, unknown>>)
+          : [payload as Record<string, unknown>];
+
+        if (table === "gt_plan_items" && options.onConflict === "gt_plan_ref") {
+          const hasSourceDayConflict = rows.some((row) =>
+            tables.gt_plan_items.some(
+              (existingRow) =>
+                existingRow.source_day_number === row.source_day_number &&
+                existingRow.gt_plan_ref !== row.gt_plan_ref,
+            ),
+          );
+
+          if (hasSourceDayConflict) {
+            return {
+              error: {
+                code: "23505",
+                message: 'duplicate key value violates unique constraint "gt_plan_items_source_day_number_key"',
+              },
+            };
+          }
+        }
+
+        tables[table] = upsertReferenceRows(tables[table], rows, options.onConflict);
+        return { error: null };
+      }),
+      insert: vi.fn(async (payload: unknown) => {
+        const rows = Array.isArray(payload)
+          ? (payload as Array<Record<string, unknown>>)
+          : [payload as Record<string, unknown>];
+        tables[table] = [...tables[table], ...rows];
+        return { error: null };
+      }),
+      delete: vi.fn(() => ({
+        neq: vi.fn(async () => {
+          tables[table] = [];
+          return { error: null };
+        }),
+      })),
+    })),
+  };
+
+  const server = {
+    from: vi.fn((table: ReferenceSeedTable) => ({
+      select: vi.fn(() => ({
+        order: vi.fn(async (column: string) => ({
+          data: [...tables[table]].sort((left, right) =>
+            compareReferenceOrderValue(left[column], right[column]),
+          ),
+          error: null,
+        })),
+      })),
+    })),
+  };
+
+  return { admin, server };
+}
+
+function compareSupabaseValue(left: unknown, right: unknown, ascending: boolean) {
+  if (left === right) {
+    return 0;
+  }
+  const direction = ascending ? 1 : -1;
+  if (left === null || left === undefined) {
+    return 1 * direction;
+  }
+  if (right === null || right === undefined) {
+    return -1 * direction;
+  }
+  if (typeof left === "number" && typeof right === "number") {
+    return left < right ? -1 * direction : 1 * direction;
+  }
+  const compared = String(left).localeCompare(String(right), undefined, { numeric: true });
+  return compared * direction;
+}
+
+function createSupabaseReadQuery(rows: Array<Record<string, unknown>>) {
+  let filteredRows = [...rows];
+
+  const query = {
+    eq: vi.fn((column: string, value: unknown) => {
+      filteredRows = filteredRows.filter((row) => row[column] === value);
+      return query;
+    }),
+    in: vi.fn((column: string, values: unknown[]) => {
+      filteredRows = filteredRows.filter((row) => values.includes(row[column]));
+      return query;
+    }),
+    not: vi.fn((column: string, operator: string, value: unknown) => {
+      if (operator === "is" && value === null) {
+        filteredRows = filteredRows.filter((row) => row[column] !== null && row[column] !== undefined);
+      }
+      return query;
+    }),
+    order: vi.fn((column: string, options?: { ascending?: boolean }) => {
+      const ascending = options?.ascending ?? true;
+      filteredRows = [...filteredRows].sort((left, right) => compareSupabaseValue(left[column], right[column], ascending));
+      return query;
+    }),
+    range: vi.fn(async (from: number, to: number) => ({
+      data: filteredRows.slice(from, to + 1),
+      error: null,
+    })),
+    maybeSingle: vi.fn(async () => ({
+      data: filteredRows[0] ?? null,
+      error: null,
+    })),
+    then: (
+      onFulfilled: (value: { data: Array<Record<string, unknown>>; error: null }) => unknown,
+      onRejected?: (reason: unknown) => unknown,
+    ) => Promise.resolve({
+      data: [...filteredRows],
+      error: null as null,
+    }).then(onFulfilled, onRejected),
+  };
+
+  return query;
+}
+
+function createBrowserScopedReadSupabaseClient(
+  userId: string,
+  {
+    settingsRow,
+    scheduleDayRows,
+    scheduleAssignmentRows,
+    scheduleBlockRows,
+    backlogRows,
+  }: {
+    settingsRow: Record<string, unknown>;
+    scheduleDayRows: Array<Record<string, unknown>>;
+    scheduleAssignmentRows: Array<Record<string, unknown>>;
+    scheduleBlockRows: Array<Record<string, unknown>>;
+    backlogRows: Array<Record<string, unknown>>;
+  },
+) {
+  const rowsByTable: Record<string, Array<Record<string, unknown>>> = {
+    app_settings: [{ ...settingsRow, user_id: userId }],
+    schedule_days: scheduleDayRows,
+    schedule_topic_assignments: scheduleAssignmentRows,
+    schedule_blocks: scheduleBlockRows,
+    backlog_items: backlogRows,
+    revision_completions: [],
+    subject_tiers: [],
+    quote_catalog: [],
+    gt_plan_items: [],
+    revision_map_days: [],
+  };
+
+  return {
+    auth: {
+      getUser: vi.fn(async () => ({
+        data: {
+          user: {
+            id: userId,
+            email: `${userId}@beside-you.local`,
+            user_metadata: {},
+          },
+        },
+        error: null,
+      })),
+    },
+    from: vi.fn((table: string) => ({
+      select: vi.fn(() => createSupabaseReadQuery(rowsByTable[table] ?? [])),
+    })),
   };
 }
 
@@ -623,6 +846,327 @@ describe("supabase backlog persistence", () => {
       const store = await readSupabaseStoreForUser(createRemoteUser("test-user"), mockReadSupabase as never);
       expect(Object.keys(store.userState["test-user"].schedule.topicAssignments)).toHaveLength(totalAssignments);
     } finally {
+      process.env.BESIDE_YOU_RUNTIME = originalRuntime;
+      process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalAnon;
+    }
+  });
+});
+
+describe("supabase browser-scoped schedule hydration", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("includes assigned backlog rows in browser-scoped schedule completion state", async () => {
+    const originalRuntime = process.env.BESIDE_YOU_RUNTIME;
+    const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const originalAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    const userId = "test-user";
+    const dayNumber = 101;
+    const blockKey = "06:30-07:45";
+    const sourceItemId = "extension-block-a-item";
+
+    const settingsRow = {
+      day_one_date: null,
+      theme: "dark",
+      schedule_shift_days: 0,
+      shift_applied_at: null,
+      shift_events: [],
+      schedule_seed_version: 0,
+      schedule_seeded_at: null,
+      quote_state: {},
+      processed_dates: {
+        midnightDates: [],
+        lateNightSweepDates: [],
+        endOfDaySweepDates: [],
+        weeklySummaryDates: [],
+        repackDates: [],
+      },
+      morning_revision_selections: null,
+      morning_revision_actual_minutes: null,
+      morning_revision_auto_add_notice: null,
+      simulated_now_iso: "2026-05-02T06:30:00.000Z",
+    };
+
+    const scheduleDayRows = [{
+      user_id: userId,
+      day_number: dayNumber,
+      original_day_number: null,
+      phase_id: "phase_1",
+      phase_name: "Phase 1",
+      phase_group: "phase_1",
+      primary_focus_raw: "",
+      primary_focus_parts: [],
+      primary_focus_subject_ids: [],
+      resource_raw: "",
+      resource_parts: [],
+      deliverable_raw: "",
+      notes_raw: null,
+      source_minutes: null,
+      buffer_minutes: null,
+      planned_study_minutes: null,
+      total_study_hours: null,
+      gt_test_type: "No",
+      gt_plan_ref: null,
+      mapped_date: "2026-05-01",
+      original_mapped_date: "2026-05-01",
+      traffic_light: "green",
+      traffic_light_updated_at: "2026-05-01T00:00:00.000Z",
+      is_extension_day: true,
+      shift_hidden_reason: null,
+      merged_partner_day: null,
+      created_at: "2026-05-01T00:00:00.000Z",
+      updated_at: "2026-05-01T00:00:00.000Z",
+    }];
+
+    const scheduleBlockRows = [{
+      user_id: userId,
+      day_number: dayNumber,
+      block_key: blockKey,
+      slot_order: 1,
+      start_time: "06:30",
+      end_time: "07:45",
+      duration_minutes: 75,
+      timeline_kind: "study",
+      display_label: "Block A",
+      semantic_block_key: "block_a",
+      block_intent: "core_study",
+      trackable: true,
+      raw_text: "Extension block",
+      recovery_lane: "core_recovery",
+      phase_fence: "current_phase_preferred",
+      default_revision_eligible: true,
+      reschedulable: true,
+      traffic_light_green: "visible",
+      traffic_light_yellow: "visible",
+      traffic_light_red: "visible",
+      backlog_when_hidden: true,
+      actual_start: null,
+      actual_end: null,
+      timing_note: null,
+      timing_updated_at: null,
+      created_at: "2026-05-01T00:00:00.000Z",
+      updated_at: "2026-05-01T00:00:00.000Z",
+    }];
+
+    const scheduleAssignmentRows = [{
+      user_id: userId,
+      source_item_id: sourceItemId,
+      day_number: dayNumber,
+      block_key: blockKey,
+      item_order: 1,
+      kind: "task",
+      label: "Extension topic",
+      raw_text: "Extension topic",
+      planned_minutes: 60,
+      subject_ids: ["general"],
+      revision_eligible: false,
+      recovery_lane: "core_recovery",
+      phase_fence: "current_phase_preferred",
+      notes: null,
+      revision_type: null,
+      reference_label: null,
+      reference_day_number: null,
+      status: "completed",
+      completed_at: "2026-05-01T07:40:00.000Z",
+      source_tag: null,
+      note: null,
+      is_pinned: false,
+      is_recovery: false,
+      original_day_number: null,
+      original_block_key: null,
+      created_at: "2026-05-01T00:00:00.000Z",
+      updated_at: "2026-05-01T00:00:00.000Z",
+    }];
+
+    const assignedBacklogRow = {
+      id: "assigned-recovery-101",
+      user_id: userId,
+      source_item_id: "assigned-recovery-101",
+      original_day: dayNumber,
+      original_block_key: blockKey,
+      original_start: null,
+      original_end: null,
+      priority_order: 1,
+      topic_description: "Assigned recovery",
+      subject: "General",
+      subject_ids: [],
+      subject_tier: null,
+      planned_minutes: 30,
+      source_tag: "traffic_light",
+      recovery_lane: "core_recovery",
+      phase_fence: "current_phase_preferred",
+      phase: 1,
+      manual_sort_override: null,
+      status: "rescheduled",
+      suggested_day: null,
+      suggested_block_key: null,
+      suggested_note: null,
+      rescheduled_to_day: dayNumber,
+      rescheduled_to_block_key: blockKey,
+      created_at: "2026-05-01T07:45:00.000Z",
+      updated_at: "2026-05-01T07:45:00.000Z",
+      completed_at: null,
+      dismissed_at: null,
+    };
+
+    try {
+      process.env.BESIDE_YOU_RUNTIME = "supabase";
+      process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+
+      const withoutAssignedRecovery = createBrowserScopedReadSupabaseClient(userId, {
+        settingsRow,
+        scheduleDayRows,
+        scheduleAssignmentRows,
+        scheduleBlockRows,
+        backlogRows: [],
+      });
+      vi.mocked(createSupabaseServerClient).mockResolvedValue(withoutAssignedRecovery as never);
+
+      const baselineRows = await readScheduleBrowserStore((store) => getScheduleListData(store, userId));
+      expect(baselineRows.find((row) => row.runtimeDayNumber === dayNumber)?.status).toBe("completed");
+
+      const withAssignedRecovery = createBrowserScopedReadSupabaseClient(userId, {
+        settingsRow,
+        scheduleDayRows,
+        scheduleAssignmentRows,
+        scheduleBlockRows,
+        backlogRows: [assignedBacklogRow],
+      });
+      vi.mocked(createSupabaseServerClient).mockResolvedValue(withAssignedRecovery as never);
+
+      const withAssigned = await readScheduleBrowserStore((store) => {
+        const rows = getScheduleListData(store, userId);
+        const backlogItems = Object.values(store.userState[userId]?.backlogItems ?? {});
+        return {
+          dayStatus: rows.find((row) => row.runtimeDayNumber === dayNumber)?.status ?? null,
+          backlogCount: backlogItems.length,
+          backlogStatus: backlogItems[0]?.status ?? null,
+        };
+      });
+      expect(withAssigned.backlogCount).toBe(1);
+      expect(withAssigned.backlogStatus).toBe("rescheduled");
+      expect(withAssigned.dayStatus).toBe("missed");
+
+      const withCompletedAssignedRecovery = createBrowserScopedReadSupabaseClient(userId, {
+        settingsRow,
+        scheduleDayRows,
+        scheduleAssignmentRows,
+        scheduleBlockRows,
+        backlogRows: [{
+          ...assignedBacklogRow,
+          status: "completed",
+          completed_at: "2026-05-01T07:50:00.000Z",
+          updated_at: "2026-05-01T07:50:00.000Z",
+        }],
+      });
+      vi.mocked(createSupabaseServerClient).mockResolvedValue(withCompletedAssignedRecovery as never);
+
+      const completedAssignedRows = await readScheduleBrowserStore((store) => getScheduleListData(store, userId));
+      expect(completedAssignedRows.find((row) => row.runtimeDayNumber === dayNumber)?.status).toBe("completed");
+    } finally {
+      process.env.BESIDE_YOU_RUNTIME = originalRuntime;
+      process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalAnon;
+    }
+  });
+});
+
+describe("supabase reference seeding", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("logs admin fetch failures as a concise message while falling back to static reference data", async () => {
+    const originalRuntime = process.env.BESIDE_YOU_RUNTIME;
+    const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const originalAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => { });
+
+    try {
+      process.env.BESIDE_YOU_RUNTIME = "supabase";
+      process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+
+      const admin = {
+        from: vi.fn(() => ({
+          upsert: vi.fn(async () => {
+            throw new TypeError("fetch failed");
+          }),
+          insert: vi.fn(async () => ({ error: null })),
+          delete: vi.fn(() => ({
+            neq: vi.fn(async () => ({ error: null })),
+          })),
+        })),
+      };
+
+      const { server } = createReferenceSeedClients();
+
+      vi.mocked(createSupabaseAdminClient).mockReturnValue(admin as never);
+      vi.mocked(createSupabaseServerClient).mockResolvedValue(server as never);
+
+      const runtimeReferenceData = await readRuntimeReferenceData();
+
+      expect(runtimeReferenceData).toEqual(getStaticReferenceData());
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "Supabase admin reference seed skipped: reference seed: fetch failed",
+      );
+    } finally {
+      warnSpy.mockRestore();
+      process.env.BESIDE_YOU_RUNTIME = originalRuntime;
+      process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalAnon;
+    }
+  });
+
+  it("repairs stale gt plan refs when source-day uniqueness blocks reseeding", async () => {
+    const originalRuntime = process.env.BESIDE_YOU_RUNTIME;
+    const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const originalAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => { });
+
+    try {
+      process.env.BESIDE_YOU_RUNTIME = "supabase";
+      process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+
+      const staticReferenceData = getStaticReferenceData();
+      const gt8 = staticReferenceData.scheduleData.gtTestPlan.tests.find((entry) => entry.gtPlanRef === "gt_8");
+      expect(gt8).toBeTruthy();
+
+      const { admin, server } = createReferenceSeedClients([
+        {
+          gt_plan_ref: "legacy_gt_8",
+          source_day_number: gt8!.dayNumber,
+          test_type: gt8!.testType,
+          purpose_raw: gt8!.purposeRaw,
+          what_to_measure_raw: gt8!.whatToMeasureRaw,
+          what_to_measure_items: gt8!.whatToMeasureItems,
+          must_output_raw: gt8!.mustOutputRaw,
+          must_output_items: gt8!.mustOutputItems,
+          resource_raw: gt8!.resourceRaw,
+          review_raw: gt8!.reviewRaw,
+          wrap_up_raw: gt8!.wrapUpRaw,
+          notes_raw: gt8!.notesRaw,
+          seed_version: 0,
+        },
+      ]);
+
+      vi.mocked(createSupabaseAdminClient).mockReturnValue(admin as never);
+      vi.mocked(createSupabaseServerClient).mockResolvedValue(server as never);
+
+      const runtimeReferenceData = await readRuntimeReferenceData();
+
+      expect(warnSpy).not.toHaveBeenCalled();
+      expect(runtimeReferenceData.scheduleData.gtTestPlan.tests).toEqual(
+        staticReferenceData.scheduleData.gtTestPlan.tests,
+      );
+    } finally {
+      warnSpy.mockRestore();
       process.env.BESIDE_YOU_RUNTIME = originalRuntime;
       process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalAnon;

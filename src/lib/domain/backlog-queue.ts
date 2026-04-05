@@ -141,7 +141,6 @@ function isTargetSlotAvailable(
 ) {
   if (
     dayNumber < 1 ||
-    dayNumber > MAX_SCHEDULE_DAY ||
     isCompressedHiddenDay(dayNumber, settings) ||
     !isStudyBoundarySafe(dayNumber, settings, userState)
   ) {
@@ -198,8 +197,6 @@ function buildTargetLabel(dayNumber: number, blockKey: BlockKey, settings: AppSe
 }
 
 function getCompatibleFutureDays(item: BacklogItem, settings: AppSettings, startDay: number, referenceData?: RuntimeReferenceData) {
-  const sourceDay = getScheduleDay(item.originalDay, undefined, referenceData);
-  const sourcePhaseId = sourceDay?.phaseId ?? null;
   const days = getScheduleDays(undefined, referenceData).filter(
     (day) =>
       day.dayNumber >= startDay &&
@@ -207,16 +204,11 @@ function getCompatibleFutureDays(item: BacklogItem, settings: AppSettings, start
       isStudyBoundarySafe(day.dayNumber, settings, undefined),
   );
 
-  if (item.phaseFence === "same_phase_only" || item.phaseFence === "no_auto_cross_phase") {
-    return days.filter((day) => day.phaseId === sourcePhaseId);
+  if (item.phaseFence === "not_reschedulable") {
+    return [];
   }
 
-  if (item.phaseFence === "current_phase_preferred") {
-    const samePhase = days.filter((day) => day.phaseId === sourcePhaseId);
-    return samePhase.length ? samePhase : days;
-  }
-
-  return [];
+  return days;
 }
 
 function findBestTargetBlock(dayNumber: number, userState: UserState, settings: AppSettings, item: BacklogItem, occupiedSlots: Set<string>, referenceData?: RuntimeReferenceData) {
@@ -632,4 +624,4 @@ export function rescheduleBacklogScopeToSuggestions(
     item.rescheduledToBlockKey = item.suggestedBlockKey;
   }
 }
-const MAX_SCHEDULE_DAY = 105;
+

@@ -813,12 +813,9 @@ describe("runMidnightRepack integration", () => {
         }
     });
 
-    it("extends phase 1 after three consecutive red days in the reported sequential flow", () => {
+    it("absorbs three consecutive red days backlog into remaining schedule capacity", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
-
-        const phase1Config = Object.values(userState.schedule.phaseConfig).find((phase) => phase.phaseNumber === 1)!;
-        const originalPhaseEndDay = phase1Config.currentEndDay;
 
         for (const dayNumber of [1, 2, 3] as const) {
             completeVisibleBlocksForDay(userState, dayNumber, "green");
@@ -827,10 +824,11 @@ describe("runMidnightRepack integration", () => {
             runMidnightRepack(userState, userState.settings, nextDate, dayNumber + 1, refData);
         }
 
+        // Track backlog before red days
+        const backlogBefore = Object.values(userState.backlogItems).filter((b) => b.status === "pending").length;
+
         for (const dayNumber of [4, 5, 6] as const) {
-            const phaseEndBeforeRed = phase1Config.currentEndDay;
             applyTrafficLightToDay(userState, dayNumber, "red", { allowRestore: true }, refData);
-            expect(phase1Config.currentEndDay).toBe(phaseEndBeforeRed);
 
             completeVisibleBlocksForDay(userState, dayNumber, "red");
             const nextDate = addDaysToDateOnly(userState.settings.dayOneDate!, dayNumber);
@@ -838,10 +836,27 @@ describe("runMidnightRepack integration", () => {
             runMidnightRepack(userState, userState.settings, nextDate, dayNumber + 1, refData);
         }
 
-        expect(phase1Config.currentEndDay).toBeGreaterThan(originalPhaseEndDay);
+        // With phase-free repack, extensions (if any) go after the schedule tail (101+)
+        const runtimeTail = Math.max(
+            ...Object.values(userState.schedule.days).map((d) => d.dayNumber),
+        );
+        if (runtimeTail > 100) {
+            // Any extension days should be numbered 101+
+            for (let d = 101; d <= runtimeTail; d++) {
+                const extDay = userState.schedule.days[String(d)];
+                expect(extDay).toBeDefined();
+                expect(extDay!.isExtensionDay).toBe(true);
+            }
+        }
+
+        // All repack dates recorded
         expect(userState.processedDates.repackDates).toEqual(
             expect.arrayContaining(["2026-05-02", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06", "2026-05-07"]),
         );
+
+        // The backlog items from red days should have been placed (rescheduled)
+        const rescheduledItems = Object.values(userState.backlogItems).filter((b) => b.status === "rescheduled");
+        expect(rescheduledItems.length).toBeGreaterThan(0);
     });
 
     it("does not place backlog into hidden blocks when repack runs on a red day", () => {
@@ -1284,23 +1299,25 @@ describe("runMidnightRepack extension integration", () => {
         ).not.toContain("Pathology: General pathology");
     });
 
-    it("creates extension days and renumbers subsequent phases", () => {
+    it("creates extension days appended after schedule tail (phase-free)", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
 
-        const phase1Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 1)!;
-        const phase2Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 2)!;
-        const originalPhase2Start = phase2Config.currentStartDay;
-        const originalPhase1End = phase1Config.currentEndDay;
+        const phase3Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 3)!;
 
-        // Pick a day near end of phase 1 to trigger repack
-        const todayDayNumber = originalPhase1End - 2;
-        const todayDate = "2026-07-01";
+        // Find the runtime tail (max dayNumber across all days)
+        const runtimeTailBefore = Math.max(
+            ...Object.values(userState.schedule.days).map((d) => d.dayNumber),
+        );
+
+        // Pick a day near end of schedule to trigger repack
+        const todayDayNumber = runtimeTailBefore - 2;
+        const todayDate = "2026-08-06";
         userState.settings.dayOneDate = "2026-05-01";
 
         // Sabotage: shrink remaining blocks to force overflow into extension
         for (const block of Object.values(userState.schedule.blocks)) {
-            if (block.dayNumber >= todayDayNumber && block.dayNumber <= originalPhase1End) {
+            if (block.dayNumber >= todayDayNumber && block.dayNumber <= runtimeTailBefore) {
                 block.durationMinutes = 1;
             }
         }
@@ -1312,27 +1329,26 @@ describe("runMidnightRepack extension integration", () => {
         if (result.extensionDaysCreated > 0) {
             const extCount = result.extensionDaysCreated;
 
-            // Phase 1 end day should have increased
-            expect(phase1Config.currentEndDay).toBe(originalPhase1End + extCount);
-            expect(phase1Config.extensionsUsed).toBe(extCount);
+            // Phase 3 end day should have extended (extensions append after tail)
+            expect(phase3Config.currentEndDay).toBe(runtimeTailBefore + extCount);
+            expect(phase3Config.extensionsUsed).toBeGreaterThanOrEqual(extCount);
 
-            // Phase 2 start day should have shifted
-            expect(phase2Config.currentStartDay).toBe(originalPhase2Start + extCount);
-
-            // Extension days should exist in the schedule
+            // Extension days should exist AFTER the original schedule tail
             for (let i = 1; i <= extCount; i++) {
-                const extDay = userState.schedule.days[String(originalPhase1End + i)];
+                const extDay = userState.schedule.days[String(runtimeTailBefore + i)];
                 expect(extDay).toBeDefined();
                 expect(extDay!.isExtensionDay).toBe(true);
+                // Extension days are always >= 101 for a 100-day workbook
+                expect(runtimeTailBefore + i).toBeGreaterThanOrEqual(101);
             }
         }
     });
 
-    it("closes stale backlog items from prior phases", () => {
+    it("backlog items from prior phases are still eligible for cross-phase placement", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
 
-        // Create a fake backlog item from phase 1
+        // Create a backlog item from phase 1
         userState.backlogItems["stale-item"] = {
             id: "stale-item",
             sourceItemId: "stale-item",
@@ -1363,7 +1379,7 @@ describe("runMidnightRepack extension integration", () => {
             dismissedAt: null,
         };
 
-        // Run repack from phase 2
+        // Run repack from phase 2 — phase-free repack treats all pending items equally
         const phase2Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 2)!;
         const todayDayNumber = phase2Config.currentStartDay;
         const todayDate = "2026-07-15";
@@ -1371,27 +1387,31 @@ describe("runMidnightRepack extension integration", () => {
         const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
 
         expect(result.skipped).toBe(false);
-        expect(result.phaseTransitionClosed).toBeGreaterThanOrEqual(1);
+        // Phase transition closure no longer happens — items stay eligible
+        expect(result.phaseTransitionClosed).toBe(0);
 
-        // The stale item should be phase_closed
-        expect(userState.backlogItems["stale-item"]!.status).toBe("phase_closed");
+        // The item should NOT be phase_closed; it remains pending or gets placed
+        const item = userState.backlogItems["stale-item"]!;
+        expect(item.status).not.toBe("phase_closed");
     });
 
     it("fully exhausts extension budget before marking phase_closed", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
 
-        const phase1Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 1)!;
-        const originalBudget = phase1Config.extensionBudget;
-        const phaseEndDay = phase1Config.currentEndDay;
+        // Find runtime tail
+        const runtimeTailBefore = Math.max(
+            ...Object.values(userState.schedule.days).map((d) => d.dayNumber),
+        );
 
-        // Pick a day near end of phase with heavy sabotage
-        const todayDayNumber = phaseEndDay - 1;
-        const todayDate = "2026-07-02";
+        // Pick a day near end of schedule with heavy sabotage
+        const todayDayNumber = runtimeTailBefore - 1;
+        const todayDate = "2026-08-06";
+        userState.settings.dayOneDate = "2026-05-01";
 
         // Extreme sabotage: zero-out remaining capacity
         for (const block of Object.values(userState.schedule.blocks)) {
-            if (block.dayNumber >= todayDayNumber && block.dayNumber <= phaseEndDay) {
+            if (block.dayNumber >= todayDayNumber && block.dayNumber <= runtimeTailBefore) {
                 block.durationMinutes = 0;
             }
         }
@@ -1400,33 +1420,43 @@ describe("runMidnightRepack extension integration", () => {
 
         expect(result.skipped).toBe(false);
 
-        // Should have used extension days (up to budget)
-        // Items remaining after extension become phase_closed
+        // Should have used extension days if there were items to place
+        // Budget is distance to HARD_BOUNDARY_DATE minus buffer
         if (result.extensionDaysCreated > 0) {
-            expect(result.extensionDaysCreated).toBeLessThanOrEqual(originalBudget);
+            // Extension days go AFTER the schedule tail
+            for (let i = 1; i <= result.extensionDaysCreated; i++) {
+                const extDay = userState.schedule.days[String(runtimeTailBefore + i)];
+                expect(extDay).toBeDefined();
+                expect(extDay!.isExtensionDay).toBe(true);
+            }
         }
     });
 
-    it("shifts mapped_dates forward on all days after the extension insertion point", () => {
+    it("extension days append after schedule tail without shifting existing mapped_dates", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
 
-        const phase1Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 1)!;
-        const phase2Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 2)!;
-        const phaseEndDay = phase1Config.currentEndDay;
-        const phase2StartDay = phase2Config.currentStartDay;
+        // Find runtime tail
+        const runtimeTailBefore = Math.max(
+            ...Object.values(userState.schedule.days).map((d) => d.dayNumber),
+        );
 
-        // Capture the original mapped_date of the first Phase 2 day (right after insertion point)
-        const firstPhase2DayBefore = userState.schedule.days[String(phase2StartDay)]!;
-        const originalMappedDate = firstPhase2DayBefore.mappedDate;
+        // Capture a few existing days' mapped dates
+        const day50Before = userState.schedule.days["50"]!;
+        const day80Before = userState.schedule.days["80"]!;
+        const tailDayBefore = userState.schedule.days[String(runtimeTailBefore)]!;
+        const origMapped50 = day50Before.mappedDate;
+        const origMapped80 = day80Before.mappedDate;
+        const origMappedTail = tailDayBefore.mappedDate;
 
-        // Pick a day near end of phase 1 to trigger repack
-        const todayDayNumber = phaseEndDay - 2;
-        const todayDate = "2026-07-01";
+        // Pick a day near end of schedule to trigger repack
+        const todayDayNumber = runtimeTailBefore - 2;
+        const todayDate = "2026-08-06";
+        userState.settings.dayOneDate = "2026-05-01";
 
         // Sabotage: shrink remaining blocks to force overflow into extension
         for (const block of Object.values(userState.schedule.blocks)) {
-            if (block.dayNumber >= todayDayNumber && block.dayNumber <= phaseEndDay) {
+            if (block.dayNumber >= todayDayNumber && block.dayNumber <= runtimeTailBefore) {
                 block.durationMinutes = 1;
             }
         }
@@ -1434,24 +1464,23 @@ describe("runMidnightRepack extension integration", () => {
         const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
 
         if (result.extensionDaysCreated > 0) {
-            const extCount = result.extensionDaysCreated;
+            // Existing days' mapped dates must NOT have changed (no cascade)
+            expect(userState.schedule.days["50"]!.mappedDate).toBe(origMapped50);
+            expect(userState.schedule.days["80"]!.mappedDate).toBe(origMapped80);
+            expect(userState.schedule.days[String(runtimeTailBefore)]!.mappedDate).toBe(origMappedTail);
 
-            // The old first Phase 2 day is now at phase2StartDay + extCount
-            const shiftedPhase2Day = userState.schedule.days[String(phase2StartDay + extCount)]!;
-            expect(shiftedPhase2Day).toBeDefined();
-
-            // Its mapped_date must be shifted forward by extCount days
-            const expectedDate = new Date(originalMappedDate);
-            expectedDate.setDate(expectedDate.getDate() + extCount);
-            const expectedStr = expectedDate.toISOString().slice(0, 10);
-            expect(shiftedPhase2Day.mappedDate).toBe(expectedStr);
-
-            // originalMappedDate should be unchanged (it records the workbook origin)
-            expect(shiftedPhase2Day.originalMappedDate).toBe(firstPhase2DayBefore.originalMappedDate);
+            // Extension days appended after tail have sequential mapped dates
+            for (let i = 1; i <= result.extensionDaysCreated; i++) {
+                const extDay = userState.schedule.days[String(runtimeTailBefore + i)];
+                expect(extDay).toBeDefined();
+                const expectedDate = new Date(origMappedTail);
+                expectedDate.setDate(expectedDate.getDate() + i);
+                expect(extDay!.mappedDate).toBe(expectedDate.toISOString().slice(0, 10));
+            }
         }
     });
 
-    it("migrates legacy repack_overflow backlog items from prior phases to phase_closed", () => {
+    it("legacy repack_overflow backlog items from prior phases remain eligible for placement", () => {
         const userState = createConfiguredUserState();
         ensureUserScheduleSeeded(userState);
 
@@ -1486,7 +1515,7 @@ describe("runMidnightRepack extension integration", () => {
             dismissedAt: null,
         };
 
-        // Run repack from Phase 2 — the stale Phase 1 item should be closed
+        // Run repack from Phase 2 — phase-free means no cross-phase closure
         const phase2Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 2)!;
         const todayDayNumber = phase2Config.currentStartDay;
         const todayDate = "2026-07-15";
@@ -1494,7 +1523,51 @@ describe("runMidnightRepack extension integration", () => {
         const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
 
         expect(result.skipped).toBe(false);
-        expect(result.phaseTransitionClosed).toBeGreaterThanOrEqual(1);
-        expect(userState.backlogItems["legacy-overflow"]!.status).toBe("phase_closed");
+        expect(result.phaseTransitionClosed).toBe(0);
+        // Item stays eligible — not phase_closed
+        expect(userState.backlogItems["legacy-overflow"]!.status).not.toBe("phase_closed");
     });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 0 — Test 2: Extension days must be placed at Day 101+, not mid-schedule
+// ---------------------------------------------------------------------------
+describe("phase-free repack extension day positioning", () => {
+    it("places extension days at Day 101+ after removing phase constraints", () => {
+        const userState = createConfiguredUserState();
+        ensureUserScheduleSeeded(userState);
+
+        const phase1Config = Object.values(userState.schedule.phaseConfig).find((p) => p.phaseNumber === 1)!;
+        const originalPhase1End = phase1Config.currentEndDay;
+
+        // Pick a day near end of phase 1 to trigger repack with overflow
+        const todayDayNumber = originalPhase1End - 2;
+        const todayDate = "2026-07-01";
+
+        // Shrink remaining blocks to force overflow → extension days
+        for (const block of Object.values(userState.schedule.blocks)) {
+            if (block.dayNumber >= todayDayNumber && block.dayNumber <= originalPhase1End) {
+                block.durationMinutes = 1;
+            }
+        }
+
+        const result = runMidnightRepack(userState, userState.settings, todayDate, todayDayNumber, refData);
+
+        expect(result.skipped).toBe(false);
+        expect(result.extensionDaysCreated).toBeGreaterThan(0);
+
+        // ALL extension days must be at Day 101+, NOT at phase end + 1 (mid-schedule)
+        for (const [, dayRow] of Object.entries(userState.schedule.days)) {
+            if (dayRow.isExtensionDay) {
+                expect(dayRow.dayNumber).toBeGreaterThanOrEqual(101);
+            }
+        }
+
+        // No non-extension day should have dayNumber > 100
+        for (const [, dayRow] of Object.entries(userState.schedule.days)) {
+            if (!dayRow.isExtensionDay) {
+                expect(dayRow.dayNumber).toBeLessThanOrEqual(100);
+            }
+        }
+    }, 30_000);
 });

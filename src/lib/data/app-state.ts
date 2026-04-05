@@ -92,8 +92,6 @@ import type {
   GtLog,
   LocalStore,
   RevisionType,
-  ScheduleBlockRow,
-  ScheduleDayRow,
   ScheduleTopicAssignmentRow,
   SubjectTier,
   TopicProgress,
@@ -106,13 +104,21 @@ import { getEffectiveNow, isSupabaseGuardedReadStore } from "@/lib/data/local-st
 
 import {
   addDaysToDateOnly,
+  diffDays,
   getMinutesInTimeZone,
   getWeekdayInTimeZone,
   IST_TIME_ZONE,
   toDateOnlyInTimeZone,
   weekBounds,
 } from "@/lib/utils/date";
-import { applyScheduleMappingsFromSettings, buildExtensionDayRows, ensureUserScheduleSeeded, getExtensionDayCapacityTemplate } from "@/lib/data/schedule-seed";
+import {
+  applyScheduleMappingsFromSettings,
+  buildExtensionDayRows,
+  detectLegacyScheduleLayout as detectLegacyScheduleLayoutImpl,
+  ensureUserScheduleSeeded,
+  getExtensionDayCapacityTemplate,
+  migrateToCanonicalLayout as migrateToCanonicalLayoutImpl,
+} from "@/lib/data/schedule-seed";
 
 function timingKey(dayNumber: number, blockKey: BlockKey) {
   return `${dayNumber}:${blockKey}`;
@@ -816,6 +822,20 @@ function markNoDueMorningRevisionClosed(userState: UserState, dayNumber: number,
   timing.updatedAt = closedAt;
 }
 
+function getMorningRevisionSessionPlanForDay(
+  userState: UserState,
+  dayNumber: number,
+  referenceData?: LocalStore["referenceData"],
+) {
+  const mappedDate = getMappedDate(dayNumber, userState);
+  if (!mappedDate) {
+    return null;
+  }
+
+  const revisionPlan = buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData);
+  return revisionPlan.blockStatusMode === "revision_sessions" ? revisionPlan : null;
+}
+
 export function applyTrafficLightToDay(
   userState: UserState,
   dayNumber: number,
@@ -892,9 +912,8 @@ export function moveVisibleBlocksToBacklog(
         continue;
       }
 
-      const mappedDate = getMappedDate(dayNumber, userState);
-      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
-      if (!revisionPlan || revisionPlan.morningSessionPlanned === 0) {
+      const revisionPlan = getMorningRevisionSessionPlanForDay(userState, dayNumber, referenceData);
+      if (!revisionPlan || revisionPlan.morningSessionPlanned === 0 || revisionPlan.morningSessionRemaining === 0) {
         continue;
       }
 
@@ -961,9 +980,8 @@ export function runBlockOverrunCutoff(
     }
 
     if (block.semanticBlockKey === "morning_revision") {
-      const mappedDate = getMappedDate(todayDayNumber, userState);
-      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
-      if (revisionPlan && revisionPlan.morningSessionPlanned > 0) {
+      const revisionPlan = getMorningRevisionSessionPlanForDay(userState, todayDayNumber, referenceData);
+      if (revisionPlan && revisionPlan.morningSessionPlanned > 0 && revisionPlan.morningSessionRemaining > 0) {
         for (const item of block.items) {
           const progress = getTopicProgress(userState, item, todayDayNumber, blockKey);
           if (progress.status === "pending") {
@@ -1023,9 +1041,8 @@ export function runEndOfDaySweep(
     }
 
     if (block.semanticBlockKey === "morning_revision") {
-      const mappedDate = getMappedDate(todayDayNumber, userState);
-      const revisionPlan = mappedDate ? buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData) : null;
-      if (revisionPlan && revisionPlan.morningSessionPlanned > 0) {
+      const revisionPlan = getMorningRevisionSessionPlanForDay(userState, todayDayNumber, referenceData);
+      if (revisionPlan && revisionPlan.morningSessionPlanned > 0 && revisionPlan.morningSessionRemaining > 0) {
         for (const item of block.items) {
           const progress = getTopicProgress(userState, item, todayDayNumber, blockKey);
           if (progress.status === "pending") {
@@ -1949,6 +1966,23 @@ function normalizeTouchedSlotOrders(
   return changed;
 }
 
+// ---------------------------------------------------------------------------
+// Legacy Schedule Layout Detection & Migration
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect whether the schedule has a legacy layout caused by mid-schedule
+ * extension day insertion. In a legacy layout, non-extension days have been
+ * shifted forward so their `dayNumber !== originalDayNumber`.
+ */
+export function detectLegacyScheduleLayout(userState: UserState): boolean {
+  return detectLegacyScheduleLayoutImpl(userState);
+}
+
+export function migrateToCanonicalLayout(userState: UserState): boolean {
+  return migrateToCanonicalLayoutImpl(userState);
+}
+
 function resolvePhaseFromConfig(dayNumber: number, userState: UserState): number | null {
   for (const phase of Object.values(userState.schedule.phaseConfig)) {
     if (dayNumber >= phase.currentStartDay && dayNumber <= phase.currentEndDay) {
@@ -1964,132 +1998,6 @@ function resolvePhaseFromConfig(dayNumber: number, userState: UserState): number
 
 // Provided by getExtensionDayCapacityTemplate() from schedule-seed.ts
 
-// ---------------------------------------------------------------------------
-// Renumber Cascade
-// ---------------------------------------------------------------------------
-
-/**
- * Shift all days after `insertionPoint` forward by `count` positions.
- *
- * This maintains contiguous day_number sequences when extension days are
- * inserted at the end of a phase. All references in days, blocks,
- * topicAssignments, backlogItems, and downstream phases are updated.
- * Mapped dates on shifted days are also pushed forward by `count` days
- * so the schedule browser shows correct calendar dates.
- *
- * Operates in-place on userState for efficiency. Rebuilds the Record maps
- * with new string keys so lookups remain correct.
- */
-function applyRenumberCascade(
-  userState: UserState,
-  insertionPoint: number,
-  count: number,
-  now: string,
-): void {
-  if (count <= 0) return;
-
-  const schedule = userState.schedule;
-
-  // --- 1) Rebuild days: shift keys > insertionPoint forward by count ---
-  //     Also shift mapped_date forward by count calendar days.
-  const newDays: Record<string, ScheduleDayRow> = {};
-  for (const [key, day] of Object.entries(schedule.days)) {
-    if (day.dayNumber > insertionPoint) {
-      day.dayNumber += count;
-      day.mappedDate = addDaysToDateOnly(day.mappedDate, count);
-      day.updatedAt = now;
-      newDays[String(day.dayNumber)] = day;
-    } else {
-      newDays[key] = day;
-    }
-  }
-  schedule.days = newDays;
-
-  // --- 2) Rebuild blocks: shift dayNumber > insertionPoint ---
-  const newBlocks: Record<string, ScheduleBlockRow> = {};
-  for (const block of Object.values(schedule.blocks)) {
-    if (block.dayNumber > insertionPoint) {
-      block.dayNumber += count;
-      block.updatedAt = now;
-    }
-    newBlocks[`${block.dayNumber}:${block.blockKey}`] = block;
-  }
-  schedule.blocks = newBlocks;
-
-  // --- 3) Update topicAssignments: shift dayNumber > insertionPoint ---
-  for (const topic of Object.values(schedule.topicAssignments)) {
-    if (topic.dayNumber > insertionPoint) {
-      topic.dayNumber += count;
-      topic.updatedAt = now;
-    }
-    // Also shift originalDayNumber if it pointed past the insertion
-    if (topic.originalDayNumber && topic.originalDayNumber > insertionPoint) {
-      topic.originalDayNumber += count;
-    }
-  }
-
-  // --- 4) Update backlogItems: shift day references ---
-  for (const item of Object.values(userState.backlogItems)) {
-    if (item.originalDay > insertionPoint) {
-      item.originalDay += count;
-      item.updatedAt = now;
-    }
-    if (item.suggestedDay && item.suggestedDay > insertionPoint) {
-      item.suggestedDay += count;
-    }
-    if (item.rescheduledToDay && item.rescheduledToDay > insertionPoint) {
-      item.rescheduledToDay += count;
-    }
-  }
-
-  // --- 5) Update phaseConfig: shift start/end day boundaries ---
-  for (const phase of Object.values(schedule.phaseConfig)) {
-    if (phase.currentStartDay > insertionPoint) {
-      phase.currentStartDay += count;
-      phase.updatedAt = now;
-    }
-    if (phase.currentEndDay > insertionPoint) {
-      phase.currentEndDay += count;
-      phase.updatedAt = now;
-    }
-  }
-
-  invalidateRuntimeScheduleIndex(userState);
-}
-
-// ---------------------------------------------------------------------------
-// Phase Transition Backlog Cleanup
-// ---------------------------------------------------------------------------
-
-/**
- * When a repack runs, close any pending backlog items that belong to a
- * phase earlier than the current one. These items can never be placed
- * because phase fencing prevents cross-phase movement.
- *
- * This also migrates legacy `repack_overflow` backlog items from prior
- * Chunk 4 repacks — they'll be caught here and terminally closed.
- */
-function closeStalePhaseBacklog(
-  userState: UserState,
-  currentPhaseNumber: number,
-  now: string,
-): number {
-  let closed = 0;
-  for (const item of Object.values(userState.backlogItems)) {
-    if (
-      item.status === "pending" &&
-      item.phase !== null &&
-      item.phase < currentPhaseNumber
-    ) {
-      item.status = "phase_closed";
-      item.sourceTag = "phase_closed";
-      item.updatedAt = now;
-      closed++;
-    }
-  }
-  return closed;
-}
-
 /**
  * Full midnight repack orchestrator.
  *
@@ -2098,10 +2006,9 @@ function closeStalePhaseBacklog(
  * can insert backlog work at the front of the remaining schedule and push the
  * original workbook sequence forward.
  *
- * Phase extension: when the placement queue overflows the current phase, the
- * engine adds full study days at the end of the phase (up to the phase's
- * extension budget), renumbers all subsequent days to keep day_numbers
- * contiguous, and marks truly unplaceable items as terminal phase_closed.
+ * Phase-free: extensions are always appended after the last runtime day
+ * (workbook or existing extension). Budget is derived from the distance
+ * between the last day's mapped date and the hard study boundary.
  */
 export function runMidnightRepack(
   userState: UserState,
@@ -2130,25 +2037,28 @@ export function runMidnightRepack(
 
   const now = new Date().toISOString();
 
-  // --- Find current phase ---
-  let currentPhase: typeof userState.schedule.phaseConfig[string] | null = null;
-  for (const phase of Object.values(userState.schedule.phaseConfig)) {
-    if (todayDayNumber >= phase.currentStartDay && todayDayNumber <= phase.currentEndDay) {
-      currentPhase = phase;
-      break;
+  // --- Compute tail day numbers ---
+  // workbookTailDay: max dayNumber across non-extension days (typically 100)
+  // runtimeTailDay: max dayNumber across ALL days including extensions
+  let workbookTailDay = 0;
+  let runtimeTailDay = 0;
+  for (const day of Object.values(userState.schedule.days)) {
+    if (!day.isExtensionDay && day.dayNumber > workbookTailDay) {
+      workbookTailDay = day.dayNumber;
+    }
+    if (day.dayNumber > runtimeTailDay) {
+      runtimeTailDay = day.dayNumber;
     }
   }
 
-  if (!currentPhase) {
-    return emptyResult("no_phase");
+  if (workbookTailDay === 0) {
+    return emptyResult("no_schedule_days");
   }
 
-  const phaseEndDay = currentPhase.currentEndDay;
+  // phaseEndDay now covers the entire live schedule
+  const phaseEndDay = runtimeTailDay;
 
-  // --- Close stale backlog from prior phases ---
-  const phaseTransitionClosed = closeStalePhaseBacklog(userState, currentPhase.phaseNumber, now);
-
-  // --- Collect inputs ---
+  // --- Collect inputs across the full schedule ---
   const { pendingBacklog, futureTopics, rawCapacities } = collectRepackInputs(
     userState,
     todayDayNumber,
@@ -2156,21 +2066,27 @@ export function runMidnightRepack(
     referenceData,
   );
 
-  // --- Build extension context ---
-  const remainingBudget = currentPhase.extensionBudget - currentPhase.extensionsUsed;
-  let extensionContext: ExtensionContext | undefined;
+  // --- Build extension context from hard boundary ---
+  const runtimeTailDayRow = userState.schedule.days[String(runtimeTailDay)];
+  const runtimeTailMappedDate = runtimeTailDayRow?.mappedDate
+    ?? addDaysToDateOnly(settings.dayOneDate, runtimeTailDay - 1);
 
+  // Compute remaining budget from distance to hard boundary
+  const daysToHardBoundary = diffDays(HARD_BOUNDARY_DATE, runtimeTailMappedDate);
+  const remainingBudget = Math.max(0, daysToHardBoundary - 1); // leave 1 day buffer
+
+  let extensionContext: ExtensionContext | undefined;
   if (remainingBudget > 0) {
-    // Resolve the mapped_date of the current phase end day
-    const phaseEndDayRow = userState.schedule.days[String(phaseEndDay)];
-    const phaseEndMappedDate = phaseEndDayRow?.mappedDate ?? addDaysToDateOnly(settings.dayOneDate, phaseEndDay - 1);
+    // Use Phase 3 metadata for extension days
+    const phase3 = Object.values(userState.schedule.phaseConfig)
+      .find((p) => p.phaseNumber === 3);
 
     extensionContext = {
       remainingBudget,
-      phaseEndDay,
-      phaseEndMappedDate,
+      phaseEndDay: runtimeTailDay,
+      phaseEndMappedDate: runtimeTailMappedDate,
       hardStopDate: HARD_BOUNDARY_DATE,
-      phaseNumber: currentPhase.phaseNumber,
+      phaseNumber: phase3?.phaseNumber ?? 3,
       extensionDayBlockCapacities: getExtensionDayCapacityTemplate(),
     };
   }
@@ -2178,24 +2094,20 @@ export function runMidnightRepack(
   // --- Run pure algorithm ---
   const output = runRepackAlgorithm(pendingBacklog, futureTopics, rawCapacities, extensionContext);
 
-  // --- If extension days were used, apply renumber cascade + insert extension days ---
+  // --- If extension days were used, insert at end (no renumber cascade needed) ---
   if (output.extensionDaysUsed > 0) {
-    // 1) Renumber: shift everything after phaseEndDay forward
-    applyRenumberCascade(userState, phaseEndDay, output.extensionDaysUsed, now);
-
-    // 2) Insert extension day rows
-    const phaseEndDayRow = userState.schedule.days[String(phaseEndDay)];
-    const phaseEndMappedDate = phaseEndDayRow?.mappedDate ?? addDaysToDateOnly(settings.dayOneDate, phaseEndDay - 1);
+    const phase3 = Object.values(userState.schedule.phaseConfig)
+      .find((p) => p.phaseNumber === 3);
 
     for (let i = 1; i <= output.extensionDaysUsed; i++) {
-      const extDayNumber = phaseEndDay + i;
-      const extMappedDate = addDaysToDateOnly(phaseEndMappedDate, i);
+      const extDayNumber = runtimeTailDay + i;
+      const extMappedDate = addDaysToDateOnly(runtimeTailMappedDate, i);
 
       const { dayRow, blockRows } = buildExtensionDayRows(
         extDayNumber,
-        currentPhase.phaseId,
-        `phase_${currentPhase.phaseNumber}` as "phase_1" | "phase_2" | "phase_3",
-        `Phase ${currentPhase.phaseNumber}`,
+        phase3?.phaseId ?? "phase_3",
+        "phase_3",
+        "Phase 3",
         extMappedDate,
         now,
       );
@@ -2206,10 +2118,12 @@ export function runMidnightRepack(
       }
     }
 
-    // 3) Update phase config: extend end day and record usage
-    currentPhase.currentEndDay = phaseEndDay + output.extensionDaysUsed;
-    currentPhase.extensionsUsed += output.extensionDaysUsed;
-    currentPhase.updatedAt = now;
+    // Update Phase 3 config to include extension days
+    if (phase3) {
+      phase3.currentEndDay = runtimeTailDay + output.extensionDaysUsed;
+      phase3.extensionsUsed += output.extensionDaysUsed;
+      phase3.updatedAt = now;
+    }
 
     invalidateRuntimeScheduleIndex(userState);
   }
@@ -2229,7 +2143,7 @@ export function runMidnightRepack(
     backlogRescheduled,
     extensionDaysCreated: output.stats.extensionDaysCreated,
     phaseClosed: output.stats.phaseClosed,
-    phaseTransitionClosed,
+    phaseTransitionClosed: 0,
   };
 }
 
@@ -2655,72 +2569,38 @@ export function getScheduleListData(store: LocalStore, userId: string) {
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
   const todayRuntimeDayNumber = getCurrentDayNumber(userState, todayDate, store.referenceData);
-  const todayDisplayDayNumber = getDisplayDayNumber(todayRuntimeDayNumber, userState);
 
   return withRevisionCache(() => {
-    const plannedDays = store.referenceData.scheduleData.daywisePlan.days.map((referenceDay) => {
-      const runtimeDayNumber = getRuntimeDayNumberForDisplayDay(referenceDay.dayNumber, userState) ?? referenceDay.dayNumber;
-      const day = getScheduleDay(runtimeDayNumber, userState, store.referenceData);
-      if (!day) {
-        return null;
-      }
-
-      const mappedDate = getMappedDate(runtimeDayNumber, userState);
-      const originalPlannedDate = getOriginalPlannedDate(referenceDay.dayNumber, userState.settings);
-      const dayState = getDayState(userState, runtimeDayNumber);
-      const completed = getDayCompletionState(day, userState, dayState.trafficLight, store.referenceData);
-      const isPastVisibleDay = mappedDate !== null && mappedDate < todayDate;
-      const isToday = todayDisplayDayNumber !== null && referenceDay.dayNumber === todayDisplayDayNumber;
-
-      return {
-        ...day,
-        dayNumber: referenceDay.dayNumber,
-        runtimeDayNumber,
-        mappedDate,
-        originalPlannedDate,
-        trafficLight: dayState.trafficLight,
-        today: isToday,
-        completed,
-        mergedPartnerDay: getMergedPartner(referenceDay.dayNumber, userState.settings),
-        hiddenByCompression: isCompressedHiddenDay(referenceDay.dayNumber, userState.settings),
-        hiddenShiftLabel: getShiftHiddenDayLabel(referenceDay.dayNumber, userState.settings),
-        status: isToday
-          ? "today"
-          : completed
-            ? "completed"
-            : isPastVisibleDay
-              ? "missed"
-              : "upcoming",
-      };
-    }).filter((day): day is NonNullable<typeof day> => day !== null);
-
-    const extensionDays = Object.values(userState.schedule.days)
-      .filter((row) => row.isExtensionDay === true)
+    return Object.values(userState.schedule.days)
       .toSorted((left, right) => left.dayNumber - right.dayNumber)
-      .map((row) => {
+      .flatMap((row) => {
         const day = getScheduleDay(row.dayNumber, userState, store.referenceData);
         if (!day) {
-          return null;
+          return [];
         }
 
+        const isExtension = row.isExtensionDay === true;
+        const displayDayNumber = isExtension ? row.dayNumber : (row.originalDayNumber ?? row.dayNumber);
         const mappedDate = getMappedDate(row.dayNumber, userState);
+        const originalPlannedDate = isExtension ? null : getOriginalPlannedDate(displayDayNumber, userState.settings);
         const dayState = getDayState(userState, row.dayNumber);
         const completed = getDayCompletionState(day, userState, dayState.trafficLight, store.referenceData);
         const isPastVisibleDay = mappedDate !== null && mappedDate < todayDate;
         const isToday = row.dayNumber === todayRuntimeDayNumber;
 
-        return {
+        return [{
           ...day,
-          dayNumber: row.dayNumber,
+          dayNumber: displayDayNumber,
           runtimeDayNumber: row.dayNumber,
+          isExtensionDay: isExtension,
           mappedDate,
-          originalPlannedDate: null,
+          originalPlannedDate,
           trafficLight: dayState.trafficLight,
           today: isToday,
           completed,
-          mergedPartnerDay: null,
-          hiddenByCompression: false,
-          hiddenShiftLabel: null,
+          mergedPartnerDay: isExtension ? null : getMergedPartner(displayDayNumber, userState.settings),
+          hiddenByCompression: isExtension ? false : isCompressedHiddenDay(displayDayNumber, userState.settings),
+          hiddenShiftLabel: isExtension ? null : getShiftHiddenDayLabel(displayDayNumber, userState.settings),
           status: isToday
             ? "today"
             : completed
@@ -2728,11 +2608,8 @@ export function getScheduleListData(store: LocalStore, userId: string) {
               : isPastVisibleDay
                 ? "missed"
                 : "upcoming",
-        };
-      })
-      .filter((day): day is NonNullable<typeof day> => day !== null);
-
-    return [...plannedDays, ...extensionDays];
+        }];
+      });
   });
 }
 
@@ -2741,7 +2618,13 @@ export function getDayDetailData(store: LocalStore, userId: string, dayNumber: n
   const userState = store.userState[userId];
   const now = getEffectiveNow(store);
   const todayDate = toDateOnlyInTimeZone(now, IST_TIME_ZONE);
-  const runtimeDayNumber = getRuntimeDayNumberForDisplayDay(dayNumber, userState) ?? dayNumber;
+
+  // Runtime row first: if there is a day row at this exact dayNumber, use it.
+  // Fallback: resolve display→runtime for workbook days that may have shifted.
+  const directRow = userState.schedule.days[String(dayNumber)];
+  const runtimeDayNumber = directRow
+    ? dayNumber
+    : getRuntimeDayNumberForDisplayDay(dayNumber, userState) ?? dayNumber;
   const day = getScheduleDay(runtimeDayNumber, userState, store.referenceData);
   if (!day) {
     return null;

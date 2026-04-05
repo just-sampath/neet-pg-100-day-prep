@@ -4,7 +4,6 @@ import {
   EXAM_DATE,
   HARD_BOUNDARY_DATE,
   MORNING_REVISION_SLOT_PLAN,
-  NO_DUE_MORNING_REVISION_NOTE,
   REVISION_INTERVALS,
   SHIFT_COMPRESSION_PAIRS,
 } from "@/lib/domain/constants";
@@ -38,8 +37,6 @@ import type {
 } from "@/lib/domain/types";
 import { getRuntimeMode } from "@/lib/runtime/mode";
 import { addDaysToDateOnly, diffDays, parseDateOnly, toDateOnlyInTimeZone } from "@/lib/utils/date";
-
-const MAX_SCHEDULE_DAY = 105;
 
 type ReferenceScheduleIndex = {
   dayByNumber: Map<number, ScheduleDayPlan>;
@@ -291,9 +288,10 @@ function buildRuntimeScheduleDay(
     return null;
   }
 
+  const referenceDayNumber = dayRow.originalDayNumber ?? dayNumber;
   const templateBlocks = dayRow.isExtensionDay
     ? []
-    : getReferenceScheduleIndex(referenceData).dayByNumber.get(dayNumber)?.blocks ?? [];
+    : getReferenceScheduleIndex(referenceData).dayByNumber.get(referenceDayNumber)?.blocks ?? [];
   const runtimeBlockRows = runtimeIndex.blockRowsByDay.get(dayNumber) ?? [];
   const runtimeBlockRowsByKey = new Map(runtimeBlockRows.map((entry) => [entry.blockKey, entry] as const));
   const blocks = templateBlocks.map((templateBlock) =>
@@ -849,6 +847,26 @@ export function getBlockProgress(
       const revisionPlan = buildDailyRevisionPlan(mappedDate, userState, userState.settings, referenceData);
       if (revisionPlan.blockStatusMode === "revision_sessions") {
         const nativeStatus = getDerivedStatus(nativeProgress.map((entry) => entry.status));
+        const revisionSessionsComplete =
+          revisionPlan.morningSessionPlanned === 0 ||
+          revisionPlan.morningSessionRemaining === 0;
+
+        if (revisionSessionsComplete) {
+          return {
+            dayNumber,
+            blockKey,
+            status: "completed",
+            actualStart: timing.actualStart,
+            actualEnd: timing.actualEnd,
+            completedAt: timing.updatedAt ?? getLastCompletedAt(nativeProgress.map((entry) => entry.completedAt)),
+            sourceTag: null,
+            note: timing.note,
+            completedItemCount: revisionPlan.morningSessionCompleted,
+            totalItemCount: revisionPlan.morningSessionPlanned,
+            unresolvedItemCount: 0,
+          };
+        }
+
         if (nativeStatus === "missed" || nativeStatus === "skipped" || nativeStatus === "rescheduled") {
           return {
             dayNumber,
@@ -865,16 +883,9 @@ export function getBlockProgress(
           };
         }
 
-        const status =
-          revisionPlan.morningSessionPlanned === 0
-            ? timing.note === NO_DUE_MORNING_REVISION_NOTE || nativeStatus === "completed"
-              ? "completed"
-              : "pending"
-            : revisionPlan.morningSessionRemaining === 0
-              ? "completed"
-              : revisionPlan.morningSessionCompleted > 0
-                ? "partially_complete"
-                : "pending";
+        const status = revisionPlan.morningSessionCompleted > 0
+          ? "partially_complete"
+          : "pending";
 
         return {
           dayNumber,
@@ -1231,7 +1242,7 @@ export function getPreviousVisibleDayNumber(dayNumber: number, settings: AppSett
 }
 
 export function getNextVisibleDayNumber(dayNumber: number, settings: AppSettings) {
-  for (let cursor = dayNumber + 1; cursor <= MAX_SCHEDULE_DAY; cursor += 1) {
+  for (let cursor = dayNumber + 1; cursor <= 1000; cursor += 1) {
     if (!isCompressedHiddenDay(cursor, settings)) {
       return cursor;
     }
@@ -1919,10 +1930,11 @@ function isImplicitlyCompletedEmptyBlock(
 
   const dayRow = userState.schedule.days[String(day.dayNumber)];
   if (dayRow?.isExtensionDay) {
-    return true;
+    return false;
   }
 
-  const referenceDay = getReferenceScheduleIndex(referenceData).dayByNumber.get(day.dayNumber);
+  const referenceLookupDay = dayRow?.originalDayNumber ?? day.dayNumber;
+  const referenceDay = getReferenceScheduleIndex(referenceData).dayByNumber.get(referenceLookupDay);
   const referenceBlock = referenceDay?.blocks.find((entry) => entry.timeSlotKey === blockKey) ?? null;
   return referenceBlock?.items.length === 0;
 }
@@ -1948,10 +1960,6 @@ export function getDayCompletionState(
 export function getSafeDayCountLabel(dayNumber: number) {
   if (dayNumber <= 0) {
     return "Before Day 1";
-  }
-
-  if (dayNumber > MAX_SCHEDULE_DAY) {
-    return `Beyond Day ${MAX_SCHEDULE_DAY}`;
   }
 
   return `Day ${dayNumber}`;

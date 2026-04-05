@@ -20,6 +20,7 @@ import {
   createEmptyScheduleState,
   ensureUserScheduleSeeded,
   getReferenceSeedRows,
+  migrateToCanonicalLayout,
   SCHEDULE_SEED_VERSION,
 } from "@/lib/data/schedule-seed";
 import { findWeeklySummaryByWeekKey, normalizeStoredWeeklySummary } from "@/lib/domain/weekly";
@@ -732,6 +733,18 @@ function normalizeUserState(
         normalized.settings.scheduleSeededAt ?? new Date().toISOString(),
       );
     }
+
+    // Migrate legacy renumber-cascade layout to canonical (workbook days 1–N, extensions N+1+).
+    // Then re-apply mappings so any shift/compression metadata reflects the
+    // final canonical row layout in scoped/read-only stores as well.
+    const migratedToCanonical = migrateToCanonicalLayout(normalized);
+    if (migratedToCanonical) {
+      applyScheduleMappingsFromSettings(
+        normalized.schedule,
+        normalized.settings,
+        normalized.settings.scheduleSeededAt ?? new Date().toISOString(),
+      );
+    }
   }
 
   return normalized;
@@ -1069,8 +1082,99 @@ function buildBacklogRows(userId: string, userState: UserState) {
   }));
 }
 
-async function ensureSupabaseReferenceDataSeeded() {
-  const admin = createSupabaseAdminClient();
+function formatErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message || error.name;
+  }
+  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+  if (typeof error === "string") {
+    return error;
+  }
+  if (typeof error === "number" || typeof error === "boolean") {
+    return String(error);
+  }
+  return "Unknown failure";
+}
+
+function withErrorContext(context: string, error: unknown) {
+  const message = formatErrorMessage(error);
+  return message.startsWith(`${context}:`) ? message : `${context}: ${message}`;
+}
+
+function isGtPlanSourceDayConflict(error: { code?: string; message?: string } | null | undefined) {
+  return error?.code === "23505" && Boolean(error.message?.includes("gt_plan_items_source_day_number_key"));
+}
+
+async function replaceSupabaseGtPlanItems(
+  admin: SupabaseClient,
+  gtPlanRows: Array<{
+    gt_plan_ref: string;
+    source_day_number: number;
+    test_type: string;
+    purpose_raw: string;
+    what_to_measure_raw: string;
+    what_to_measure_items: string[];
+    must_output_raw: string;
+    must_output_items: string[];
+    resource_raw: string;
+    review_raw: string;
+    wrap_up_raw: string;
+    notes_raw: string | null;
+    seed_version: number;
+  }>,
+) {
+  // This reference table is tiny and fully authoritative from generated seed data.
+  // If a legacy gt_plan_ref still occupies a source_day_number, replacing the table
+  // is the safest way to realign both unique constraints with the current seed.
+  const { error: deleteError } = await admin.from("gt_plan_items").delete().neq("gt_plan_ref", "");
+  if (deleteError) {
+    throw new Error(`gt_plan_items replace delete: ${deleteError.message}`);
+  }
+
+  const { error: insertError } = await admin.from("gt_plan_items").insert(gtPlanRows);
+  if (insertError) {
+    throw new Error(`gt_plan_items replace insert: ${insertError.message}`);
+  }
+}
+
+async function seedSupabaseGtPlanItems(
+  admin: SupabaseClient,
+  gtPlanRows: Array<{
+    gt_plan_ref: string;
+    source_day_number: number;
+    test_type: string;
+    purpose_raw: string;
+    what_to_measure_raw: string;
+    what_to_measure_items: string[];
+    must_output_raw: string;
+    must_output_items: string[];
+    resource_raw: string;
+    review_raw: string;
+    wrap_up_raw: string;
+    notes_raw: string | null;
+    seed_version: number;
+  }>,
+) {
+  const upsertResult = await admin.from("gt_plan_items").upsert(gtPlanRows, {
+    onConflict: "gt_plan_ref",
+    ignoreDuplicates: false,
+  });
+
+  if (!upsertResult.error) {
+    return;
+  }
+
+  if (!isGtPlanSourceDayConflict(upsertResult.error)) {
+    throw new Error(upsertResult.error.message);
+  }
+
+  await replaceSupabaseGtPlanItems(admin, gtPlanRows);
+}
+
+async function ensureSupabaseReferenceDataSeeded(adminClient?: SupabaseClient | null) {
+  const admin = adminClient ?? createSupabaseAdminClient();
   if (!admin) {
     return;
   }
@@ -1134,10 +1238,6 @@ async function ensureSupabaseReferenceDataSeeded() {
         onConflict: "quote_id",
         ignoreDuplicates: false,
       }),
-      admin.from("gt_plan_items").upsert(gtPlanRows, {
-        onConflict: "gt_plan_ref",
-        ignoreDuplicates: false,
-      }),
       admin.from("revision_map_days").upsert(revisionMapRows, {
         onConflict: "day_number",
         ignoreDuplicates: false,
@@ -1146,13 +1246,12 @@ async function ensureSupabaseReferenceDataSeeded() {
 
     const error = operations.find((result) => result.error)?.error;
     if (error) {
-      throw new Error(`reference seed: ${error.message}`);
+      throw new Error(withErrorContext("reference seed", error));
     }
+
+    await seedSupabaseGtPlanItems(admin, gtPlanRows);
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error(`reference seed: ${error.message}`);
-    }
-    throw new Error("reference seed: Unknown failure");
+    throw new Error(withErrorContext("reference seed", error));
   }
 }
 
@@ -1174,7 +1273,7 @@ async function loadSupabaseReferenceData(supabase: SupabaseClient) {
       supabase.from("revision_map_days").select("*").order("day_number", { ascending: true }),
     ]);
   } catch (error) {
-    console.warn("Supabase reference queries failed; using static reference data:", error);
+    console.warn(`Supabase reference queries failed; using static reference data: ${formatErrorMessage(error)}`);
     return getStaticReferenceData();
   }
 
@@ -1217,8 +1316,8 @@ export async function readRuntimeReferenceData() {
 
   const admin = createSupabaseAdminClient();
   if (admin) {
-    void ensureSupabaseReferenceDataSeeded().catch((error) => {
-      console.warn("Supabase admin reference seed skipped:", error);
+    await ensureSupabaseReferenceDataSeeded(admin).catch((error) => {
+      console.warn(`Supabase admin reference seed skipped: ${formatErrorMessage(error)}`);
     });
   }
 
@@ -1976,8 +2075,8 @@ async function getSupabaseScheduleReadContext() {
   const localUser = asSupabaseUser(user);
   const admin = createSupabaseAdminClient();
   if (admin) {
-    void ensureSupabaseReferenceDataSeeded().catch((error) => {
-      console.warn("Supabase reference seed skipped due to admin error:", error);
+    await ensureSupabaseReferenceDataSeeded(admin).catch((error) => {
+      console.warn(`Supabase reference seed skipped due to admin error: ${formatErrorMessage(error)}`);
     });
   }
 
@@ -2019,12 +2118,12 @@ async function loadAllUserRows(
       .from(table)
       .select("*")
       .eq("user_id", userId) as unknown as {
-      order: (column: string, options?: { ascending?: boolean }) => typeof query;
-      range: (from: number, to: number) => Promise<{
-        data: Array<Record<string, never>> | null;
-        error: { message: string } | null;
-      }>;
-    };
+        order: (column: string, options?: { ascending?: boolean }) => typeof query;
+        range: (from: number, to: number) => Promise<{
+          data: Array<Record<string, never>> | null;
+          error: { message: string } | null;
+        }>;
+      };
 
     for (const orderColumn of orderColumns) {
       query = query.order(orderColumn.column, { ascending: orderColumn.ascending ?? true });
@@ -2110,6 +2209,22 @@ async function loadPendingBacklogItems(userId: string, supabase: SupabaseClient)
   return result.data ?? [];
 }
 
+async function loadAssignedBacklogItemsForBrowser(userId: string, supabase: SupabaseClient) {
+  const result = await supabase
+    .from("backlog_items")
+    .select("*")
+    .eq("user_id", userId)
+    .in("status", ["rescheduled", "completed"])
+    .not("rescheduled_to_day", "is", null)
+    .not("rescheduled_to_block_key", "is", null);
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  return result.data ?? [];
+}
+
 async function loadRescheduledBacklogItemsForDay(userId: string, supabase: SupabaseClient, dayNumber: number) {
   if (dayNumber <= 0) {
     return [] as Array<Record<string, unknown>>;
@@ -2137,7 +2252,7 @@ async function hydrateSupabaseScheduleBrowserReadStore(user: LocalUser, supabase
   store.referenceData = await loadSupabaseReferenceData(supabase);
   applySupabaseSettingsRow(store, user.id, settingsRow, store.referenceData);
 
-  const [scheduleDayRows, scheduleAssignmentRows] = await Promise.all([
+  const [scheduleDayRows, scheduleAssignmentRows, scheduleBlockRows, assignedBacklogRows] = await Promise.all([
     loadAllUserRows("schedule_days", user.id, supabase, [{ column: "day_number" }]),
     loadAllUserRows("schedule_topic_assignments", user.id, supabase, [
       { column: "day_number" },
@@ -2145,10 +2260,23 @@ async function hydrateSupabaseScheduleBrowserReadStore(user: LocalUser, supabase
       { column: "item_order" },
       { column: "source_item_id" },
     ]),
+    loadAllUserRows("schedule_blocks", user.id, supabase, [
+      { column: "day_number" },
+      { column: "block_key" },
+    ]),
+    loadAssignedBacklogItemsForBrowser(user.id, supabase),
   ]);
 
+  const revisionSourceItemIds = [...new Set((scheduleAssignmentRows ?? [])
+    .filter((row) => row.revision_eligible === true)
+    .map((row) => row.source_item_id as string))];
+  const revisionCompletionRows = await loadRevisionCompletionsForSourceItems(user.id, supabase, revisionSourceItemIds);
+
   applySupabaseScheduleDayRows(userState, scheduleDayRows);
+  applySupabaseScheduleBlockRows(userState, scheduleBlockRows);
   applySupabaseScheduleAssignmentRows(userState, scheduleAssignmentRows);
+  applySupabaseRevisionCompletionRows(userState, revisionCompletionRows);
+  applySupabaseBacklogItemRows(userState, assignedBacklogRows, store.referenceData);
 
   store.userState[user.id] = normalizeUserState(userState, store.referenceData);
   return store;

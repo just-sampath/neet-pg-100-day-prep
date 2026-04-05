@@ -24,7 +24,7 @@ function createConfiguredState() {
 
 function getVisibleStudyKeys(dayNumber: number) {
   return getScheduleDay(dayNumber)!.blocks
-    .filter((block) => block.trackable)
+    .filter((block) => block.trackable && block.semanticBlockKey !== "morning_revision")
     .slice(0, 5)
     .map((block) => block.timeSlotKey);
 }

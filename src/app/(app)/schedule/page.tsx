@@ -69,7 +69,7 @@ export default async function SchedulePage() {
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="eyebrow">
-                Day {day.dayNumber} · {day.phaseName}
+                Day {day.dayNumber} · {day.isExtensionDay ? "Extension" : day.phaseName}
               </div>
               <h2 className="mt-2 text-xl font-semibold">{day.primaryFocusRaw}</h2>
               <p className="mt-1 text-sm text-(--muted)">
