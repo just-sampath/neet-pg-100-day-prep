@@ -21,7 +21,7 @@ const realtimeTables = [
 ] as const;
 
 type SyncState = "live" | "reconnecting" | "offline";
-const SELF_ECHO_SUPPRESSION_MS = 900;
+const SELF_ECHO_SUPPRESSION_MS = 10_000;
 const REFRESH_OPTIMIZATIONS_ENABLED =
   process.env.NEXT_PUBLIC_SUPABASE_REFRESH_OPTIMIZATIONS?.toLowerCase() !== "false" &&
   process.env.NEXT_PUBLIC_SUPABASE_REFRESH_OPTIMIZATIONS !== "0";
@@ -53,7 +53,7 @@ export function SyncStatus({
       startTransition(() => {
         router.refresh();
       });
-    }, REFRESH_OPTIMIZATIONS_ENABLED ? 120 : 0);
+    }, REFRESH_OPTIMIZATIONS_ENABLED ? 2_000 : 0);
   });
 
   useEffect(() => {

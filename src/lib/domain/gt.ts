@@ -279,7 +279,7 @@ function parseAirMetric(value: string | null) {
   };
 }
 
-export function normalizeStoredGtLog(log: GtLog): GtLog {
+export function normalizeStoredGtLog(log: GtLog, referenceData?: RuntimeReferenceData): GtLog {
   return {
     ...log,
     gtNumber: asTrimmedString(log.gtNumber) ?? "GT",
@@ -300,7 +300,7 @@ export function normalizeStoredGtLog(log: GtLog): GtLog {
     sectionE: normalizeSection(log.sectionE),
     errorTypes: asTrimmedString(log.errorTypes),
     recurringTopics: serializeRecurringTopics(normalizeRecurringTopics(log.recurringTopics)),
-    weakestSubjects: normalizeSubjects(log.weakestSubjects ?? []),
+    weakestSubjects: normalizeSubjects(log.weakestSubjects ?? [], referenceData),
     knowledgeVsBehaviour:
       typeof log.knowledgeVsBehaviour === "number" && log.knowledgeVsBehaviour >= 0 && log.knowledgeVsBehaviour <= 100
         ? log.knowledgeVsBehaviour
@@ -336,6 +336,7 @@ export function validateGtDraft(
     sectionE?: Record<string, string | string[] | null | undefined>;
   },
   fallbackDate: string,
+  referenceData?: RuntimeReferenceData,
 ): { ok: true; value: ValidGtDraft } | { ok: false; error: string } {
   const gtNumber = asTrimmedString(input.gtNumber);
   if (!gtNumber) {
@@ -405,7 +406,7 @@ export function validateGtDraft(
       sectionE: section(input.sectionE),
       errorTypes: asTrimmedString(input.errorTypes),
       recurringTopics: serializeRecurringTopics(normalizeRecurringTopics(input.recurringTopics)),
-      weakestSubjects: normalizeSubjects(input.weakestSubjects ?? []),
+      weakestSubjects: normalizeSubjects(input.weakestSubjects ?? [], referenceData),
       knowledgeVsBehaviour,
       unsureRightCount,
       changeBeforeNextGt: asTrimmedString(input.changeBeforeNextGt),

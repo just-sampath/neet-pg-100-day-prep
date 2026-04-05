@@ -555,6 +555,7 @@ export async function submitMcqBulkAction(formData: FormData) {
         source: asString(formData.get("source")) || null,
       },
       toDateOnly(getEffectiveNow(store)),
+      store.referenceData,
     );
 
     if (!validated.ok) {
@@ -601,6 +602,7 @@ export async function submitMcqItemAction(formData: FormData) {
         tags: formData.getAll("tags").map((value) => (typeof value === "string" ? value : null)),
       },
       toDateOnly(getEffectiveNow(store)),
+      store.referenceData,
     );
 
     if (!validated.ok) {
@@ -670,6 +672,7 @@ export async function submitGtAction(formData: FormData) {
         sectionE: sectionInput("sectionE"),
       },
       toDateOnly(getEffectiveNow(store)),
+      store.referenceData,
     );
 
     if (!validated.ok) {

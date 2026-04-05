@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
-import { useRouter } from "next/navigation";
 
 import { getWindDownState } from "@/lib/domain/today";
 import type { BlockKey } from "@/lib/domain/types";
@@ -36,7 +35,6 @@ export function WindDownPrompts({
   const [currentTimeMs, setCurrentTimeMs] = useState(() => new Date(nowIso).getTime());
   const autoMoveRequestedRef = useRef(false);
   const [pending, startTransition] = useTransition();
-  const router = useRouter();
   const effectiveNow = useMemo(() => new Date(currentTimeMs), [currentTimeMs]);
   const minutes = useMemo(() => getMinutesInTimeZone(effectiveNow, IST_TIME_ZONE), [effectiveNow]);
   const prompt = useMemo(
@@ -53,7 +51,6 @@ export function WindDownPrompts({
   const triggerAutoMove = useEffectEvent(() => {
     startTransition(async () => {
       await runLateNightSweepAction();
-      router.refresh();
     });
   });
 
@@ -137,7 +134,6 @@ export function WindDownPrompts({
                 formData.set("intent", "partial");
                 formData.set("note", "Quick 5-minute version.");
                 await updateBlockAction(formData);
-                router.refresh();
               })
             }
           >
@@ -155,7 +151,6 @@ export function WindDownPrompts({
                 formData.set("intent", "skip");
                 formData.set("note", "Skipped the final review to protect sleep.");
                 await updateBlockAction(formData);
-                router.refresh();
               })
             }
           >
@@ -183,7 +178,6 @@ export function WindDownPrompts({
               formData.set("dayNumber", String(dayNumber));
               formData.set("trafficLight", trafficLight);
               await wrapUpDayAction(formData);
-              router.refresh();
             })
           }
         >

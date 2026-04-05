@@ -5,6 +5,40 @@ import type { LocalStore } from "@/lib/domain/types";
 
 let testStore: LocalStore;
 
+function captureRuntimeEnv() {
+  return {
+    runtime: process.env.BESIDE_YOU_RUNTIME,
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  };
+}
+
+function enableSupabaseRuntime() {
+  process.env.BESIDE_YOU_RUNTIME = "supabase";
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+}
+
+function restoreRuntimeEnv(snapshot: ReturnType<typeof captureRuntimeEnv>) {
+  if (snapshot.runtime === undefined) {
+    delete process.env.BESIDE_YOU_RUNTIME;
+  } else {
+    process.env.BESIDE_YOU_RUNTIME = snapshot.runtime;
+  }
+
+  if (snapshot.url === undefined) {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  } else {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = snapshot.url;
+  }
+
+  if (snapshot.anonKey === undefined) {
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  } else {
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = snapshot.anonKey;
+  }
+}
+
 vi.mock("next/cache", () => ({
   refresh: vi.fn(),
 }));
@@ -34,7 +68,7 @@ import { createEmptyUserState } from "@/lib/data/local-store";
 import { pullTopicForward, completeBlockItems, getHomeData } from "@/lib/data/app-state";
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getScheduleDay, getBlockProgress, buildDailyRevisionPlan, invalidateRuntimeScheduleIndex } from "@/lib/domain/schedule";
-import { updateTopicAction, updateBlockAction } from "@/lib/server/actions";
+import { submitGtAction, submitMcqBulkAction, submitMcqItemAction, updateTopicAction, updateBlockAction } from "@/lib/server/actions";
 import { refresh } from "next/cache";
 
 describe("server actions", () => {
@@ -68,6 +102,101 @@ describe("server actions", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+  });
+
+  it("saves subject-tagged bulk MCQ entries in Supabase mode", async () => {
+    const env = captureRuntimeEnv();
+    enableSupabaseRuntime();
+
+    try {
+      const formData = new FormData();
+      formData.set("entryDate", "2026-05-10");
+      formData.set("totalAttempted", "20");
+      formData.set("correct", "15");
+      formData.set("wrong", "5");
+      formData.set("subject", "medicine");
+      formData.set("source", " GT-07 ");
+
+      await expect(submitMcqBulkAction(formData)).resolves.toEqual({ ok: true });
+
+      const logs = Object.values(testStore.userState["test-user"].mcqBulkLogs);
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toMatchObject({
+        entryDate: "2026-05-10",
+        totalAttempted: 20,
+        correct: 15,
+        wrong: 5,
+        subject: "Medicine",
+        source: "GT-07",
+      });
+    } finally {
+      restoreRuntimeEnv(env);
+    }
+  });
+
+  it("saves detailed MCQ entries with canonical subject tags in Supabase mode", async () => {
+    const env = captureRuntimeEnv();
+    enableSupabaseRuntime();
+
+    try {
+      const formData = new FormData();
+      formData.set("entryDate", "2026-05-10");
+      formData.set("mcqId", " GT-07-Q118 ");
+      formData.set("result", "wrong");
+      formData.set("subject", "pathology");
+      formData.set("topic", " Heme smear ");
+      formData.set("source", " GT-07 ");
+      formData.set("causeCode", "C");
+      formData.set("priority", "P1");
+      formData.append("fixCodes", "Q20");
+      formData.append("fixCodes", "AI");
+      formData.append("tags", "image");
+      formData.append("tags", "protocol");
+
+      await expect(submitMcqItemAction(formData)).resolves.toEqual({ ok: true });
+
+      const logs = Object.values(testStore.userState["test-user"].mcqItemLogs);
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toMatchObject({
+        entryDate: "2026-05-10",
+        mcqId: "GT-07-Q118",
+        result: "wrong",
+        subject: "Pathology",
+        topic: "Heme smear",
+        source: "GT-07",
+        causeCode: "C",
+        priority: "P1",
+        fixCodes: ["Q20", "AI"],
+        tags: ["image", "protocol"],
+      });
+    } finally {
+      restoreRuntimeEnv(env);
+    }
+  });
+
+  it("saves GT weakest-subject tags in Supabase mode", async () => {
+    const env = captureRuntimeEnv();
+    enableSupabaseRuntime();
+
+    try {
+      const formData = new FormData();
+      formData.set("gtNumber", "GT-5");
+      formData.set("gtDate", "2026-05-10");
+      formData.append("weakestSubjects", "medicine");
+      formData.append("weakestSubjects", "Surgery");
+
+      await expect(submitGtAction(formData)).resolves.toEqual({ ok: true });
+
+      const logs = Object.values(testStore.userState["test-user"].gtLogs);
+      expect(logs).toHaveLength(1);
+      expect(logs[0]).toMatchObject({
+        gtNumber: "GT-5",
+        gtDate: "2026-05-10",
+        weakestSubjects: ["Medicine", "Surgery"],
+      });
+    } finally {
+      restoreRuntimeEnv(env);
+    }
   });
 
   it("anchors Today topic completion to the effective app date when no completionDate is submitted", async () => {

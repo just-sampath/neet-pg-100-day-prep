@@ -2,11 +2,11 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 
+import { cache as reactCache } from "react";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 
 import { DEFAULT_LOCAL_USER } from "@/lib/domain/constants";
 import {
-  buildReferenceDataFromRows,
   getQuotePools,
   getStaticReferenceData,
 } from "@/lib/data/reference-data";
@@ -19,9 +19,7 @@ import {
   applyLegacyScheduleStateToSchedule,
   createEmptyScheduleState,
   ensureUserScheduleSeeded,
-  getReferenceSeedRows,
   migrateToCanonicalLayout,
-  SCHEDULE_SEED_VERSION,
 } from "@/lib/data/schedule-seed";
 import { findWeeklySummaryByWeekKey, normalizeStoredWeeklySummary } from "@/lib/domain/weekly";
 import type {
@@ -41,7 +39,6 @@ import type {
   WeeklySummary,
 } from "@/lib/domain/types";
 import { getRuntimeMode } from "@/lib/runtime/mode";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
@@ -98,6 +95,18 @@ function logSupabasePersistence(event: string, payload: Record<string, unknown>)
     return;
   }
   console.info(`[supabase-persistence] ${event}`, payload);
+}
+
+function isSupabaseTimingLogsEnabled() {
+  return isFeatureFlagEnabled("SUPABASE_TIMING_LOGS", false);
+}
+
+function logSupabaseTiming(label: string, startMs: number, extra?: Record<string, unknown>) {
+  if (!isSupabaseTimingLogsEnabled()) {
+    return;
+  }
+  const elapsed = Math.round(performance.now() - startMs);
+  console.info(`[supabase-timing] ${label} ${elapsed}ms`, extra ?? {});
 }
 
 function ensureSupabaseStoreMetadata(store: LocalStore) {
@@ -691,12 +700,12 @@ function normalizeUserState(
       ? normalizeQuoteState(base.quoteState, getQuotePools(referenceData))
       : normalizeQuoteState(base.quoteState),
     mcqBulkLogs: Object.fromEntries(
-      Object.entries(base.mcqBulkLogs ?? {}).map(([id, log]) => [id, normalizeStoredMcqBulkLog(log)]),
+      Object.entries(base.mcqBulkLogs ?? {}).map(([id, log]) => [id, normalizeStoredMcqBulkLog(log, referenceData)]),
     ),
     mcqItemLogs: Object.fromEntries(
-      Object.entries(base.mcqItemLogs ?? {}).map(([id, log]) => [id, normalizeStoredMcqItemLog(log)]),
+      Object.entries(base.mcqItemLogs ?? {}).map(([id, log]) => [id, normalizeStoredMcqItemLog(log, referenceData)]),
     ),
-    gtLogs: Object.fromEntries(Object.entries(base.gtLogs ?? {}).map(([id, log]) => [id, normalizeStoredGtLog(log)])),
+    gtLogs: Object.fromEntries(Object.entries(base.gtLogs ?? {}).map(([id, log]) => [id, normalizeStoredGtLog(log, referenceData)])),
     weeklySummaries,
     morningRevisionSelections: normalizeMorningRevisionSelections(base.morningRevisionSelections),
     morningRevisionActualMinutes: normalizeMorningRevisionActualMinutes(base.morningRevisionActualMinutes),
@@ -1082,255 +1091,65 @@ function buildBacklogRows(userId: string, userState: UserState) {
   }));
 }
 
-function formatErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message || error.name;
-  }
-  if (typeof error === "object" && error !== null && "message" in error && typeof error.message === "string") {
-    return error.message;
-  }
-  if (typeof error === "string") {
-    return error;
-  }
-  if (typeof error === "number" || typeof error === "boolean") {
-    return String(error);
-  }
-  return "Unknown failure";
-}
-
-function withErrorContext(context: string, error: unknown) {
-  const message = formatErrorMessage(error);
-  return message.startsWith(`${context}:`) ? message : `${context}: ${message}`;
-}
-
-function isGtPlanSourceDayConflict(error: { code?: string; message?: string } | null | undefined) {
-  return error?.code === "23505" && Boolean(error.message?.includes("gt_plan_items_source_day_number_key"));
-}
-
-async function replaceSupabaseGtPlanItems(
-  admin: SupabaseClient,
-  gtPlanRows: Array<{
-    gt_plan_ref: string;
-    source_day_number: number;
-    test_type: string;
-    purpose_raw: string;
-    what_to_measure_raw: string;
-    what_to_measure_items: string[];
-    must_output_raw: string;
-    must_output_items: string[];
-    resource_raw: string;
-    review_raw: string;
-    wrap_up_raw: string;
-    notes_raw: string | null;
-    seed_version: number;
-  }>,
-) {
-  // This reference table is tiny and fully authoritative from generated seed data.
-  // If a legacy gt_plan_ref still occupies a source_day_number, replacing the table
-  // is the safest way to realign both unique constraints with the current seed.
-  const { error: deleteError } = await admin.from("gt_plan_items").delete().neq("gt_plan_ref", "");
-  if (deleteError) {
-    throw new Error(`gt_plan_items replace delete: ${deleteError.message}`);
-  }
-
-  const { error: insertError } = await admin.from("gt_plan_items").insert(gtPlanRows);
-  if (insertError) {
-    throw new Error(`gt_plan_items replace insert: ${insertError.message}`);
-  }
-}
-
-async function seedSupabaseGtPlanItems(
-  admin: SupabaseClient,
-  gtPlanRows: Array<{
-    gt_plan_ref: string;
-    source_day_number: number;
-    test_type: string;
-    purpose_raw: string;
-    what_to_measure_raw: string;
-    what_to_measure_items: string[];
-    must_output_raw: string;
-    must_output_items: string[];
-    resource_raw: string;
-    review_raw: string;
-    wrap_up_raw: string;
-    notes_raw: string | null;
-    seed_version: number;
-  }>,
-) {
-  const upsertResult = await admin.from("gt_plan_items").upsert(gtPlanRows, {
-    onConflict: "gt_plan_ref",
-    ignoreDuplicates: false,
-  });
-
-  if (!upsertResult.error) {
-    return;
-  }
-
-  if (!isGtPlanSourceDayConflict(upsertResult.error)) {
-    throw new Error(upsertResult.error.message);
-  }
-
-  await replaceSupabaseGtPlanItems(admin, gtPlanRows);
-}
-
-async function ensureSupabaseReferenceDataSeeded(adminClient?: SupabaseClient | null) {
-  const admin = adminClient ?? createSupabaseAdminClient();
-  if (!admin) {
-    return;
-  }
-
-  const refs = getReferenceSeedRows();
-
-  const quoteRows = refs.quotes.map((entry, index) => ({
-    quote_id: entry.id,
-    display_order: index + 1,
-    quote_text: entry.quote,
-    author: entry.author,
-    category: entry.category,
-    seed_version: SCHEDULE_SEED_VERSION,
-  }));
-  const subjectRows = refs.subjectTiers.map((entry, index) => ({
-    subject_id: entry.subjectId,
-    display_order: index + 1,
-    subject_name: entry.subjectName,
-    aliases: entry.aliases,
-    wor_hours: entry.worHours,
-    first_pass_days: entry.firstPassDays,
-    priority_tier: entry.priorityTier,
-    priority_rank: entry.priorityRank,
-    resource_decision_raw: entry.resourceDecisionRaw,
-    must_focus_topics: entry.mustFocusTopics,
-    seed_version: SCHEDULE_SEED_VERSION,
-  }));
-  const gtPlanRows = refs.gtPlanItems.map((entry) => ({
-    gt_plan_ref: entry.gtPlanRef,
-    source_day_number: entry.dayNumber,
-    test_type: entry.testType,
-    purpose_raw: entry.purposeRaw,
-    what_to_measure_raw: entry.whatToMeasureRaw,
-    what_to_measure_items: entry.whatToMeasureItems,
-    must_output_raw: entry.mustOutputRaw,
-    must_output_items: entry.mustOutputItems,
-    resource_raw: entry.resourceRaw,
-    review_raw: entry.reviewRaw,
-    wrap_up_raw: entry.wrapUpRaw,
-    notes_raw: entry.notesRaw,
-    seed_version: SCHEDULE_SEED_VERSION,
-  }));
-  const revisionMapRows = refs.revisionMapDays.map((entry) => ({
-    day_number: entry.dayNumber,
-    d1_due_topics: entry.d1DueTopics,
-    d3_due_topics: entry.d3DueTopics,
-    d7_due_topics: entry.d7DueTopics,
-    d14_due_topics: entry.d14DueTopics,
-    d28_due_topics: entry.d28DueTopics,
-    morning_queue_rule: entry.morningQueueRule,
-    seed_version: SCHEDULE_SEED_VERSION,
-  }));
-
-  try {
-    const operations = await Promise.all([
-      admin.from("subject_tiers").upsert(subjectRows, {
-        onConflict: "subject_id",
-        ignoreDuplicates: false,
-      }),
-      admin.from("quote_catalog").upsert(quoteRows, {
-        onConflict: "quote_id",
-        ignoreDuplicates: false,
-      }),
-      admin.from("revision_map_days").upsert(revisionMapRows, {
-        onConflict: "day_number",
-        ignoreDuplicates: false,
-      }),
-    ]);
-
-    const error = operations.find((result) => result.error)?.error;
-    if (error) {
-      throw new Error(withErrorContext("reference seed", error));
-    }
-
-    await seedSupabaseGtPlanItems(admin, gtPlanRows);
-  } catch (error) {
-    throw new Error(withErrorContext("reference seed", error));
-  }
-}
-
-async function loadSupabaseReferenceData(supabase: SupabaseClient) {
-  let subjectTiersResult;
-  let quoteCatalogResult;
-  let gtPlanItemsResult;
-  let revisionMapDaysResult;
-  try {
-    [
-      subjectTiersResult,
-      quoteCatalogResult,
-      gtPlanItemsResult,
-      revisionMapDaysResult,
-    ] = await Promise.all([
-      supabase.from("subject_tiers").select("*").order("display_order", { ascending: true }),
-      supabase.from("quote_catalog").select("*").order("display_order", { ascending: true }),
-      supabase.from("gt_plan_items").select("*").order("source_day_number", { ascending: true }),
-      supabase.from("revision_map_days").select("*").order("day_number", { ascending: true }),
-    ]);
-  } catch (error) {
-    console.warn(`Supabase reference queries failed; using static reference data: ${formatErrorMessage(error)}`);
-    return getStaticReferenceData();
-  }
-
-  const errors = [
-    subjectTiersResult.error,
-    quoteCatalogResult.error,
-    gtPlanItemsResult.error,
-    revisionMapDaysResult.error,
-  ].filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
-
-  if (errors.length > 0) {
-    console.warn(
-      "Supabase reference rows returned query errors; using static reference data:",
-      errors.map((entry) => entry.message).join(" | "),
-    );
-    return getStaticReferenceData();
-  }
-
-  const subjectTiers = subjectTiersResult.data ?? [];
-  const quoteCatalog = quoteCatalogResult.data ?? [];
-  const gtPlanItems = gtPlanItemsResult.data ?? [];
-  const revisionMapDays = revisionMapDaysResult.data ?? [];
-
-  if (subjectTiers.length === 0 || quoteCatalog.length === 0 || gtPlanItems.length === 0 || revisionMapDays.length === 0) {
-    return getStaticReferenceData();
-  }
-
-  return buildReferenceDataFromRows({
-    subjectTiers,
-    quoteCatalog,
-    gtPlanItems,
-    revisionMapDays,
-  });
-}
-
 export async function readRuntimeReferenceData() {
-  if (getRuntimeMode() !== "supabase") {
-    return getStaticReferenceData();
-  }
-
-  const admin = createSupabaseAdminClient();
-  if (admin) {
-    await ensureSupabaseReferenceDataSeeded(admin).catch((error) => {
-      console.warn(`Supabase admin reference seed skipped: ${formatErrorMessage(error)}`);
-    });
-  }
-
-  const supabase = await createSupabaseServerClient();
-  if (supabase) {
-    return loadSupabaseReferenceData(supabase);
-  }
-
-  if (admin) {
-    return loadSupabaseReferenceData(admin);
-  }
-
   return getStaticReferenceData();
+}
+
+/**
+ * Lightweight reader for the settings page.
+ * In Supabase mode this queries ONLY app_settings (1 query) instead of loading
+ * the full 11-table store.  Automations are ensured current first so the
+ * settings row reflects any catch-up that was needed.
+ */
+export async function readSettingsPageData(userId: string) {
+  if (getRuntimeMode() === "supabase") {
+    await ensureSupabaseAutomationsCurrent();
+    const { settingsRow } = await getSupabaseScheduleReadContext();
+    const row = settingsRow as Record<string, unknown> | null;
+    const simulatedNowIso = (row?.simulated_now_iso as string | null | undefined) ?? null;
+    const now = simulatedNowIso ? new Date(simulatedNowIso) : new Date();
+    const settings = normalizeSettings(
+      row
+        ? {
+            dayOneDate: (row.day_one_date as string | null | undefined) ?? null,
+            theme: ((row.theme as string | null | undefined) ?? "dark") === "light" ? "light" : "dark",
+            scheduleShiftDays: (row.schedule_shift_days as number | null | undefined) ?? 0,
+            shiftAppliedAt: (row.shift_applied_at as string | null | undefined) ?? null,
+            shiftEvents: (row.shift_events as AppSettings["shiftEvents"] | null | undefined) ?? [],
+            scheduleSeedVersion: (row.schedule_seed_version as number | null | undefined) ?? 0,
+            scheduleSeededAt: (row.schedule_seeded_at as string | null | undefined) ?? null,
+          }
+        : undefined,
+    );
+    return {
+      settings,
+      simulatedNow: simulatedNowIso,
+      todayDate: toDateOnlyInTimeZone(now, IST_TIME_ZONE),
+      nowIso: now.toISOString(),
+    };
+  }
+
+  // Local mode: use the existing store reader with lazy import for automations
+  const { applyAutomations } = await import("@/lib/data/app-state");
+  return readPassiveStore((store) => {
+    applyAutomations(store, userId);
+    const now = getEffectiveNow(store);
+    return {
+      settings: structuredClone(store.userState[userId].settings),
+      simulatedNow: store.dev.simulatedNowIso,
+      todayDate: toDateOnlyInTimeZone(now, IST_TIME_ZONE),
+      nowIso: now.toISOString(),
+    };
+  });
+}
+
+export async function isSetupComplete(userId: string) {
+  if (getRuntimeMode() !== "supabase") {
+    const store = await readStore();
+    return !!store.userState[userId]?.settings?.dayOneDate;
+  }
+  const { settingsRow } = await getSupabaseScheduleReadContext();
+  return Boolean(settingsRow && (settingsRow as Record<string, unknown>).day_one_date);
 }
 
 function applySupabaseSettingsRow(
@@ -1530,7 +1349,7 @@ function applySupabaseBacklogItemRows(
 async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): Promise<LocalStore> {
   const store = createSessionScopedStore(user);
   const userState = store.userState[user.id];
-  store.referenceData = await loadSupabaseReferenceData(supabase);
+  store.referenceData = getStaticReferenceData();
 
   const [
     settingsResult,
@@ -1766,7 +1585,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       subject: row.subject,
       source: row.source,
       createdAt: row.created_at,
-    });
+    }, store.referenceData);
     userState.mcqBulkLogs[log.id] = log;
   }
 
@@ -1786,7 +1605,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       fixCodes: row.fix_codes ?? [],
       tags: row.tags ?? [],
       createdAt: row.created_at,
-    });
+    }, store.referenceData);
     userState.mcqItemLogs[log.id] = log;
   }
 
@@ -1816,7 +1635,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       unsureRightCount: row.unsure_right_count,
       changeBeforeNextGt: row.change_before_next_gt,
       createdAt: row.created_at,
-    });
+    }, store.referenceData);
     userState.gtLogs[log.id] = log;
   }
 
@@ -1848,7 +1667,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
   setSupabaseStoreReadScope(store, "schedule_full");
   setSupabaseStoreReadMode(store, "full_mutation");
   const userState = store.userState[user.id];
-  store.referenceData = await loadSupabaseReferenceData(supabase);
+  store.referenceData = getStaticReferenceData();
 
   const [
     settingsResult,
@@ -2070,23 +1889,19 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
   return store;
 }
 
-async function getSupabaseScheduleReadContext() {
+const getSupabaseScheduleReadContext = reactCache(async function getSupabaseScheduleReadContextImpl() {
+  const t0 = performance.now();
   const { supabase, user } = await requireSupabaseRequestUser();
   const localUser = asSupabaseUser(user);
-  const admin = createSupabaseAdminClient();
-  if (admin) {
-    await ensureSupabaseReferenceDataSeeded(admin).catch((error) => {
-      console.warn(`Supabase reference seed skipped due to admin error: ${formatErrorMessage(error)}`);
-    });
-  }
 
   const settingsResult = await supabase.from("app_settings").select("*").eq("user_id", user.id).maybeSingle();
   if (settingsResult.error) {
     throw new Error(`Unable to read the Supabase app settings: ${settingsResult.error.message}`);
   }
 
+  logSupabaseTiming("getSupabaseScheduleReadContext", t0);
   return { supabase, user, localUser, settingsRow: settingsResult.data ?? null };
-}
+});
 
 function buildScheduleAssignmentOrFilter(dayNumbers: number[]) {
   if (dayNumbers.length === 0) {
@@ -2249,7 +2064,7 @@ async function hydrateSupabaseScheduleBrowserReadStore(user: LocalUser, supabase
   setSupabaseStoreReadScope(store, "browser_scoped");
   setSupabaseStoreReadMode(store, "read_guarded");
   const userState = store.userState[user.id];
-  store.referenceData = await loadSupabaseReferenceData(supabase);
+  store.referenceData = getStaticReferenceData();
   applySupabaseSettingsRow(store, user.id, settingsRow, store.referenceData);
 
   const [scheduleDayRows, scheduleAssignmentRows, scheduleBlockRows, assignedBacklogRows] = await Promise.all([
@@ -2283,11 +2098,12 @@ async function hydrateSupabaseScheduleBrowserReadStore(user: LocalUser, supabase
 }
 
 async function hydrateSupabaseTodayReadStore(user: LocalUser, supabase: SupabaseClient, settingsRow: Record<string, unknown> | null) {
+  const t0 = performance.now();
   const store = createSessionScopedStore(user);
   setSupabaseStoreReadScope(store, "today_scoped");
   setSupabaseStoreReadMode(store, "read_guarded");
   const userState = store.userState[user.id];
-  store.referenceData = await loadSupabaseReferenceData(supabase);
+  store.referenceData = getStaticReferenceData();
   applySupabaseSettingsRow(store, user.id, settingsRow, store.referenceData);
 
   const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
@@ -2331,6 +2147,7 @@ async function hydrateSupabaseTodayReadStore(user: LocalUser, supabase: Supabase
   ), store.referenceData);
 
   store.userState[user.id] = normalizeUserState(userState, store.referenceData);
+  logSupabaseTiming("hydrateSupabaseTodayReadStore", t0);
   return store;
 }
 
@@ -2344,7 +2161,7 @@ async function hydrateSupabaseScheduleDayReadStore(
   setSupabaseStoreReadScope(store, "day_scoped");
   setSupabaseStoreReadMode(store, "read_guarded");
   const userState = store.userState[user.id];
-  store.referenceData = await loadSupabaseReferenceData(supabase);
+  store.referenceData = getStaticReferenceData();
   applySupabaseSettingsRow(store, user.id, settingsRow, store.referenceData);
   const todayDate = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
   const [currentVisibleDays, dayRows] = await Promise.all([
@@ -2523,8 +2340,11 @@ async function loadSupabaseScheduleStore(): Promise<LocalStore> {
 }
 
 async function loadSupabaseTodayReadStore() {
+  const t0 = performance.now();
   const { supabase, localUser, settingsRow } = await getSupabaseScheduleReadContext();
-  return hydrateSupabaseTodayReadStore(localUser, supabase, settingsRow);
+  const store = await hydrateSupabaseTodayReadStore(localUser, supabase, settingsRow);
+  logSupabaseTiming("loadSupabaseTodayReadStore", t0);
+  return store;
 }
 
 async function loadSupabaseScheduleBrowserReadStore() {
@@ -2867,21 +2687,24 @@ async function syncUserRows(
 }
 
 function buildSupabaseAtomicMutationPayload(tables: DeltaSyncTableInput[]): SupabaseAtomicMutationPayload {
-  return Object.fromEntries(
-    tables.map((tableInput) => {
-      const { changedRows, removedKeys } = buildDeltaSyncPlan(tableInput);
-      const serializeRemovedKey = tableInput.serializeRemovedKey ?? ((key: string) => key);
-      return [
-        tableInput.table,
-        {
-          changed: changedRows,
-          removed: removedKeys
-            .map(serializeRemovedKey)
-            .filter((value) => value !== null),
-        },
-      ];
-    }),
-  );
+  const entries: [string, { changed: Record<string, unknown>[]; removed: unknown[] }][] = [];
+  for (const tableInput of tables) {
+    const { changedRows, removedKeys } = buildDeltaSyncPlan(tableInput);
+    if (changedRows.length === 0 && removedKeys.length === 0) {
+      continue;
+    }
+    const serializeRemovedKey = tableInput.serializeRemovedKey ?? ((key: string) => key);
+    entries.push([
+      tableInput.table,
+      {
+        changed: changedRows,
+        removed: removedKeys
+          .map(serializeRemovedKey)
+          .filter((value) => value !== null),
+      },
+    ]);
+  }
+  return Object.fromEntries(entries);
 }
 
 async function applySupabaseAtomicMutationRpc(
@@ -3462,6 +3285,7 @@ export async function mutateStore<T>(mutator: (store: LocalStore) => T | Promise
 
 export async function mutateScheduleStore<T>(mutator: (store: LocalStore) => T | Promise<T>): Promise<T> {
   if (getRuntimeMode() === "supabase") {
+    const t0 = performance.now();
     for (let attempt = 0; attempt < SUPABASE_CAS_MAX_ATTEMPTS; attempt += 1) {
       const store = await loadSupabaseScheduleStore();
       const userId = Object.keys(store.userState)[0];
@@ -3476,6 +3300,7 @@ export async function mutateScheduleStore<T>(mutator: (store: LocalStore) => T |
 
       try {
         await persistSupabaseScheduleStore(store, previous, expectedStateVersion);
+        logSupabaseTiming("mutateScheduleStore", t0, { attempt });
         return result;
       } catch (error) {
         if (!isSupabaseRetryableConflictError(error) || attempt === SUPABASE_CAS_MAX_ATTEMPTS - 1) {
@@ -3505,13 +3330,16 @@ export async function mutateScheduleStore<T>(mutator: (store: LocalStore) => T |
  * are safe no-ops.
  */
 async function ensureSupabaseAutomationsCurrent() {
+  const t0 = performance.now();
   const { settingsRow, user } = await getSupabaseScheduleReadContext();
   if (!settingsRow) {
+    logSupabaseTiming("ensureSupabaseAutomationsCurrent", t0, { result: "no_settings" });
     return;
   }
 
   const dayOneDate = (settingsRow.day_one_date as string | null | undefined) ?? null;
   if (!dayOneDate) {
+    logSupabaseTiming("ensureSupabaseAutomationsCurrent", t0, { result: "no_schedule" });
     return; // No schedule configured yet — nothing to catch up
   }
 
@@ -3523,6 +3351,7 @@ async function ensureSupabaseAutomationsCurrent() {
 
   // If today's repack has already run, automations are current.
   if (lastRepackDate && lastRepackDate >= todayDate) {
+    logSupabaseTiming("ensureSupabaseAutomationsCurrent", t0, { result: "current" });
     return;
   }
 
@@ -3544,16 +3373,19 @@ async function ensureSupabaseAutomationsCurrent() {
       logSupabasePersistence("catch_up_conflict_suppressed", {
         userId: user.id,
       });
+      logSupabaseTiming("ensureSupabaseAutomationsCurrent", t0, { result: "conflict_suppressed" });
       return;
     }
     if (isSupabaseScheduleSlotOrderCollisionError(error)) {
       logSupabasePersistence("catch_up_slot_order_collision_suppressed", {
         userId: user.id,
       });
+      logSupabaseTiming("ensureSupabaseAutomationsCurrent", t0, { result: "slot_collision_suppressed" });
       return;
     }
     throw error;
   }
+  logSupabaseTiming("ensureSupabaseAutomationsCurrent", t0, { result: "automations_applied" });
 }
 
 async function runScopedScheduleReader<T>(

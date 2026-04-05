@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 
 import { previewOverrunCascade, type OverrunPreviewSlot } from "@/lib/domain/backlog";
 import type { BlockKey, TrafficLight } from "@/lib/domain/types";
@@ -31,7 +30,6 @@ export function TimeEditor({
   canCreateBacklog = true,
 }: Props) {
   const [pending, startTransition] = useTransition();
-  const router = useRouter();
   const [actualStart, setActualStart] = useState(savedStart || start);
   const [actualEnd, setActualEnd] = useState(savedEnd || end);
 
@@ -68,7 +66,6 @@ export function TimeEditor({
         formData.set("cascadeDecision", cascadeDecision);
       }
       await updateBlockAction(formData);
-      router.refresh();
     });
   }
 
@@ -87,7 +84,6 @@ export function TimeEditor({
       formData.set("intent", "skip");
       formData.set("note", "Moved to backlog to protect sleep.");
       await updateBlockAction(formData);
-      router.refresh();
     });
   }
 

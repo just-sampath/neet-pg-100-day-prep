@@ -143,19 +143,19 @@ type McqItemDraft = {
   tags: McqTag[];
 };
 
-export function normalizeStoredMcqBulkLog(log: McqBulkLog): McqBulkLog {
+export function normalizeStoredMcqBulkLog(log: McqBulkLog, referenceData?: RuntimeReferenceData): McqBulkLog {
   return {
     ...log,
-    subject: normalizeMcqSubject(log.subject),
+    subject: normalizeMcqSubject(log.subject, referenceData),
     source: asTrimmedString(log.source),
   };
 }
 
-export function normalizeStoredMcqItemLog(log: McqItemLog): McqItemLog {
+export function normalizeStoredMcqItemLog(log: McqItemLog, referenceData?: RuntimeReferenceData): McqItemLog {
   return {
     ...log,
     result: normalizeMcqResult(log.result) ?? "wrong",
-    subject: normalizeMcqSubject(log.subject),
+    subject: normalizeMcqSubject(log.subject, referenceData),
     topic: asTrimmedString(log.topic),
     source: asTrimmedString(log.source),
     causeCode: normalizeMcqCauseCode(log.causeCode),
@@ -262,6 +262,7 @@ export function validateMcqBulkDraft(
     source?: string | null;
   },
   fallbackDate: string,
+  referenceData?: RuntimeReferenceData,
 ): { ok: true; value: McqBulkDraft } | { ok: false; error: string } {
   const totalAttempted = parsePositiveInteger(input.totalAttempted);
   const correct = parsePositiveInteger(input.correct);
@@ -287,7 +288,7 @@ export function validateMcqBulkDraft(
   }
 
   const entryDate = isDateOnly(input.entryDate) ? input.entryDate! : fallbackDate;
-  const subject = normalizeMcqSubject(input.subject);
+  const subject = normalizeMcqSubject(input.subject, referenceData);
   if (input.subject && !subject && asTrimmedString(input.subject)) {
     return { ok: false, error: "Use a valid schedule subject for bulk entry." };
   }
@@ -321,6 +322,7 @@ export function validateMcqItemDraft(
     tags?: Array<string | null | undefined>;
   },
   fallbackDate: string,
+  referenceData?: RuntimeReferenceData,
 ): { ok: true; value: McqItemDraft } | { ok: false; error: string } {
   const mcqId = asTrimmedString(input.mcqId);
   if (!mcqId) {
@@ -332,7 +334,7 @@ export function validateMcqItemDraft(
     return { ok: false, error: "Pick Right, Wrong, or Guessed Right." };
   }
 
-  const subject = normalizeMcqSubject(input.subject);
+  const subject = normalizeMcqSubject(input.subject, referenceData);
   if (input.subject && !subject && asTrimmedString(input.subject)) {
     return { ok: false, error: "Use one of the 19 schedule subjects." };
   }

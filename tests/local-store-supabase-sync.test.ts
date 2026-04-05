@@ -35,6 +35,40 @@ type SupabaseCall =
 const calls: SupabaseCall[] = [];
 const originalTransactionalRpcFlag = process.env.SUPABASE_TRANSACTIONAL_RPC;
 
+function captureRuntimeEnv() {
+  return {
+    runtime: process.env.BESIDE_YOU_RUNTIME,
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  };
+}
+
+function enableSupabaseRuntime() {
+  process.env.BESIDE_YOU_RUNTIME = "supabase";
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+}
+
+function restoreRuntimeEnv(snapshot: ReturnType<typeof captureRuntimeEnv>) {
+  if (snapshot.runtime === undefined) {
+    delete process.env.BESIDE_YOU_RUNTIME;
+  } else {
+    process.env.BESIDE_YOU_RUNTIME = snapshot.runtime;
+  }
+
+  if (snapshot.url === undefined) {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  } else {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = snapshot.url;
+  }
+
+  if (snapshot.anonKey === undefined) {
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  } else {
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = snapshot.anonKey;
+  }
+}
+
 function createMockSupabaseClient(callSink: SupabaseCall[]) {
   const matchesCasExpectedVersion = (filters: Array<{ column: string; value: unknown }>) => {
     const stateVersionFilter = filters.find((entry) => entry.column === "state_version");
@@ -148,10 +182,6 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/admin", () => ({
-  createSupabaseAdminClient: vi.fn(),
-}));
-
 import {
   createEmptyUserState,
   createRemoteUser,
@@ -161,7 +191,6 @@ import {
   readRuntimeReferenceData,
   readSupabaseStoreForUser,
 } from "@/lib/data/local-store";
-import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 function buildRevisionCompletion(sourceItemId: string, revisionType: RevisionType): RevisionCompletion {
@@ -241,112 +270,6 @@ function buildStore(
       simulatedNowIso: null,
     },
   };
-}
-
-type ReferenceSeedTable = "subject_tiers" | "quote_catalog" | "gt_plan_items" | "revision_map_days";
-
-function compareReferenceOrderValue(left: unknown, right: unknown) {
-  if (left === right) {
-    return 0;
-  }
-
-  return String(left ?? "").localeCompare(String(right ?? ""), undefined, { numeric: true });
-}
-
-function upsertReferenceRows(
-  existingRows: Array<Record<string, unknown>>,
-  incomingRows: Array<Record<string, unknown>>,
-  onConflict: string,
-) {
-  const conflictColumns = onConflict
-    .split(",")
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-  const nextRows = [...existingRows];
-
-  for (const row of incomingRows) {
-    const matchIndex = nextRows.findIndex((existingRow) =>
-      conflictColumns.every((column) => existingRow[column] === row[column]),
-    );
-
-    if (matchIndex >= 0) {
-      nextRows[matchIndex] = { ...nextRows[matchIndex], ...row };
-      continue;
-    }
-
-    nextRows.push(row);
-  }
-
-  return nextRows;
-}
-
-function createReferenceSeedClients(initialGtPlanRows: Array<Record<string, unknown>> = []) {
-  const tables: Record<ReferenceSeedTable, Array<Record<string, unknown>>> = {
-    subject_tiers: [],
-    quote_catalog: [],
-    gt_plan_items: [...initialGtPlanRows],
-    revision_map_days: [],
-  };
-
-  const admin = {
-    from: vi.fn((table: ReferenceSeedTable) => ({
-      upsert: vi.fn(async (payload: unknown, options: { onConflict: string }) => {
-        const rows = Array.isArray(payload)
-          ? (payload as Array<Record<string, unknown>>)
-          : [payload as Record<string, unknown>];
-
-        if (table === "gt_plan_items" && options.onConflict === "gt_plan_ref") {
-          const hasSourceDayConflict = rows.some((row) =>
-            tables.gt_plan_items.some(
-              (existingRow) =>
-                existingRow.source_day_number === row.source_day_number &&
-                existingRow.gt_plan_ref !== row.gt_plan_ref,
-            ),
-          );
-
-          if (hasSourceDayConflict) {
-            return {
-              error: {
-                code: "23505",
-                message: 'duplicate key value violates unique constraint "gt_plan_items_source_day_number_key"',
-              },
-            };
-          }
-        }
-
-        tables[table] = upsertReferenceRows(tables[table], rows, options.onConflict);
-        return { error: null };
-      }),
-      insert: vi.fn(async (payload: unknown) => {
-        const rows = Array.isArray(payload)
-          ? (payload as Array<Record<string, unknown>>)
-          : [payload as Record<string, unknown>];
-        tables[table] = [...tables[table], ...rows];
-        return { error: null };
-      }),
-      delete: vi.fn(() => ({
-        neq: vi.fn(async () => {
-          tables[table] = [];
-          return { error: null };
-        }),
-      })),
-    })),
-  };
-
-  const server = {
-    from: vi.fn((table: ReferenceSeedTable) => ({
-      select: vi.fn(() => ({
-        order: vi.fn(async (column: string) => ({
-          data: [...tables[table]].sort((left, right) =>
-            compareReferenceOrderValue(left[column], right[column]),
-          ),
-          error: null,
-        })),
-      })),
-    })),
-  };
-
-  return { admin, server };
 }
 
 function compareSupabaseValue(left: unknown, right: unknown, ascending: boolean) {
@@ -1075,101 +998,163 @@ describe("supabase browser-scoped schedule hydration", () => {
   });
 });
 
+describe("supabase MCQ and GT hydration", () => {
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("hydrates subject-tagged MCQ and GT logs in Supabase mode", async () => {
+    const env = captureRuntimeEnv();
+
+    try {
+      enableSupabaseRuntime();
+
+      const userId = "test-user";
+      const rowsByTable: Record<string, Array<Record<string, unknown>>> = {
+        app_settings: [{
+          user_id: userId,
+          day_one_date: null,
+          theme: "dark",
+          schedule_shift_days: 0,
+          shift_applied_at: null,
+          shift_events: [],
+          schedule_seed_version: 0,
+          schedule_seeded_at: null,
+          quote_state: {},
+          processed_dates: null,
+          morning_revision_selections: null,
+          morning_revision_actual_minutes: null,
+          morning_revision_auto_add_notice: null,
+          simulated_now_iso: null,
+          state_version: 0,
+        }],
+        schedule_days: [],
+        schedule_blocks: [],
+        schedule_topic_assignments: [],
+        phase_config: [],
+        revision_completions: [],
+        backlog_items: [],
+        mcq_bulk_logs: [{
+          id: "bulk-1",
+          user_id: userId,
+          entry_date: "2026-05-10",
+          total_attempted: 20,
+          correct: 15,
+          wrong: 5,
+          subject: "medicine",
+          source: " GT-07 ",
+          created_at: "2026-05-10T06:30:00.000Z",
+        }],
+        mcq_item_logs: [{
+          id: "item-1",
+          user_id: userId,
+          entry_date: "2026-05-10",
+          mcq_id: "GT-07-Q118",
+          result: "wrong",
+          subject: "pathology",
+          topic: " Heme smear ",
+          source: " GT-07 ",
+          cause_code: "c",
+          priority: "p1",
+          correct_rule: " Know the discriminator. ",
+          what_fooled_me: " Chose the trap option. ",
+          fix_codes: ["q20", "AI", "bad"],
+          tags: ["image", "Protocol", "bad"],
+          created_at: "2026-05-10T06:40:00.000Z",
+        }],
+        gt_logs: [{
+          id: "gt-1",
+          user_id: userId,
+          gt_number: "GT-5",
+          gt_date: "2026-05-10",
+          day_number: null,
+          score: null,
+          correct: null,
+          wrong: null,
+          unattempted: null,
+          air_percentile: null,
+          device: null,
+          attempted_live: null,
+          overall_feeling: null,
+          section_a: {},
+          section_b: {},
+          section_c: {},
+          section_d: {},
+          section_e: {},
+          error_types: null,
+          recurring_topics: null,
+          weakest_subjects: ["medicine", "Surgery", "invalid"],
+          knowledge_vs_behaviour: null,
+          unsure_right_count: null,
+          change_before_next_gt: null,
+          created_at: "2026-05-10T07:00:00.000Z",
+        }],
+        weekly_summaries: [],
+      };
+
+      const mockReadSupabase = {
+        from: vi.fn((table: string) => ({
+          select: vi.fn(() => createSupabaseReadQuery(rowsByTable[table] ?? [])),
+        })),
+      };
+
+      const store = await readSupabaseStoreForUser(createRemoteUser(userId), mockReadSupabase as never);
+
+      expect(store.userState[userId].mcqBulkLogs["bulk-1"]).toMatchObject({
+        subject: "Medicine",
+        source: "GT-07",
+      });
+      expect(store.userState[userId].mcqItemLogs["item-1"]).toMatchObject({
+        subject: "Pathology",
+        topic: "Heme smear",
+        source: "GT-07",
+        causeCode: "C",
+        priority: "P1",
+        fixCodes: ["Q20", "AI"],
+        tags: ["image", "protocol"],
+      });
+      expect(store.userState[userId].gtLogs["gt-1"]).toMatchObject({
+        weakestSubjects: ["Medicine", "Surgery"],
+      });
+    } finally {
+      restoreRuntimeEnv(env);
+    }
+  });
+});
+
 describe("supabase reference seeding", () => {
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  it("logs admin fetch failures as a concise message while falling back to static reference data", async () => {
+  it("returns static reference data directly without admin seeding or server queries", async () => {
     const originalRuntime = process.env.BESIDE_YOU_RUNTIME;
-    const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const originalAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => { });
 
     try {
       process.env.BESIDE_YOU_RUNTIME = "supabase";
-      process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
-
-      const admin = {
-        from: vi.fn(() => ({
-          upsert: vi.fn(async () => {
-            throw new TypeError("fetch failed");
-          }),
-          insert: vi.fn(async () => ({ error: null })),
-          delete: vi.fn(() => ({
-            neq: vi.fn(async () => ({ error: null })),
-          })),
-        })),
-      };
-
-      const { server } = createReferenceSeedClients();
-
-      vi.mocked(createSupabaseAdminClient).mockReturnValue(admin as never);
-      vi.mocked(createSupabaseServerClient).mockResolvedValue(server as never);
 
       const runtimeReferenceData = await readRuntimeReferenceData();
 
       expect(runtimeReferenceData).toEqual(getStaticReferenceData());
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      expect(warnSpy).toHaveBeenCalledWith(
-        "Supabase admin reference seed skipped: reference seed: fetch failed",
-      );
     } finally {
-      warnSpy.mockRestore();
       process.env.BESIDE_YOU_RUNTIME = originalRuntime;
-      process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalAnon;
     }
   });
 
-  it("repairs stale gt plan refs when source-day uniqueness blocks reseeding", async () => {
+  it("returns static gt plan data without querying supabase", async () => {
     const originalRuntime = process.env.BESIDE_YOU_RUNTIME;
-    const originalUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const originalAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => { });
 
     try {
       process.env.BESIDE_YOU_RUNTIME = "supabase";
-      process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
 
       const staticReferenceData = getStaticReferenceData();
-      const gt8 = staticReferenceData.scheduleData.gtTestPlan.tests.find((entry) => entry.gtPlanRef === "gt_8");
-      expect(gt8).toBeTruthy();
-
-      const { admin, server } = createReferenceSeedClients([
-        {
-          gt_plan_ref: "legacy_gt_8",
-          source_day_number: gt8!.dayNumber,
-          test_type: gt8!.testType,
-          purpose_raw: gt8!.purposeRaw,
-          what_to_measure_raw: gt8!.whatToMeasureRaw,
-          what_to_measure_items: gt8!.whatToMeasureItems,
-          must_output_raw: gt8!.mustOutputRaw,
-          must_output_items: gt8!.mustOutputItems,
-          resource_raw: gt8!.resourceRaw,
-          review_raw: gt8!.reviewRaw,
-          wrap_up_raw: gt8!.wrapUpRaw,
-          notes_raw: gt8!.notesRaw,
-          seed_version: 0,
-        },
-      ]);
-
-      vi.mocked(createSupabaseAdminClient).mockReturnValue(admin as never);
-      vi.mocked(createSupabaseServerClient).mockResolvedValue(server as never);
-
       const runtimeReferenceData = await readRuntimeReferenceData();
 
-      expect(warnSpy).not.toHaveBeenCalled();
       expect(runtimeReferenceData.scheduleData.gtTestPlan.tests).toEqual(
         staticReferenceData.scheduleData.gtTestPlan.tests,
       );
     } finally {
-      warnSpy.mockRestore();
       process.env.BESIDE_YOU_RUNTIME = originalRuntime;
-      process.env.NEXT_PUBLIC_SUPABASE_URL = originalUrl;
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalAnon;
     }
   });
 });

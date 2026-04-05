@@ -56,7 +56,6 @@ describe("supabase runtime reference-data threading", () => {
       "src/app/(app)/mcq/page.tsx",
       "src/app/(app)/mcq/analytics/page.tsx",
       "src/app/(app)/revision-queue/page.tsx",
-      "src/app/(app)/settings/page.tsx",
       "src/app/(app)/weekly/page.tsx",
       "src/app/(app)/weekly/[week]/page.tsx",
     ];
@@ -66,5 +65,11 @@ describe("supabase runtime reference-data threading", () => {
       expect(content, `${path} should not use mutateStore for passive page reads`).not.toContain("mutateStore(");
       expect(content, `${path} should use readPassiveStore for guarded Supabase reads`).toContain("readPassiveStore(");
     }
+
+    // Settings page uses readSettingsPageData (lightweight: 1 query vs 11) which
+    // delegates to readPassiveStore internally for local mode.
+    const settingsContent = read("src/app/(app)/settings/page.tsx");
+    expect(settingsContent, "settings page should not use mutateStore").not.toContain("mutateStore(");
+    expect(settingsContent, "settings page should use readSettingsPageData").toContain("readSettingsPageData(");
   });
 });

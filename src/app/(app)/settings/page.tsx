@@ -1,12 +1,11 @@
 import { DevToolbar } from "@/components/app/dev-toolbar";
 import { InstallStatusCard } from "@/components/app/install-status-card";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
-import { applyAutomations } from "@/lib/data/app-state";
-import { getEffectiveNow, readPassiveStore } from "@/lib/data/local-store";
+import { readSettingsPageData } from "@/lib/data/local-store";
 import { APP_DESCRIPTION, APP_VERSION } from "@/lib/domain/app-meta";
 import { EXAM_DATE, HARD_BOUNDARY_DATE } from "@/lib/domain/constants";
 import { getRuntimeLabel, getRuntimeMode } from "@/lib/runtime/mode";
-import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
+import { addDaysToDateOnly, getMinutesInTimeZone, IST_TIME_ZONE } from "@/lib/utils/date";
 import { resetAppStateAction, setDayOneDateAction, setThemeAction } from "@/lib/server/actions";
 
 export default async function SettingsPage() {
@@ -14,16 +13,7 @@ export default async function SettingsPage() {
   await requireDayOneSetup(user.id);
   const runtimeMode = getRuntimeMode();
   const showDevelopmentReset = process.env.NODE_ENV !== "production";
-  const { settings, simulatedNow, todayDate, nowIso } = await readPassiveStore((store) => {
-    applyAutomations(store, user.id);
-    const now = getEffectiveNow(store);
-    return {
-      settings: structuredClone(store.userState[user.id].settings),
-      simulatedNow: store.dev.simulatedNowIso,
-      todayDate: toDateOnlyInTimeZone(now, IST_TIME_ZONE),
-      nowIso: now.toISOString(),
-    };
-  });
+  const { settings, simulatedNow, todayDate, nowIso } = await readSettingsPageData(user.id);
   const minDate = process.env.NODE_ENV === "production"
     ? getMinutesInTimeZone(new Date(nowIso), IST_TIME_ZONE) >= 720
       ? addDaysToDateOnly(todayDate, 1)
