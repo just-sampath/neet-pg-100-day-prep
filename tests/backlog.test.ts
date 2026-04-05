@@ -486,6 +486,19 @@ describe("backlog creation and traffic-light handling", () => {
     expect(page.items).toHaveLength(0);
   });
 
+  it("does not expose revision queue data in backlog page data", () => {
+    const userState = createConfiguredUserState();
+
+    completeBlockItems(userState, 1, getBlockKey(1, "block_a"), "2026-05-01T10:00:00.000Z");
+
+    const page = getBacklogPageData(createStore(userState, "2026-05-02T06:30:00.000Z"), "local-user", {
+      filter: "pending",
+      sort: "priority",
+    });
+
+    expect("revision" in page).toBe(false);
+  });
+
   it("resolves subject tier from reference data", () => {
     const refData = getStaticReferenceData();
 

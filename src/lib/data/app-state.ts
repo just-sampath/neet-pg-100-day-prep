@@ -2465,7 +2465,6 @@ export function getBacklogPageData(
     dismissedItems,
     phaseClosedItems,
     bulkDismissCounts,
-    revision: buildRevisionOverview(userState, userState.settings, todayDate, store.referenceData),
   };
 }
 
