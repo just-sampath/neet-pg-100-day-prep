@@ -61,6 +61,7 @@ vi.mock("@/lib/data/local-store", async () => {
     getEffectiveNow: vi.fn(() => new Date("2026-05-10T06:30:00.000Z")),
     mutateStore: vi.fn(async (updater: (store: LocalStore) => unknown) => updater(testStore)),
     mutateScheduleStore: vi.fn(async (updater: (store: LocalStore) => unknown) => updater(testStore)),
+    mutateActivityStore: vi.fn(async (updater: (store: LocalStore) => unknown) => updater(testStore)),
   };
 });
 

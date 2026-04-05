@@ -52,7 +52,7 @@ let localMutationQueue: Promise<void> = Promise.resolve();
 const SUPABASE_RETRYABLE_CONFLICT = "SUPABASE_CONFLICT_RETRYABLE";
 const SUPABASE_CAS_MAX_ATTEMPTS = 2;
 const SUPABASE_READ_PAGE_SIZE = 1000;
-type SupabaseStoreReadScope = "full" | "schedule_full" | "today_scoped" | "browser_scoped" | "day_scoped";
+type SupabaseStoreReadScope = "full" | "schedule_full" | "today_scoped" | "browser_scoped" | "day_scoped" | "activity_scoped";
 type SupabaseStoreReadMode = "full_mutation" | "read_guarded";
 type SupabaseStoreMetadata = {
   readScope: SupabaseStoreReadScope;
@@ -1111,14 +1111,14 @@ export async function readSettingsPageData(userId: string) {
     const settings = normalizeSettings(
       row
         ? {
-            dayOneDate: (row.day_one_date as string | null | undefined) ?? null,
-            theme: ((row.theme as string | null | undefined) ?? "dark") === "light" ? "light" : "dark",
-            scheduleShiftDays: (row.schedule_shift_days as number | null | undefined) ?? 0,
-            shiftAppliedAt: (row.shift_applied_at as string | null | undefined) ?? null,
-            shiftEvents: (row.shift_events as AppSettings["shiftEvents"] | null | undefined) ?? [],
-            scheduleSeedVersion: (row.schedule_seed_version as number | null | undefined) ?? 0,
-            scheduleSeededAt: (row.schedule_seeded_at as string | null | undefined) ?? null,
-          }
+          dayOneDate: (row.day_one_date as string | null | undefined) ?? null,
+          theme: ((row.theme as string | null | undefined) ?? "dark") === "light" ? "light" : "dark",
+          scheduleShiftDays: (row.schedule_shift_days as number | null | undefined) ?? 0,
+          shiftAppliedAt: (row.shift_applied_at as string | null | undefined) ?? null,
+          shiftEvents: (row.shift_events as AppSettings["shiftEvents"] | null | undefined) ?? [],
+          scheduleSeedVersion: (row.schedule_seed_version as number | null | undefined) ?? 0,
+          scheduleSeededAt: (row.schedule_seeded_at as string | null | undefined) ?? null,
+        }
         : undefined,
     );
     return {
@@ -2207,6 +2207,115 @@ async function hydrateSupabaseScheduleDayReadStore(
   return store;
 }
 
+/**
+ * Hydrate a store with only activity data (MCQ, GT, weekly summaries).
+ * Loads 4 tables (app_settings via settingsRow + mcq_bulk + mcq_item + gt + weekly)
+ * instead of 11, dramatically reducing query count for activity-only pages.
+ */
+async function hydrateSupabaseActivityReadStore(
+  user: LocalUser,
+  supabase: SupabaseClient,
+  settingsRow: Record<string, unknown> | null,
+) {
+  const t0 = performance.now();
+  const store = createSessionScopedStore(user);
+  setSupabaseStoreReadScope(store, "activity_scoped");
+  setSupabaseStoreReadMode(store, "read_guarded");
+  const userState = store.userState[user.id];
+  store.referenceData = getStaticReferenceData();
+  applySupabaseSettingsRow(store, user.id, settingsRow, store.referenceData);
+
+  const [mcqBulkRows, mcqItemRows, gtRows, weeklyRows] = await Promise.all([
+    loadAllUserRows("mcq_bulk_logs", user.id, supabase, [{ column: "id" }]),
+    loadAllUserRows("mcq_item_logs", user.id, supabase, [{ column: "id" }]),
+    loadAllUserRows("gt_logs", user.id, supabase, [{ column: "id" }]),
+    loadAllUserRows("weekly_summaries", user.id, supabase, [{ column: "id" }]),
+  ]);
+
+  for (const row of mcqBulkRows) {
+    const log = normalizeStoredMcqBulkLog({
+      id: row.id,
+      entryDate: row.entry_date,
+      totalAttempted: row.total_attempted,
+      correct: row.correct,
+      wrong: row.wrong,
+      subject: row.subject,
+      source: row.source,
+      createdAt: row.created_at,
+    }, store.referenceData);
+    userState.mcqBulkLogs[log.id] = log;
+  }
+
+  for (const row of mcqItemRows) {
+    const log = normalizeStoredMcqItemLog({
+      id: row.id,
+      entryDate: row.entry_date,
+      mcqId: row.mcq_id,
+      result: row.result,
+      subject: row.subject,
+      topic: row.topic,
+      source: row.source,
+      causeCode: row.cause_code,
+      priority: row.priority,
+      correctRule: row.correct_rule,
+      whatFooledMe: row.what_fooled_me,
+      fixCodes: row.fix_codes ?? [],
+      tags: row.tags ?? [],
+      createdAt: row.created_at,
+    }, store.referenceData);
+    userState.mcqItemLogs[log.id] = log;
+  }
+
+  for (const row of gtRows) {
+    const log = normalizeStoredGtLog({
+      id: row.id,
+      gtNumber: row.gt_number,
+      gtDate: row.gt_date,
+      dayNumber: row.day_number,
+      score: row.score,
+      correct: row.correct,
+      wrong: row.wrong,
+      unattempted: row.unattempted,
+      airPercentile: row.air_percentile,
+      device: row.device,
+      attemptedLive: row.attempted_live,
+      overallFeeling: row.overall_feeling,
+      sectionA: row.section_a ?? {},
+      sectionB: row.section_b ?? {},
+      sectionC: row.section_c ?? {},
+      sectionD: row.section_d ?? {},
+      sectionE: row.section_e ?? {},
+      errorTypes: row.error_types,
+      recurringTopics: row.recurring_topics,
+      weakestSubjects: row.weakest_subjects ?? [],
+      knowledgeVsBehaviour: row.knowledge_vs_behaviour,
+      unsureRightCount: row.unsure_right_count,
+      changeBeforeNextGt: row.change_before_next_gt,
+      createdAt: row.created_at,
+    }, store.referenceData);
+    userState.gtLogs[log.id] = log;
+  }
+
+  for (const row of weeklyRows) {
+    const summary = normalizeStoredWeeklySummary({
+      ...(row.payload as WeeklySummary),
+      id: row.id,
+      generatedAt: row.generated_at ?? (row.payload as WeeklySummary).generatedAt,
+    });
+    const existing = findWeeklySummaryByWeekKey(userState.weeklySummaries, summary.weekKey);
+    if (!existing || existing.generatedAt <= summary.generatedAt) {
+      if (existing) {
+        delete userState.weeklySummaries[existing.id];
+      }
+      userState.weeklySummaries[summary.id] = summary;
+    }
+  }
+
+  store.userState[user.id] = normalizeUserState(userState, store.referenceData);
+  logSupabaseTiming("hydrateSupabaseActivityReadStore", t0);
+  return store;
+}
+
 async function persistSupabaseScheduleReadStore(nextStore: LocalStore, previousStore: LocalStore) {
   const userId = Object.keys(nextStore.userState)[0];
   if (!userId) {
@@ -2355,6 +2464,14 @@ async function loadSupabaseScheduleBrowserReadStore() {
 async function loadSupabaseScheduleDayReadStore(dayNumber: number) {
   const { supabase, localUser, settingsRow } = await getSupabaseScheduleReadContext();
   return hydrateSupabaseScheduleDayReadStore(localUser, supabase, settingsRow, dayNumber);
+}
+
+async function loadSupabaseActivityReadStore() {
+  const t0 = performance.now();
+  const { supabase, localUser, settingsRow } = await getSupabaseScheduleReadContext();
+  const store = await hydrateSupabaseActivityReadStore(localUser, supabase, settingsRow);
+  logSupabaseTiming("loadSupabaseActivityReadStore", t0);
+  return store;
 }
 
 type PersistSupabaseOptions = {
@@ -3151,6 +3268,88 @@ async function persistSupabaseScheduleStore(
   );
 }
 
+/**
+ * Persist only activity tables (MCQ, GT, weekly) through the atomic RPC.
+ * Skips schedule table diffing entirely, making MCQ/GT mutations much faster.
+ */
+async function persistSupabaseActivityStore(
+  nextStore: LocalStore,
+  previousStore: LocalStore,
+  expectedStateVersion?: number | null,
+) {
+  const userId = Object.keys(nextStore.userState)[0];
+  if (!userId) {
+    return;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase runtime is active, but the Supabase server client is unavailable.");
+  }
+
+  const nextState = nextStore.userState[userId] ?? createEmptyUserState();
+  const previousState = previousStore.userState[userId] ?? createEmptyUserState();
+  const resolvedExpectedStateVersion = resolveExpectedStateVersion(nextStore, userId, expectedStateVersion);
+  const nextStateVersion = resolvedExpectedStateVersion + 1;
+
+  const tables: DeltaSyncTableInput[] = [
+    {
+      table: "mcq_bulk_logs",
+      userId,
+      onConflict: "id",
+      nextRows: buildMcqBulkRows(userId, nextState),
+      previousRows: buildMcqBulkRows(userId, previousState),
+      rowKey: (row) => String(row.id),
+      deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "id", keys, client),
+    },
+    {
+      table: "mcq_item_logs",
+      userId,
+      onConflict: "id",
+      nextRows: buildMcqItemRows(userId, nextState),
+      previousRows: buildMcqItemRows(userId, previousState),
+      rowKey: (row) => String(row.id),
+      deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "id", keys, client),
+    },
+    {
+      table: "gt_logs",
+      userId,
+      onConflict: "id",
+      nextRows: buildGtRows(userId, nextState),
+      previousRows: buildGtRows(userId, previousState),
+      rowKey: (row) => String(row.id),
+      deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "id", keys, client),
+    },
+    {
+      table: "weekly_summaries",
+      userId,
+      onConflict: "user_id,week_key",
+      nextRows: buildWeeklySummaryRows(userId, nextState),
+      previousRows: buildWeeklySummaryRows(userId, previousState),
+      rowKey: (row) => String(row.week_key),
+      deleteMissing: (keys, client, input) => deleteRowsBySingleColumn(input.table, input.userId, "week_key", keys, client),
+    },
+  ];
+
+  if (isSupabaseOptimisticCasEnabled() && isSupabaseTransactionalRpcEnabled()) {
+    const stateVersion = await applySupabaseAtomicMutationRpc(
+      {
+        userId,
+        expectedStateVersion: resolvedExpectedStateVersion,
+        nextStateVersion,
+        settingsPayload: buildAppSettingsRow(userId, nextStore, nextState, nextStateVersion),
+        deltasPayload: buildSupabaseAtomicMutationPayload(tables),
+      },
+      supabase,
+    );
+    setSupabaseStoreStateVersion(nextStore, userId, stateVersion);
+    return;
+  }
+
+  // Fallback: non-transactional path
+  await Promise.all(tables.map((tableInput) => syncUserRows(tableInput, supabase)));
+}
+
 export async function persistSupabaseStoreForUser(
   nextStore: LocalStore,
   previousStore: LocalStore,
@@ -3219,6 +3418,19 @@ export async function readPassiveStore<T>(reader: (store: LocalStore) => T | Pro
   if (getRuntimeMode() === "supabase") {
     await ensureSupabaseAutomationsCurrent();
     const store = await loadSupabaseGuardedStore();
+    return reader(store);
+  }
+  return mutateStore(reader);
+}
+
+/**
+ * Scoped reader for activity-only pages (MCQ, GT, weekly, analytics).
+ * In Supabase mode loads only app_settings + activity tables (4 queries vs 11).
+ */
+export async function readActivityPageData<T>(reader: (store: LocalStore) => T | Promise<T>): Promise<T> {
+  if (getRuntimeMode() === "supabase") {
+    await ensureSupabaseAutomationsCurrent();
+    const store = await loadSupabaseActivityReadStore();
     return reader(store);
   }
   return mutateStore(reader);
@@ -3308,6 +3520,48 @@ export async function mutateScheduleStore<T>(mutator: (store: LocalStore) => T |
         }
         logSupabasePersistence("cas_retry", {
           scope: "schedule_store",
+          attempt: attempt + 1,
+        });
+      }
+    }
+
+    throw new SupabaseRetryableConflictError();
+  }
+
+  return mutateStore(mutator);
+}
+
+/**
+ * Scoped mutator for activity-only writes (MCQ, GT, weekly summaries).
+ * In Supabase mode this loads only activity tables (4 queries instead of 11)
+ * and persists only activity table deltas, avoiding schedule row diffing.
+ */
+export async function mutateActivityStore<T>(mutator: (store: LocalStore) => T | Promise<T>): Promise<T> {
+  if (getRuntimeMode() === "supabase") {
+    const t0 = performance.now();
+    for (let attempt = 0; attempt < SUPABASE_CAS_MAX_ATTEMPTS; attempt += 1) {
+      const store = await loadSupabaseActivityReadStore();
+      // Override scoped read mode so persistence is allowed.
+      setSupabaseStoreReadMode(store, "full_mutation");
+      const userId = Object.keys(store.userState)[0];
+      const expectedStateVersion = userId ? getSupabaseStoreStateVersion(store, userId) : null;
+      const previous = structuredClone(store);
+      const result = await mutator(store);
+
+      if (JSON.stringify(store) === JSON.stringify(previous)) {
+        return result;
+      }
+
+      try {
+        await persistSupabaseActivityStore(store, previous, expectedStateVersion);
+        logSupabaseTiming("mutateActivityStore", t0, { attempt });
+        return result;
+      } catch (error) {
+        if (!isSupabaseRetryableConflictError(error) || attempt === SUPABASE_CAS_MAX_ATTEMPTS - 1) {
+          throw error;
+        }
+        logSupabasePersistence("cas_retry", {
+          scope: "activity_store",
           attempt: attempt + 1,
         });
       }

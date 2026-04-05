@@ -37,6 +37,7 @@ import {
   createEmptyUserState,
   getEffectiveNow,
   isSupabaseRetryableConflictError,
+  mutateActivityStore,
   mutateScheduleStore,
   mutateStore,
 } from "@/lib/data/local-store";
@@ -109,6 +110,20 @@ async function mutateStoreWithConflictHandling(
 ) {
   try {
     return await mutateStore(mutator);
+  } catch (error) {
+    if (!isSupabaseRetryableConflictError(error)) {
+      throw error;
+    }
+    refresh();
+    throw new Error("RETRYABLE_CONFLICT: State changed on another device. Reload and retry.");
+  }
+}
+
+async function mutateActivityStoreWithConflictHandling(
+  mutator: Parameters<typeof mutateActivityStore>[0],
+) {
+  try {
+    return await mutateActivityStore(mutator);
   } catch (error) {
     if (!isSupabaseRetryableConflictError(error)) {
       throw error;
@@ -543,7 +558,7 @@ export async function applyShiftAction(formData: FormData) {
 export async function submitMcqBulkAction(formData: FormData) {
   const user = await requireCurrentUser();
   let result: { ok: boolean; error?: string } = { ok: true };
-  await mutateStoreWithConflictHandling((store) => {
+  await mutateActivityStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const validated = validateMcqBulkDraft(
       {
@@ -584,7 +599,7 @@ export async function submitMcqBulkAction(formData: FormData) {
 export async function submitMcqItemAction(formData: FormData) {
   const user = await requireCurrentUser();
   let result: { ok: boolean; error?: string } = { ok: true };
-  await mutateStoreWithConflictHandling((store) => {
+  await mutateActivityStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const validated = validateMcqItemDraft(
       {
@@ -637,7 +652,7 @@ export async function submitMcqItemAction(formData: FormData) {
 export async function submitGtAction(formData: FormData) {
   const user = await requireCurrentUser();
   let result: { ok: boolean; error?: string } = { ok: true };
-  await mutateStoreWithConflictHandling((store) => {
+  await mutateActivityStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const sectionInput = (prefix: string) => ({
       timeEnough: asString(formData.get(`${prefix}TimeEnough`)) || null,
@@ -695,7 +710,7 @@ export async function submitGtAction(formData: FormData) {
 
 export async function generateWeeklySummaryAction() {
   const user = await requireCurrentUser();
-  await mutateStoreWithConflictHandling((store) => {
+  await mutateActivityStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     const today = toDateOnlyInTimeZone(getEffectiveNow(store), IST_TIME_ZONE);
     const week = weekBounds(today);

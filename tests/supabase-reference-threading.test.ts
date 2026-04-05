@@ -51,19 +51,29 @@ describe("supabase runtime reference-data threading", () => {
   it("uses guarded passive store reads for non-schedule app pages", () => {
     const passivePageFiles = [
       "src/app/(app)/backlog/page.tsx",
-      "src/app/(app)/gt/page.tsx",
-      "src/app/(app)/gt/analytics/page.tsx",
-      "src/app/(app)/mcq/page.tsx",
-      "src/app/(app)/mcq/analytics/page.tsx",
       "src/app/(app)/revision-queue/page.tsx",
-      "src/app/(app)/weekly/page.tsx",
-      "src/app/(app)/weekly/[week]/page.tsx",
     ];
 
     for (const path of passivePageFiles) {
       const content = read(path);
       expect(content, `${path} should not use mutateStore for passive page reads`).not.toContain("mutateStore(");
       expect(content, `${path} should use readPassiveStore for guarded Supabase reads`).toContain("readPassiveStore(");
+    }
+
+    // Activity pages use readActivityPageData (lightweight: 4 activity tables vs 11)
+    const activityPageFiles = [
+      "src/app/(app)/gt/page.tsx",
+      "src/app/(app)/gt/analytics/page.tsx",
+      "src/app/(app)/mcq/page.tsx",
+      "src/app/(app)/mcq/analytics/page.tsx",
+      "src/app/(app)/weekly/page.tsx",
+      "src/app/(app)/weekly/[week]/page.tsx",
+    ];
+
+    for (const path of activityPageFiles) {
+      const content = read(path);
+      expect(content, `${path} should not use mutateStore for passive page reads`).not.toContain("mutateStore(");
+      expect(content, `${path} should use readActivityPageData for scoped Supabase reads`).toContain("readActivityPageData(");
     }
 
     // Settings page uses readSettingsPageData (lightweight: 1 query vs 11) which

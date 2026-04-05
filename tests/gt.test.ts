@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { generateWeeklySummary } from "@/lib/data/app-state";
+import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import { applyScheduleMappingsFromSettings, buildExtensionDayRows, ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import {
@@ -281,6 +282,87 @@ describe("gt tracker and analytics", () => {
       isToday: true,
     });
     expect(getSuggestedGtPlanItem(userState, "2026-07-06")?.dayNumber).toBe(66);
+  });
+
+  it("accepts explicit runtime reference data for GT weakest-subject normalization in Supabase mode", () => {
+    const runtime = process.env.BESIDE_YOU_RUNTIME;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    process.env.BESIDE_YOU_RUNTIME = "supabase";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+
+    try {
+      const referenceData = getStaticReferenceData();
+
+      expect(
+        validateGtDraft(
+          {
+            gtNumber: "GT-5",
+            gtDate: "2026-07-05",
+            weakestSubjects: ["medicine", "Surgery", "invalid"],
+          },
+          "2026-07-05",
+          referenceData,
+        ),
+      ).toMatchObject({
+        ok: true,
+        value: {
+          weakestSubjects: ["Medicine", "Surgery"],
+        },
+      });
+
+      expect(
+        normalizeStoredGtLog(
+          {
+            id: "gt-2",
+            gtNumber: "GT-5",
+            gtDate: "2026-07-05",
+            dayNumber: null,
+            score: null,
+            correct: null,
+            wrong: null,
+            unattempted: null,
+            airPercentile: null,
+            device: null,
+            attemptedLive: null,
+            overallFeeling: null,
+            sectionA: emptyGtSectionBreakdown(),
+            sectionB: emptyGtSectionBreakdown(),
+            sectionC: emptyGtSectionBreakdown(),
+            sectionD: emptyGtSectionBreakdown(),
+            sectionE: emptyGtSectionBreakdown(),
+            errorTypes: null,
+            recurringTopics: null,
+            weakestSubjects: ["medicine", "invalid"] as never,
+            knowledgeVsBehaviour: null,
+            unsureRightCount: null,
+            changeBeforeNextGt: null,
+            createdAt: "2026-07-05T10:00:00.000Z",
+          },
+          referenceData,
+        ),
+      ).toMatchObject({
+        weakestSubjects: ["Medicine"],
+      });
+    } finally {
+      if (runtime === undefined) {
+        delete process.env.BESIDE_YOU_RUNTIME;
+      } else {
+        process.env.BESIDE_YOU_RUNTIME = runtime;
+      }
+      if (url === undefined) {
+        delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      } else {
+        process.env.NEXT_PUBLIC_SUPABASE_URL = url;
+      }
+      if (anonKey === undefined) {
+        delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      } else {
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKey;
+      }
+    }
   });
 
   it("builds GT analytics for score trend, section patterns, comparison, wrapper trend, and weakness repetition", () => {

@@ -3,12 +3,12 @@ import Link from "next/link";
 import { GtEntryForm } from "@/components/app/gt-entry-form";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getGtPageData } from "@/lib/data/app-state";
-import { readPassiveStore } from "@/lib/data/local-store";
+import { readActivityPageData } from "@/lib/data/local-store";
 
 export default async function GtPage() {
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
-  const data = await readPassiveStore((store) => getGtPageData(store, user.id));
+  const data = await readActivityPageData((store) => getGtPageData(store, user.id));
 
   return (
     <div className="grid gap-6">
@@ -63,11 +63,11 @@ export default async function GtPage() {
                   <span className="status-badge" data-tone="neutral">
                     Upcoming
                   </span>
-              ) : (
-                <span className="status-badge" data-tone="neutral">
-                  Logged window
-                </span>
-              )}
+                ) : (
+                  <span className="status-badge" data-tone="neutral">
+                    Logged window
+                  </span>
+                )}
               </div>
               <div className="mt-3 text-lg font-semibold">{item.label}</div>
               {item.purposeRaw !== item.label ? (

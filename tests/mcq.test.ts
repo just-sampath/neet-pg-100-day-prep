@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { generateWeeklySummary } from "@/lib/data/app-state";
+import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { createEmptyUserState } from "@/lib/data/local-store";
 import {
   buildMcqAccuracyBySubject,
@@ -177,6 +178,79 @@ describe("mcq tracker and analytics", () => {
       fixCodes: ["Q20", "AI"],
       tags: ["protocol"],
     });
+  });
+
+  it("accepts explicit runtime reference data for MCQ subject normalization in Supabase mode", () => {
+    const runtime = process.env.BESIDE_YOU_RUNTIME;
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    process.env.BESIDE_YOU_RUNTIME = "supabase";
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://example.supabase.co";
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "anon-key";
+
+    try {
+      const referenceData = getStaticReferenceData();
+
+      expect(
+        validateMcqBulkDraft(
+          {
+            entryDate: "2026-05-03",
+            totalAttempted: "25",
+            correct: "19",
+            wrong: "6",
+            subject: "medicine",
+          },
+          "2026-05-03",
+          referenceData,
+        ),
+      ).toMatchObject({
+        ok: true,
+        value: {
+          subject: "Medicine",
+        },
+      });
+
+      expect(
+        normalizeStoredMcqItemLog(
+          {
+            id: "item-2",
+            entryDate: "2026-05-02",
+            mcqId: "GT-07-Q118",
+            result: "wrong",
+            subject: "pathology",
+            topic: null,
+            source: null,
+            causeCode: null,
+            priority: null,
+            correctRule: null,
+            whatFooledMe: null,
+            fixCodes: [],
+            tags: [],
+            createdAt: "2026-05-02T08:00:00.000Z",
+          },
+          referenceData,
+        ),
+      ).toMatchObject({
+        subject: "Pathology",
+      });
+    } finally {
+      if (runtime === undefined) {
+        delete process.env.BESIDE_YOU_RUNTIME;
+      } else {
+        process.env.BESIDE_YOU_RUNTIME = runtime;
+      }
+      if (url === undefined) {
+        delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      } else {
+        process.env.NEXT_PUBLIC_SUPABASE_URL = url;
+      }
+      if (anonKey === undefined) {
+        delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      } else {
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = anonKey;
+      }
+    }
   });
 
   it("builds recent suggestions and analytics across bulk and one-by-one logs", () => {

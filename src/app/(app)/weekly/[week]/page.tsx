@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getWeeklyDetailData } from "@/lib/data/app-state";
-import { readPassiveStore } from "@/lib/data/local-store";
+import { readActivityPageData } from "@/lib/data/local-store";
 
 function percent(value: number | null) {
   return value === null ? "—" : `${value}%`;
@@ -32,7 +32,7 @@ export default async function WeeklyDetailPage({
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
   const { week } = await params;
-  const summary = await readPassiveStore((store) => getWeeklyDetailData(store, user.id, week));
+  const summary = await readActivityPageData((store) => getWeeklyDetailData(store, user.id, week));
 
   if (!summary) {
     notFound();

@@ -893,7 +893,7 @@ export function getBlockProgress(
           status,
           actualStart: timing.actualStart,
           actualEnd: timing.actualEnd,
-          completedAt: status === "completed" ? timing.updatedAt : null,
+          completedAt: null,
           sourceTag: null,
           note: timing.note,
           completedItemCount: revisionPlan.morningSessionCompleted,

@@ -5,7 +5,7 @@ import {
 } from "@/components/app/gt-analytics-panels";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
 import { getGtAnalyticsData } from "@/lib/data/app-state";
-import { readPassiveStore } from "@/lib/data/local-store";
+import { readActivityPageData } from "@/lib/data/local-store";
 
 function getGtDeltaTone(
   label: "score" | "correct" | "wrong" | "unattempted" | "air",
@@ -46,7 +46,7 @@ function getGtDeltaLabel(airMetricKind: "air" | "percentile" | null) {
 export default async function GtAnalyticsPage() {
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
-  const data = await readPassiveStore((store) => getGtAnalyticsData(store, user.id));
+  const data = await readActivityPageData((store) => getGtAnalyticsData(store, user.id));
   const hasGtData = data.summary.totalLogs > 0;
 
   return (
