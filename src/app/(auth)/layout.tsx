@@ -5,7 +5,7 @@ export default function AuthLayout({
 }>) {
   return (
     <main id="main-content" className="app-shell flex min-h-screen items-center justify-center">
-      <div className="grid w-full max-w-6xl gap-6 md:grid-cols-[1.15fr_0.85fr]">{children}</div>
+      <div className="w-full max-w-md">{children}</div>
     </main>
   );
 }
