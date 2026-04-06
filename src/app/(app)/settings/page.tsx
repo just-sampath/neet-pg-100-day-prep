@@ -33,9 +33,11 @@ export default async function SettingsPage() {
             <span className="status-badge" data-tone="neutral">
               v{APP_VERSION}
             </span>
-            <span className="status-badge" data-tone="neutral">
-              {getRuntimeLabel(runtimeMode)}
-            </span>
+            {runtimeMode === "local" && (
+              <span className="status-badge" data-tone="neutral">
+                {getRuntimeLabel(runtimeMode)}
+              </span>
+            )}
           </div>
         </div>
       </section>
@@ -124,16 +126,6 @@ export default async function SettingsPage() {
           </form>
         </section>
       ) : null}
-
-      <section className="panel p-6">
-        <h2 className="text-xl font-semibold">About</h2>
-        <div className="mt-4 space-y-2 text-sm text-[var(--muted)]">
-          <p>Version {APP_VERSION}. Quiet by design, single-user by design.</p>
-          <p>Schedule and quotes are build-time source data loaded from the repo.</p>
-          <p>Sync is realtime in Supabase mode and intentionally local-only in local test mode.</p>
-          <p>No push reminders, no streak pressure, no cached offline shadow state.</p>
-        </div>
-      </section>
 
       {process.env.NODE_ENV !== "production" ? <DevToolbar simulatedNow={simulatedNow} /> : null}
     </div>

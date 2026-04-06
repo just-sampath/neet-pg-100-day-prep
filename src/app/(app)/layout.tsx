@@ -47,13 +47,6 @@ export default async function AppLayout({
             </div>
           </div>
         </div>
-        <div className="mt-5 border-t border-[var(--border)] pt-4">
-          <div className="grid gap-2 text-sm text-(--text-secondary) md:grid-cols-3">
-            <p>One aspirant. One source of truth. No social clutter.</p>
-            <p>Traffic lights reshape the day without turning the app punitive.</p>
-            <p>Manual time travel and cron triggers keep every rule locally testable.</p>
-          </div>
-        </div>
       </header>
       <div className="mt-5">
         <NavBar setupComplete={setupComplete} />
