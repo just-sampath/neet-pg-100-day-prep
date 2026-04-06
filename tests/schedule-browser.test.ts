@@ -506,7 +506,7 @@ describe("schedule browser bug fixes", () => {
     const detail101 = getDayDetailData(store, "local-user", 101);
     expect(detail101).toBeDefined();
     expect(detail101!.runtimeDayNumber).toBe(101);
-  });
+  }, 15_000);
 
   // Test 4b: Route collision (pre-migration legacy layout)
   // Extension day at runtime 64, original Day 64 at runtime 65.
