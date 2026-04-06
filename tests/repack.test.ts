@@ -824,9 +824,6 @@ describe("runMidnightRepack integration", () => {
             runMidnightRepack(userState, userState.settings, nextDate, dayNumber + 1, refData);
         }
 
-        // Track backlog before red days
-        const backlogBefore = Object.values(userState.backlogItems).filter((b) => b.status === "pending").length;
-
         for (const dayNumber of [4, 5, 6] as const) {
             applyTrafficLightToDay(userState, dayNumber, "red", { allowRestore: true }, refData);
 
@@ -865,6 +862,7 @@ describe("runMidnightRepack integration", () => {
 
         const todayDayNumber = 2;
         const todayDate = addDaysToDateOnly(userState.settings.dayOneDate!, todayDayNumber - 1);
+        const blockAKey = getBlockKey(todayDayNumber, "block_a");
         const blockBKey = getBlockKey(todayDayNumber, "block_b");
         const blockCKey = getBlockKey(todayDayNumber, "block_c");
 
@@ -879,7 +877,11 @@ describe("runMidnightRepack integration", () => {
                 (item) =>
                     item.status === "rescheduled" &&
                     item.rescheduledToDay === todayDayNumber &&
-                    (item.rescheduledToBlockKey === blockBKey || item.rescheduledToBlockKey === blockCKey),
+                    (
+                        item.rescheduledToBlockKey === blockAKey ||
+                        item.rescheduledToBlockKey === blockBKey ||
+                        item.rescheduledToBlockKey === blockCKey
+                    ),
             ),
         ).toBe(false);
     });

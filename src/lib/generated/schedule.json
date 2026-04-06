@@ -279,7 +279,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -704,7 +704,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -1129,7 +1129,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -1554,7 +1554,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -1999,7 +1999,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -2448,7 +2448,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -2910,7 +2910,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -3390,7 +3390,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -3835,7 +3835,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -4280,7 +4280,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -4760,7 +4760,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -5188,7 +5188,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -5633,7 +5633,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -6059,7 +6059,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -6488,7 +6488,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -6939,7 +6939,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -7367,7 +7367,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -7814,7 +7814,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -8302,7 +8302,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -8730,7 +8730,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -9178,7 +9178,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -9630,7 +9630,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -10076,7 +10076,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -10522,7 +10522,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -10968,7 +10968,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -11431,7 +11431,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -11858,7 +11858,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -12339,7 +12339,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -12821,7 +12821,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -13286,7 +13286,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -13755,7 +13755,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -14202,7 +14202,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -14649,7 +14649,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -15115,7 +15115,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -15549,7 +15549,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -15977,7 +15977,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -16405,7 +16405,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -16833,7 +16833,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -17263,7 +17263,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -17715,7 +17715,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -18162,7 +18162,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -18608,7 +18608,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -19040,7 +19040,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -19553,7 +19553,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -19989,7 +19989,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -20444,7 +20444,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -20899,7 +20899,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -21394,7 +21394,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -21860,7 +21860,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -22309,7 +22309,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -22797,7 +22797,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -23244,7 +23244,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -23694,7 +23694,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -24183,7 +24183,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -24722,7 +24722,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -25175,7 +25175,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -25642,7 +25642,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -26093,7 +26093,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -26583,7 +26583,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -27068,7 +27068,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -27539,7 +27539,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -28019,7 +28019,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -28473,7 +28473,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -28948,7 +28948,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -29490,7 +29490,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -29991,7 +29991,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -30516,7 +30516,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -31149,7 +31149,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -31741,7 +31741,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -32368,7 +32368,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -32959,7 +32959,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -33489,7 +33489,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -33977,7 +33977,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -34606,7 +34606,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -35144,7 +35144,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -35680,7 +35680,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -36221,7 +36221,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -36763,7 +36763,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -37180,7 +37180,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -37810,7 +37810,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -38335,7 +38335,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -38740,7 +38740,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -39155,7 +39155,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -39639,7 +39639,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -40139,7 +40139,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -40577,7 +40577,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -41009,7 +41009,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -41507,7 +41507,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -41959,7 +41959,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -42420,7 +42420,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -42867,7 +42867,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -43338,7 +43338,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -43843,7 +43843,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -44231,7 +44231,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -44684,7 +44684,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -45071,7 +45071,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -45459,7 +45459,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -45972,7 +45972,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -46544,7 +46544,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },
@@ -47076,7 +47076,7 @@
             "trafficLightPolicy": {
               "green": "visible",
               "yellow": "visible",
-              "red": "visible",
+              "red": "hidden",
               "backlogWhenHidden": true
             }
           },

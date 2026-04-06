@@ -19,12 +19,12 @@ const localStoreMocks = vi.hoisted(() => ({
 
 const timeEditorCapture = vi.hoisted(
   () =>
-    ({
-      props: [] as Array<{
-        blockKey: BlockKey;
-        slots: Array<{ key: BlockKey; visible: boolean }>;
-      }>,
-    }),
+  ({
+    props: [] as Array<{
+      blockKey: BlockKey;
+      slots: Array<{ key: BlockKey; visible: boolean }>;
+    }>,
+  }),
 );
 
 vi.mock("@/lib/auth/session", async () => {
@@ -117,7 +117,7 @@ describe("ScheduleDayPage", () => {
     const blockAEditor = timeEditorCapture.props.find((entry) => entry.blockKey === blockAKey);
 
     expect(blockAEditor).toBeDefined();
-    expect(blockAEditor?.slots.find((slot) => slot.key === blockAKey)?.visible).toBe(true);
+    expect(blockAEditor?.slots.find((slot) => slot.key === blockAKey)?.visible).toBe(false);
     expect(blockAEditor?.slots.find((slot) => slot.key === blockBKey)?.visible).toBe(false);
     expect(blockAEditor?.slots.find((slot) => slot.key === finalReviewKey)?.visible).toBe(false);
   });

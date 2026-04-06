@@ -48,6 +48,25 @@ describe("today flow", () => {
     });
   });
 
+  it("marks Block A hidden inline on red days while keeping the red-day essentials visible", () => {
+    const userState = createEmptyUserState();
+    const day = getScheduleDay(2)!;
+    const timeline = buildTodayTimeline(day, userState, "red");
+
+    expect(timeline.find((entry) => entry.kind === "block" && entry.blockKey === "08:00-11:00")).toMatchObject({
+      kind: "block",
+      mode: "hidden",
+    });
+    expect(timeline.find((entry) => entry.kind === "block" && entry.blockKey === "18:00-20:00")).toMatchObject({
+      kind: "block",
+      mode: "visible",
+    });
+    expect(timeline.find((entry) => entry.kind === "block" && entry.blockKey === "22:15-22:45")).toMatchObject({
+      kind: "block",
+      mode: "visible",
+    });
+  });
+
   it("returns the 21:45 wrap-up prompt only when unfinished blocks exist besides final review", () => {
     expect(
       getWindDownState({

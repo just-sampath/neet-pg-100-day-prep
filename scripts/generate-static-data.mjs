@@ -593,6 +593,7 @@ function buildWorTopicsByDayBlock(worRows) {
 
 function getTrafficLightPolicy(semanticBlockKey) {
   switch (semanticBlockKey) {
+    case "block_a":
     case "block_b":
       return {
         green: "visible",
@@ -890,10 +891,10 @@ function buildDayPlan(dayRow, subjectMatchers, worTopicsByDayBlock) {
     const recoveryLane = slot.semanticBlockKey === "morning_revision"
       ? "none"
       : getRecoveryLane({
-          semanticBlockKey: slot.semanticBlockKey,
-          rawText,
-          gtTestType,
-        });
+        semanticBlockKey: slot.semanticBlockKey,
+        rawText,
+        gtTestType,
+      });
 
     return {
       timeSlotKey: slot.timeSlotKey,

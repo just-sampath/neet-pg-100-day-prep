@@ -106,10 +106,29 @@ describe("backlog creation and traffic-light handling", () => {
 
     expect(getVisibleBlockKeys("red", day2)).toEqual([
       "06:30-07:45",
-      "08:00-11:00",
       "18:00-20:00",
       "22:15-22:45",
     ]);
+  });
+
+  it("moves Block A into traffic-light backlog on red and restores it on same-day yellow", () => {
+    const userState = createConfiguredUserState();
+    const blockAKey = getBlockKey(2, "block_a");
+
+    applyTrafficLightToDay(userState, 2, "red", { allowRestore: true });
+
+    const redBacklog = Object.values(userState.backlogItems).filter((item) => item.originalBlockKey === blockAKey);
+    expect(redBacklog.length).toBeGreaterThan(0);
+    expect(redBacklog.every((item) => item.status === "pending")).toBe(true);
+    expect(redBacklog.every((item) => item.sourceTag === "traffic_light")).toBe(true);
+    expect(getBlockProgress(userState, 2, blockAKey).status).toBe("rescheduled");
+
+    applyTrafficLightToDay(userState, 2, "yellow", { allowRestore: true });
+
+    const restoredBacklog = Object.values(userState.backlogItems).filter((item) => item.originalBlockKey === blockAKey);
+    expect(restoredBacklog.length).toBe(redBacklog.length);
+    expect(restoredBacklog.every((item) => item.status === "dismissed")).toBe(true);
+    expect(getBlockProgress(userState, 2, blockAKey).status).toBe("pending");
   });
 
   it("moves only unresolved hidden work into recovery on a yellow day and preserves completed hidden blocks", () => {
