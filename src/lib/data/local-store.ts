@@ -215,6 +215,7 @@ function emptySettings(): AppSettings {
     shiftEvents: [],
     scheduleSeedVersion: 0,
     scheduleSeededAt: null,
+    dayOneLetterShownAt: null,
   };
 }
 
@@ -415,6 +416,7 @@ function normalizeSettings(settings: AppSettings | undefined): AppSettings {
         ? Math.max(0, Math.floor(base.scheduleSeedVersion))
         : 0,
     scheduleSeededAt: base.scheduleSeededAt ?? null,
+    dayOneLetterShownAt: base.dayOneLetterShownAt ?? null,
   };
 }
 
@@ -952,6 +954,7 @@ function buildAppSettingsRow(userId: string, store: LocalStore, userState: UserS
     morning_revision_selections: userState.morningRevisionSelections,
     morning_revision_actual_minutes: userState.morningRevisionActualMinutes,
     morning_revision_auto_add_notice: userState.morningRevisionAutoAddNotice,
+    day_one_letter_shown_at: userState.settings.dayOneLetterShownAt,
     simulated_now_iso: store.dev.simulatedNowIso,
     ...(typeof stateVersion === "number" ? { state_version: stateVersion } : {}),
   };
@@ -1251,6 +1254,7 @@ export async function readSettingsPageData(userId: string) {
           shiftEvents: (row.shift_events as AppSettings["shiftEvents"] | null | undefined) ?? [],
           scheduleSeedVersion: (row.schedule_seed_version as number | null | undefined) ?? 0,
           scheduleSeededAt: (row.schedule_seeded_at as string | null | undefined) ?? null,
+          dayOneLetterShownAt: (row.day_one_letter_shown_at as string | null | undefined) ?? null,
         }
         : undefined,
     );
@@ -1304,6 +1308,7 @@ function applySupabaseSettingsRow(
     shiftEvents: (row.shift_events as ScheduleShiftEvent[] | null | undefined) ?? [],
     scheduleSeedVersion: (row.schedule_seed_version as number | null | undefined) ?? 0,
     scheduleSeededAt: (row.schedule_seeded_at as string | null | undefined) ?? null,
+    dayOneLetterShownAt: (row.day_one_letter_shown_at as string | null | undefined) ?? null,
   });
   userState.quoteState = normalizeQuoteState(
     (row.quote_state as UserState["quoteState"] | undefined) ?? undefined,
@@ -1562,6 +1567,7 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
       shiftEvents: settingsResult.data.shift_events ?? [],
       scheduleSeedVersion: settingsResult.data.schedule_seed_version ?? 0,
       scheduleSeededAt: settingsResult.data.schedule_seeded_at ?? null,
+      dayOneLetterShownAt: settingsResult.data.day_one_letter_shown_at ?? null,
     });
     userState.quoteState = normalizeQuoteState(settingsResult.data.quote_state, getQuotePools(store.referenceData));
     userState.processedDates = normalizeProcessedDates(settingsResult.data.processed_dates);
@@ -1885,6 +1891,7 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
       shiftEvents: settingsResult.data.shift_events ?? [],
       scheduleSeedVersion: settingsResult.data.schedule_seed_version ?? 0,
       scheduleSeededAt: settingsResult.data.schedule_seeded_at ?? null,
+      dayOneLetterShownAt: settingsResult.data.day_one_letter_shown_at ?? null,
     });
     userState.quoteState = normalizeQuoteState(settingsResult.data.quote_state, getQuotePools(store.referenceData));
     userState.processedDates = normalizeProcessedDates(settingsResult.data.processed_dates);

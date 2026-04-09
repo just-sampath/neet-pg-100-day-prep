@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DayOneLetterDialog } from "@/components/app/day-one-letter-dialog";
 import { DevToolbar } from "@/components/app/dev-toolbar";
 import { EarlyFinishSuggestionCard } from "@/components/app/early-finish-suggestion";
 import { MorningPlanPanel } from "@/components/app/morning-plan-panel";
@@ -156,6 +157,10 @@ export default async function TodayPage() {
   const todayState = data.todayState!;
   const phase = data.phase;
 
+  const showDayOneLetter =
+    data.todayDayNumber === 1 &&
+    data.settings.dayOneLetterShownAt == null;
+
   // Wrap the render‐phase computation in a revision cache scope so the
   // multiple getBlockProgress / buildTodayTimeline calls share one
   // buildRevisionInventory + buildDailyRevisionPlan computation.
@@ -250,6 +255,7 @@ export default async function TodayPage() {
 
     return (
       <div className="grid gap-6">
+        {showDayOneLetter ? <DayOneLetterDialog /> : null}
         <section className="panel reveal-rise p-6">
           <div className="max-w-xl">
             <div className="eyebrow">Pace Dial</div>

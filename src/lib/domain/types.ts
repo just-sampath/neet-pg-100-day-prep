@@ -95,6 +95,7 @@ export interface AppSettings {
   shiftEvents: ScheduleShiftEvent[];
   scheduleSeedVersion: number;
   scheduleSeededAt: string | null;
+  dayOneLetterShownAt: string | null;
 }
 
 export interface ScheduleShiftEvent {

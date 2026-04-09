@@ -802,6 +802,18 @@ export async function clearSimulatedNowAction() {
   refreshScheduleViews();
 }
 
+export async function markDayOneLetterShownAction() {
+  const user = await requireCurrentUser();
+  await mutateScheduleStoreWithConflictHandling((store) => {
+    const userState = store.userState[user.id];
+    if (userState.settings.dayOneLetterShownAt) {
+      return;
+    }
+    userState.settings.dayOneLetterShownAt = new Date().toISOString();
+  });
+  refreshScheduleViews();
+}
+
 export async function resetAppStateAction(formData: FormData) {
   if (process.env.NODE_ENV === "production") {
     return;

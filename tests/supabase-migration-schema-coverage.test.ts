@@ -22,6 +22,7 @@ const EXPECTED_COLUMNS_BY_TABLE: Record<string, string[]> = {
     "morning_revision_actual_minutes",
     "morning_revision_auto_add_notice",
     "simulated_now_iso",
+    "day_one_letter_shown_at",
     "state_version",
     "write_lock_token",
     "write_lock_expires_at",

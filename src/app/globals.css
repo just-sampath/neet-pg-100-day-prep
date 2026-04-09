@@ -181,7 +181,7 @@ button {
   pointer-events: none;
 }
 
-.panel > * {
+.panel>* {
   position: relative;
   z-index: 1;
 }
@@ -682,6 +682,208 @@ select.field option {
   }
 }
 
+/* ── Day 1 Letter Dialog ─────────────────────────────── */
+
+.day1-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  place-items: center;
+  width: 100%;
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+  border: none;
+  background: transparent;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.day1-dialog[open] {
+  display: grid;
+}
+
+.day1-dialog:not([open]) {
+  display: none;
+}
+
+.day1-dialog::backdrop {
+  background: rgba(4, 6, 10, 0.88);
+  backdrop-filter: blur(12px);
+  animation: day1-backdrop-in 600ms ease-out both;
+}
+
+.day1-envelope {
+  width: min(92vw, 64ch);
+  max-height: calc(100dvh - 3rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: day1-envelope-rise 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: 200ms;
+}
+
+.day1-paper {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    radial-gradient(ellipse at 30% 0%, rgba(223, 176, 111, 0.18), transparent 50%),
+    var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 1.5rem;
+  box-shadow:
+    var(--shadow-strong),
+    0 0 0 1px rgba(223, 176, 111, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  padding: clamp(2rem, 6vw, 3.5rem) clamp(1.5rem, 5vw, 3rem);
+}
+
+.day1-paper::before {
+  content: "";
+  position: absolute;
+  inset: 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1rem;
+  pointer-events: none;
+}
+
+.day1-letter-body {
+  animation: day1-text-reveal 900ms ease-out both;
+  animation-delay: 600ms;
+}
+
+.day1-greeting {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.2;
+  color: var(--accent);
+  margin-bottom: 1.5rem;
+}
+
+.day1-para {
+  font-family: var(--font-body);
+  font-size: clamp(0.95rem, 2.2vw, 1.1rem);
+  line-height: 1.8;
+  color: var(--text-secondary);
+  margin-bottom: 1.25rem;
+}
+
+.day1-para:last-of-type {
+  margin-bottom: 0;
+}
+
+.day1-sign-off {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--accent);
+  margin-top: 1.75rem;
+}
+
+.day1-para em {
+  color: var(--foreground);
+  font-style: italic;
+}
+
+.day1-cta {
+  display: block;
+  width: 100%;
+  margin-top: 2rem;
+  padding: 1rem 2rem;
+  border: 1px solid var(--accent);
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, var(--accent-faint), rgba(223, 176, 111, 0.08));
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  cursor: pointer;
+  transition: background 200ms ease, box-shadow 200ms ease, transform 120ms ease;
+  animation: day1-cta-reveal 600ms ease-out both;
+  animation-delay: 1200ms;
+}
+
+.day1-cta:hover {
+  background: linear-gradient(135deg, rgba(223, 176, 111, 0.22), rgba(223, 176, 111, 0.12));
+  box-shadow: 0 0 24px rgba(223, 176, 111, 0.14);
+}
+
+.day1-cta:active {
+  transform: scale(0.98);
+}
+
+@keyframes day1-backdrop-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes day1-envelope-rise {
+  from {
+    opacity: 0;
+    transform: translateY(32px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes day1-text-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes day1-cta-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Tablet (Galaxy Tab S9: 753px) — centered card, relaxed spacing */
+@media (min-width: 600px) {
+  .day1-envelope {
+    width: min(80vw, 58ch);
+  }
+
+  .day1-paper {
+    padding: 3rem 2.75rem;
+  }
+}
+
+/* Desktop — narrower letter stage */
+@media (min-width: 1024px) {
+  .day1-envelope {
+    width: min(60vw, 54ch);
+  }
+
+  .day1-paper {
+    padding: 3.5rem 3.25rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -690,7 +892,11 @@ select.field option {
   body::after,
   .reveal-rise,
   .celebration-panel::before,
-  .celebration-panel::after {
+  .celebration-panel::after,
+  .day1-dialog::backdrop,
+  .day1-envelope,
+  .day1-letter-body,
+  .day1-cta {
     animation: none;
   }
 
@@ -698,7 +904,8 @@ select.field option {
   .button-secondary,
   .field,
   .pace-button,
-  .nav-pill {
+  .nav-pill,
+  .day1-cta {
     transition: none;
   }
 }

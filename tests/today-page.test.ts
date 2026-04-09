@@ -57,6 +57,10 @@ vi.mock("@/components/app/wind-down-prompts", () => ({
     WindDownPrompts: () => null,
 }));
 
+vi.mock("@/components/app/day-one-letter-dialog", () => ({
+    DayOneLetterDialog: () => "<day-one-letter />",
+}));
+
 import TodayPage from "@/app/(app)/today/page";
 import { completeBlockItems, getHomeData } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
@@ -244,5 +248,72 @@ describe("TodayPage", () => {
 
         expect(finalReviewBlockSkip).toContain("Skip block");
         expect(finalReviewBlockSkip).not.toContain("Move to backlog");
+    });
+
+    it("shows Day 1 letter dialog on first eligible Day 1 render", async () => {
+        const userState = createEmptyUserState();
+        userState.settings.dayOneDate = SIMULATED_DATE;
+        userState.processedDates.repackDates.push(SIMULATED_DATE);
+        ensureUserScheduleSeeded(userState);
+
+        const store = createStore(userState);
+        const data = getHomeData(store, "local-user");
+
+        expect(data.todayDayNumber).toBe(1);
+        expect(data.settings.dayOneLetterShownAt).toBeNull();
+
+        localStoreMocks.readTodayStore.mockResolvedValue({
+            data,
+            userState: store.userState["local-user"],
+            referenceData: store.referenceData,
+        });
+
+        const html = renderToStaticMarkup(await TodayPage());
+        expect(html).toContain("day-one-letter");
+    });
+
+    it("hides Day 1 letter dialog once dayOneLetterShownAt is set", async () => {
+        const userState = createEmptyUserState();
+        userState.settings.dayOneDate = SIMULATED_DATE;
+        userState.settings.dayOneLetterShownAt = "2026-04-10T00:02:00.000Z";
+        userState.processedDates.repackDates.push(SIMULATED_DATE);
+        ensureUserScheduleSeeded(userState);
+
+        const store = createStore(userState);
+        const data = getHomeData(store, "local-user");
+
+        expect(data.todayDayNumber).toBe(1);
+        expect(data.settings.dayOneLetterShownAt).toBeTruthy();
+
+        localStoreMocks.readTodayStore.mockResolvedValue({
+            data,
+            userState: store.userState["local-user"],
+            referenceData: store.referenceData,
+        });
+
+        const html = renderToStaticMarkup(await TodayPage());
+        expect(html).not.toContain("day-one-letter");
+    });
+
+    it("hides Day 1 letter dialog on Day 2+", async () => {
+        const userState = createEmptyUserState();
+        userState.settings.dayOneDate = "2026-04-09";
+        userState.processedDates.midnightDates.push(SIMULATED_DATE);
+        userState.processedDates.repackDates.push(SIMULATED_DATE);
+        ensureUserScheduleSeeded(userState);
+
+        const store = createStore(userState);
+        const data = getHomeData(store, "local-user");
+
+        expect(data.todayDayNumber).toBe(2);
+
+        localStoreMocks.readTodayStore.mockResolvedValue({
+            data,
+            userState: store.userState["local-user"],
+            referenceData: store.referenceData,
+        });
+
+        const html = renderToStaticMarkup(await TodayPage());
+        expect(html).not.toContain("day-one-letter");
     });
 });

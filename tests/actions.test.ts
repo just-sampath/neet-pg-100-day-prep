@@ -69,7 +69,7 @@ import { createEmptyUserState } from "@/lib/data/local-store";
 import { rebalanceEarlyFinishSchedule, runEndOfDaySweep, pullTopicForward, completeBlockItems, getHomeData } from "@/lib/data/app-state";
 import { buildExtensionDayRows, ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getScheduleDay, getBlockProgress, buildDailyRevisionPlan, getScheduleDays, invalidateRuntimeScheduleIndex } from "@/lib/domain/schedule";
-import { acceptEarlyFinishAction, submitGtAction, submitMcqBulkAction, submitMcqItemAction, updateTopicAction, updateBlockAction } from "@/lib/server/actions";
+import { acceptEarlyFinishAction, markDayOneLetterShownAction, submitGtAction, submitMcqBulkAction, submitMcqItemAction, updateTopicAction, updateBlockAction } from "@/lib/server/actions";
 import { refresh } from "next/cache";
 import { buildAcceptEarlyFinishFormData, keepOnlyDayAssignments, setBlockActualEnd } from "./test-helpers/schedule-test-utils";
 import { addDaysToDateOnly } from "@/lib/utils/date";
@@ -1037,5 +1037,20 @@ describe("block completion with missing topicAssignments (corrupted store recove
       expect(row).toBeDefined();
       expect(row.status).toBe("pending");
     }
+  });
+
+  it("marks Day 1 letter shown and is idempotent on repeat calls", async () => {
+    const userState = testStore.userState["test-user"];
+    expect(userState.settings.dayOneLetterShownAt).toBeNull();
+
+    await markDayOneLetterShownAction();
+
+    const firstTimestamp = userState.settings.dayOneLetterShownAt;
+    expect(firstTimestamp).toBeTruthy();
+    expect(typeof firstTimestamp).toBe("string");
+
+    // Second call should be idempotent — no overwrite
+    await markDayOneLetterShownAction();
+    expect(userState.settings.dayOneLetterShownAt).toBe(firstTimestamp);
   });
 });
