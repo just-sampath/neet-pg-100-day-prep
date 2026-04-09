@@ -325,13 +325,31 @@ export function buildSeededScheduleState(dayOneDate: string, seededAt = new Date
   return schedule;
 }
 
-/** Fill in any topicAssignment rows that exist in the template but are missing from the store. Idempotent — never overwrites existing rows. */
+/**
+ * Fill in template topicAssignment rows that are missing from the store and
+ * discard unknown stale rows that no longer belong to the workbook template.
+ * Idempotent for valid rows — existing template-backed assignments are not overwritten.
+ */
 function repairMissingTopicAssignments(schedule: UserScheduleState, seededAt: string) {
-  // Quick check: if the count matches, skip the expensive iteration.
-  if (Object.keys(schedule.topicAssignments).length >= templateItemCount) {
-    return 0;
-  }
   let repaired = 0;
+
+  for (const sourceItemId of Object.keys(schedule.topicAssignments)) {
+    if (templateItemPlacementById.has(sourceItemId)) {
+      continue;
+    }
+
+    delete schedule.topicAssignments[sourceItemId];
+    repaired += 1;
+  }
+
+  const existingSourceItemIds = Object.keys(schedule.topicAssignments);
+  if (
+    existingSourceItemIds.length === templateItemCount &&
+    existingSourceItemIds.every((sourceItemId) => templateItemPlacementById.has(sourceItemId))
+  ) {
+    return repaired;
+  }
+
   for (const day of scheduleData.daywisePlan.days) {
     for (const block of day.blocks) {
       for (const item of block.items) {

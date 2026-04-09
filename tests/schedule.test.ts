@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { completeBlockItems, completeRevisionSession, completeTopicItem } from "@/lib/data/app-state";
 import { createEmptyUserState } from "@/lib/data/local-store";
+import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import {
   buildDailyRevisionPlan,
   buildRevisionInventory,
@@ -10,6 +11,7 @@ import {
   getPhaseStatus,
   getScheduleDay,
   groupRevisionItemsForDisplay,
+  invalidateRuntimeScheduleIndex,
   reconcileRevisionCompletionsForSource,
 } from "@/lib/domain/schedule";
 import type { RevisionQueueItem } from "@/lib/domain/types";
@@ -52,6 +54,73 @@ function createDisplayRevisionItem(
 }
 
 describe("schedule engine", () => {
+  it("repairs missing template assignments even when stale extra rows keep the assignment count unchanged", () => {
+    const userState = createConfiguredState();
+    ensureUserScheduleSeeded(userState);
+
+    const seededDay = getScheduleDay(1, userState)!;
+    const blockA = seededDay.blocks.find((block) => block.semanticBlockKey === "block_a")!;
+    const missingItemId = blockA.items[0]!.itemId;
+
+    delete userState.schedule.topicAssignments[missingItemId];
+    userState.schedule.topicAssignments["stale-extra-item"] = {
+      sourceItemId: "stale-extra-item",
+      dayNumber: 2,
+      blockKey: getBlock(2, "block_c").timeSlotKey,
+      itemOrder: 99,
+      kind: "task",
+      label: "Stale extra item",
+      rawText: "Stale extra item",
+      plannedMinutes: 15,
+      subjectIds: ["general"],
+      revisionEligible: false,
+      recoveryLane: "none",
+      phaseFence: "not_reschedulable",
+      notes: null,
+      revisionType: null,
+      referenceLabel: null,
+      referenceDayNumber: null,
+      status: "pending",
+      completedAt: null,
+      sourceTag: null,
+      note: null,
+      isPinned: false,
+      isRecovery: false,
+      originalDayNumber: null,
+      originalBlockKey: null,
+      createdAt: "2026-05-01T00:00:00.000Z",
+      updatedAt: "2026-05-01T00:00:00.000Z",
+    };
+
+    ensureUserScheduleSeeded(userState);
+    invalidateRuntimeScheduleIndex(userState);
+
+    const repairedDay = getScheduleDay(1, userState)!;
+    const repairedBlockA = repairedDay.blocks.find((block) => block.semanticBlockKey === "block_a")!;
+
+    expect(userState.schedule.topicAssignments[missingItemId]).toBeDefined();
+    expect(userState.schedule.topicAssignments["stale-extra-item"]).toBeUndefined();
+    expect(repairedBlockA.items.map((item) => item.itemId)).toEqual(blockA.items.map((item) => item.itemId));
+  });
+
+  it("falls back to template items when a runtime block exists but its template assignments are missing", () => {
+    const userState = createConfiguredState();
+    ensureUserScheduleSeeded(userState);
+
+    const seededDay = getScheduleDay(1, userState)!;
+    const blockA = seededDay.blocks.find((block) => block.semanticBlockKey === "block_a")!;
+
+    for (const item of blockA.items) {
+      delete userState.schedule.topicAssignments[item.itemId];
+    }
+    invalidateRuntimeScheduleIndex(userState);
+
+    const repairedDay = getScheduleDay(1, userState)!;
+    const repairedBlockA = repairedDay.blocks.find((block) => block.semanticBlockKey === "block_a")!;
+
+    expect(repairedBlockA.items.map((item) => item.itemId)).toEqual(blockA.items.map((item) => item.itemId));
+  });
+
   it("derives partial block state automatically from item completion", () => {
     const userState = createConfiguredState();
     const blockA = getBlock(1, "block_a");

@@ -221,6 +221,7 @@ function buildRuntimeDayBlock(
   row: RuntimeBlockRow | null,
   templateBlock: ScheduleDayBlock | null,
   itemRows: RuntimeAssignmentRow[],
+  fallbackToTemplateItems = false,
 ): ScheduleDayBlock {
   const visibleItemRows = itemRows.filter((entry) => entry.sourceTag !== "phase_closed");
 
@@ -244,11 +245,13 @@ function buildRuntimeDayBlock(
       originalDayNumber: entry.isRecovery ? entry.originalDayNumber : undefined,
       originalBlockKey: entry.isRecovery ? entry.originalBlockKey : undefined,
     }))
-    : row
-      ? []
-      : itemRows.length > 0
+    : fallbackToTemplateItems
+      ? cloneTemplateItems(templateBlock?.items ?? [])
+      : row
         ? []
-        : cloneTemplateItems(templateBlock?.items ?? []);
+        : itemRows.length > 0
+          ? []
+          : cloneTemplateItems(templateBlock?.items ?? []);
 
   if (!row && templateBlock) {
     return {
@@ -294,13 +297,20 @@ function buildRuntimeScheduleDay(
     : getReferenceScheduleIndex(referenceData).dayByNumber.get(referenceDayNumber)?.blocks ?? [];
   const runtimeBlockRows = runtimeIndex.blockRowsByDay.get(dayNumber) ?? [];
   const runtimeBlockRowsByKey = new Map(runtimeBlockRows.map((entry) => [entry.blockKey, entry] as const));
-  const blocks = templateBlocks.map((templateBlock) =>
-    buildRuntimeDayBlock(
+  const blocks = templateBlocks.map((templateBlock) => {
+    const itemRows = runtimeIndex.assignmentRowsBySlot.get(`${dayNumber}:${templateBlock.timeSlotKey}`) ?? [];
+    const fallbackToTemplateItems =
+      itemRows.length === 0 &&
+      templateBlock.items.length > 0 &&
+      templateBlock.items.every((item) => !userState.schedule.topicAssignments[item.itemId]);
+
+    return buildRuntimeDayBlock(
       runtimeBlockRowsByKey.get(templateBlock.timeSlotKey) ?? null,
       templateBlock,
-      runtimeIndex.assignmentRowsBySlot.get(`${dayNumber}:${templateBlock.timeSlotKey}`) ?? [],
-    ),
-  );
+      itemRows,
+      fallbackToTemplateItems,
+    );
+  });
 
   for (const row of runtimeBlockRows) {
     if (templateBlocks.some((entry) => entry.timeSlotKey === row.blockKey)) {
