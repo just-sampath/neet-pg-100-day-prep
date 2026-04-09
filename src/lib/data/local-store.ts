@@ -17,6 +17,8 @@ import { getScheduleItemById } from "@/lib/domain/schedule";
 import {
   applyScheduleMappingsFromSettings,
   applyLegacyScheduleStateToSchedule,
+  buildExtensionDayRows,
+  buildSeededScheduleState,
   createEmptyScheduleState,
   ensureUserScheduleSeeded,
   migrateToCanonicalLayout,
@@ -40,7 +42,7 @@ import type {
 } from "@/lib/domain/types";
 import { getRuntimeMode } from "@/lib/runtime/mode";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
+import { addDaysToDateOnly, IST_TIME_ZONE, toDateOnlyInTimeZone } from "@/lib/utils/date";
 
 const STORE_VERSION = 2;
 const dataDir = resolve(process.cwd(), ".data");
@@ -58,6 +60,7 @@ type SupabaseStoreMetadata = {
   readScope: SupabaseStoreReadScope;
   readMode: SupabaseStoreReadMode;
   stateVersionByUserId: Record<string, number>;
+  forceFullScheduleSyncByUserId: Record<string, boolean>;
 };
 
 const supabaseStoreMetadata = new WeakMap<LocalStore, SupabaseStoreMetadata>();
@@ -119,6 +122,7 @@ function ensureSupabaseStoreMetadata(store: LocalStore) {
     readScope: "full",
     readMode: "full_mutation",
     stateVersionByUserId: {},
+    forceFullScheduleSyncByUserId: {},
   };
   supabaseStoreMetadata.set(store, created);
   return created;
@@ -155,6 +159,14 @@ function setSupabaseStoreStateVersion(store: LocalStore, userId: string, version
 function getSupabaseStoreStateVersion(store: LocalStore, userId: string) {
   const value = supabaseStoreMetadata.get(store)?.stateVersionByUserId[userId];
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : null;
+}
+
+function setSupabaseForceFullScheduleSync(store: LocalStore, userId: string, value: boolean) {
+  ensureSupabaseStoreMetadata(store).forceFullScheduleSyncByUserId[userId] = value;
+}
+
+function shouldForceSupabaseFullScheduleSync(store: LocalStore, userId: string) {
+  return supabaseStoreMetadata.get(store)?.forceFullScheduleSyncByUserId[userId] === true;
 }
 
 function parseSupabaseStateVersion(value: unknown) {
@@ -1058,6 +1070,127 @@ function buildPhaseConfigRows(userId: string, schedule: UserState["schedule"]) {
   }));
 }
 
+function getPhaseGroupFromNumber(phaseNumber: number): UserState["schedule"]["days"][string]["phaseGroup"] {
+  switch (phaseNumber) {
+    case 1:
+      return "phase_1";
+    case 2:
+      return "phase_2";
+    default:
+      return "phase_3";
+  }
+}
+
+function getPhaseNameFromNumber(phaseNumber: number) {
+  switch (phaseNumber) {
+    case 1:
+      return "Phase 1";
+    case 2:
+      return "Phase 2";
+    default:
+      return "Phase 3";
+  }
+}
+
+function inferMappedDateForMissingDay(dayNumber: number, schedule: UserState["schedule"], dayOneDate: string) {
+  const orderedDays = Object.values(schedule.days).toSorted((left, right) => left.dayNumber - right.dayNumber);
+  const lowerDay = [...orderedDays].reverse().find((row) => row.dayNumber < dayNumber) ?? null;
+  if (lowerDay) {
+    return addDaysToDateOnly(lowerDay.mappedDate, dayNumber - lowerDay.dayNumber);
+  }
+
+  const higherDay = orderedDays.find((row) => row.dayNumber > dayNumber) ?? null;
+  if (higherDay) {
+    return addDaysToDateOnly(higherDay.mappedDate, dayNumber - higherDay.dayNumber);
+  }
+
+  return addDaysToDateOnly(dayOneDate, dayNumber - 1);
+}
+
+function repairMissingScheduleParentRows(userState: UserState, repairedAt: string) {
+  const dayOneDate = userState.settings.dayOneDate;
+  if (!dayOneDate) {
+    return;
+  }
+
+  const seededSchedule = buildSeededScheduleState(dayOneDate, repairedAt);
+  applyScheduleMappingsFromSettings(seededSchedule, userState.settings, repairedAt);
+
+  const ensureDayRow = (dayNumber: number) => {
+    const dayKey = String(dayNumber);
+    const existingDay = userState.schedule.days[dayKey];
+    if (existingDay) {
+      return existingDay;
+    }
+
+    const seededDay = seededSchedule.days[dayKey];
+    if (seededDay) {
+      userState.schedule.days[dayKey] = structuredClone(seededDay);
+      return userState.schedule.days[dayKey]!;
+    }
+
+    const orderedPhaseRows = Object.values(userState.schedule.phaseConfig).toSorted(
+      (left, right) => left.phaseNumber - right.phaseNumber,
+    );
+    const phaseRow = orderedPhaseRows.find(
+      (entry) => dayNumber >= entry.currentStartDay && dayNumber <= entry.currentEndDay,
+    ) ?? orderedPhaseRows.find((entry) => entry.phaseNumber === 3) ?? orderedPhaseRows.at(-1);
+    const phaseNumber = phaseRow?.phaseNumber ?? 3;
+    const mappedDate = inferMappedDateForMissingDay(dayNumber, userState.schedule, dayOneDate);
+    const { dayRow, blockRows } = buildExtensionDayRows(
+      dayNumber,
+      phaseRow?.phaseId ?? `phase_${phaseNumber}`,
+      getPhaseGroupFromNumber(phaseNumber),
+      getPhaseNameFromNumber(phaseNumber),
+      mappedDate,
+      repairedAt,
+    );
+
+    userState.schedule.days[dayKey] = dayRow;
+    for (const blockRow of blockRows) {
+      const blockKey = `${blockRow.dayNumber}:${blockRow.blockKey}`;
+      if (!userState.schedule.blocks[blockKey]) {
+        userState.schedule.blocks[blockKey] = blockRow;
+      }
+    }
+
+    return userState.schedule.days[dayKey]!;
+  };
+
+  const ensureBlockRowsForDay = (dayRow: UserState["schedule"]["days"][string]) => {
+    const dayKey = String(dayRow.dayNumber);
+    const templateBlockRows = !dayRow.isExtensionDay && seededSchedule.days[dayKey]
+      ? Object.values(seededSchedule.blocks).filter((row) => row.dayNumber === dayRow.dayNumber)
+      : buildExtensionDayRows(
+        dayRow.dayNumber,
+        dayRow.phaseId,
+        dayRow.phaseGroup,
+        dayRow.phaseName,
+        dayRow.mappedDate,
+        repairedAt,
+      ).blockRows;
+
+    for (const templateBlockRow of templateBlockRows) {
+      const blockKey = `${templateBlockRow.dayNumber}:${templateBlockRow.blockKey}`;
+      if (!userState.schedule.blocks[blockKey]) {
+        userState.schedule.blocks[blockKey] = structuredClone(templateBlockRow);
+      }
+    }
+  };
+
+  const assignmentDayNumbers = new Set(
+    Object.values(userState.schedule.topicAssignments).map((row) => row.dayNumber),
+  );
+
+  for (const dayNumber of assignmentDayNumbers) {
+    ensureDayRow(dayNumber);
+  }
+
+  for (const dayRow of Object.values(userState.schedule.days).toSorted((left, right) => left.dayNumber - right.dayNumber)) {
+    ensureBlockRowsForDay(dayRow);
+  }
+}
+
 function buildBacklogRows(userId: string, userState: UserState) {
   return Object.values(userState.backlogItems).map((entry) => ({
     id: entry.id,
@@ -1344,6 +1477,37 @@ function applySupabaseBacklogItemRows(
       referenceData,
     );
   }
+}
+
+function hasMissingSupabaseScheduleRows(
+  raw: {
+    scheduleDayRows: Array<Record<string, unknown>>;
+    scheduleBlockRows: Array<Record<string, unknown>>;
+    scheduleTopicAssignmentRows: Array<Record<string, unknown>>;
+    phaseConfigRows: Array<Record<string, unknown>>;
+  },
+  userState: UserState,
+) {
+  if (!userState.settings.dayOneDate) {
+    return false;
+  }
+
+  const rawDayKeys = new Set(raw.scheduleDayRows.map((row) => String(row.day_number)));
+  const rawBlockKeys = new Set(raw.scheduleBlockRows.map((row) => `${String(row.day_number)}:${String(row.block_key)}`));
+  const rawAssignmentKeys = new Set(raw.scheduleTopicAssignmentRows.map((row) => String(row.source_item_id)));
+  const rawPhaseKeys = new Set(raw.phaseConfigRows.map((row) => String(row.phase_number)));
+
+  const normalizedDayKeys = Object.keys(userState.schedule.days);
+  const normalizedBlockKeys = Object.keys(userState.schedule.blocks);
+  const normalizedAssignmentKeys = Object.keys(userState.schedule.topicAssignments);
+  const normalizedPhaseKeys = Object.keys(userState.schedule.phaseConfig);
+
+  return (
+    normalizedDayKeys.some((key) => !rawDayKeys.has(key)) ||
+    normalizedBlockKeys.some((key) => !rawBlockKeys.has(key)) ||
+    normalizedAssignmentKeys.some((key) => !rawAssignmentKeys.has(key)) ||
+    normalizedPhaseKeys.some((key) => !rawPhaseKeys.has(key))
+  );
 }
 
 async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): Promise<LocalStore> {
@@ -1655,6 +1819,19 @@ async function hydrateSupabaseStore(user: LocalUser, supabase: SupabaseClient): 
   }
 
   store.userState[user.id] = normalizeUserState(userState, store.referenceData);
+  setSupabaseForceFullScheduleSync(
+    store,
+    user.id,
+    hasMissingSupabaseScheduleRows(
+      {
+        scheduleDayRows,
+        scheduleBlockRows,
+        scheduleTopicAssignmentRows,
+        phaseConfigRows,
+      },
+      store.userState[user.id]!,
+    ),
+  );
   return store;
 }
 
@@ -1886,6 +2063,19 @@ async function hydrateSupabaseScheduleStore(user: LocalUser, supabase: SupabaseC
   }
 
   store.userState[user.id] = normalizeUserState(userState, store.referenceData);
+  setSupabaseForceFullScheduleSync(
+    store,
+    user.id,
+    hasMissingSupabaseScheduleRows(
+      {
+        scheduleDayRows,
+        scheduleBlockRows,
+        scheduleTopicAssignmentRows,
+        phaseConfigRows,
+      },
+      store.userState[user.id]!,
+    ),
+  );
   return store;
 }
 
@@ -3027,8 +3217,11 @@ async function persistSupabaseState(
   }
 
   const nextState = nextStore.userState[userId] ?? createEmptyUserState();
-  normalizeScheduleTopicAssignmentSlotOrder(nextState, getEffectiveNow(nextStore).toISOString());
+  const repairTimestamp = getEffectiveNow(nextStore).toISOString();
+  repairMissingScheduleParentRows(nextState, repairTimestamp);
+  normalizeScheduleTopicAssignmentSlotOrder(nextState, repairTimestamp);
   const previousState = previousStore.userState[userId] ?? createEmptyUserState();
+  const forceFullScheduleSync = shouldForceSupabaseFullScheduleSync(nextStore, userId);
   const useTransactionalRpc = isSupabaseOptimisticCasEnabled() && isSupabaseTransactionalRpcEnabled();
   const resolvedExpectedStateVersion = resolveExpectedStateVersion(nextStore, userId, expectedStateVersion);
   const nextStateVersion = resolvedExpectedStateVersion + 1;
@@ -3055,13 +3248,13 @@ async function persistSupabaseState(
   }
 
   const scheduleDayRows = buildScheduleDayRows(userId, nextState.schedule);
-  const previousScheduleDayRows = buildScheduleDayRows(userId, previousState.schedule);
+  const previousScheduleDayRows = forceFullScheduleSync ? [] : buildScheduleDayRows(userId, previousState.schedule);
   const scheduleBlockRows = buildScheduleBlockRows(userId, nextState.schedule);
-  const previousScheduleBlockRows = buildScheduleBlockRows(userId, previousState.schedule);
+  const previousScheduleBlockRows = forceFullScheduleSync ? [] : buildScheduleBlockRows(userId, previousState.schedule);
   const scheduleTopicAssignmentRows = buildScheduleTopicAssignmentRows(userId, nextState.schedule);
-  const previousScheduleTopicAssignmentRows = buildScheduleTopicAssignmentRows(userId, previousState.schedule);
+  const previousScheduleTopicAssignmentRows = forceFullScheduleSync ? [] : buildScheduleTopicAssignmentRows(userId, previousState.schedule);
   const phaseConfigRows = buildPhaseConfigRows(userId, nextState.schedule);
-  const previousPhaseConfigRows = buildPhaseConfigRows(userId, previousState.schedule);
+  const previousPhaseConfigRows = forceFullScheduleSync ? [] : buildPhaseConfigRows(userId, previousState.schedule);
   const revisionCompletionRows = buildRevisionCompletionRows(userId, nextState);
   const previousRevisionCompletionRows = buildRevisionCompletionRows(userId, previousState);
   const backlogRows = buildBacklogRows(userId, nextState);
@@ -3204,6 +3397,9 @@ async function persistSupabaseState(
         supabase,
       );
       setSupabaseStoreStateVersion(nextStore, userId, stateVersion);
+      if (forceFullScheduleSync) {
+        setSupabaseForceFullScheduleSync(nextStore, userId, false);
+      }
       return;
     }
 
@@ -3223,6 +3419,9 @@ async function persistSupabaseState(
         writeLock,
         supabase,
       );
+    }
+    if (forceFullScheduleSync) {
+      setSupabaseForceFullScheduleSync(nextStore, userId, false);
     }
   } catch (error) {
     if (writeLock) {
