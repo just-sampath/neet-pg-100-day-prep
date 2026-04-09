@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { MorningPlanPanel } from "@/components/app/morning-plan-panel";
 import { TimeEditor } from "@/components/app/time-editor";
 import { requireCurrentUser, requireDayOneSetup } from "@/lib/auth/session";
-import { getDayDetailData } from "@/lib/data/app-state";
+import { getDayDetailData, getScheduleDayRouteData } from "@/lib/data/app-state";
 import { readScheduleDayStore } from "@/lib/data/local-store";
 import { getVisibleBlockKeys } from "@/lib/domain/schedule";
 import { getDisplayBlockStatus, getEmptyBlockMessage, shouldShowRecoveryBadge } from "@/lib/domain/today";
@@ -40,11 +40,17 @@ export default async function ScheduleDayPage({
   const user = await requireCurrentUser();
   await requireDayOneSetup(user.id);
   const { day } = await params;
-  const detail = await readScheduleDayStore(Number(day), (store) => getDayDetailData(store, user.id, Number(day)));
+  const routeData = await readScheduleDayStore(Number(day), (store) => getScheduleDayRouteData(store, user.id, Number(day)));
 
-  if (!detail) {
+  if (routeData.kind === "redirect") {
+    redirect(`/schedule/${routeData.dayNumber}`);
+  }
+
+  if (routeData.kind !== "detail") {
     notFound();
   }
+
+  const detail = routeData.detail;
 
   const readOnlyReason = getReadOnlyReason(detail);
   const morningBlock = detail.blocks.find((block) => block.semanticBlockKey === "morning_revision") ?? null;
@@ -150,13 +156,13 @@ export default async function ScheduleDayPage({
 
       <section className="grid gap-4">
         {detail.blocks.map((block) => {
-              const assignedRecovery = plannedRecoveryByBlock.get(block.timeSlotKey as BlockKey) ?? [];
-              const blockHasActiveWork = block.items.length > 0 || assignedRecovery.length > 0;
-              const canCreateBacklog = block.blockIntent === "core_study" || block.blockIntent === "consolidation";
-              const displayStatus = getDisplayBlockStatus(block.progress.status, detail.state.trafficLight);
-              const defaultCompletionDate = block.progress.completedAt
-                ? toDateOnlyInTimeZone(block.progress.completedAt)
-                : detail.mappedDate ?? detail.originalPlannedDate ?? detail.todayDate;
+          const assignedRecovery = plannedRecoveryByBlock.get(block.timeSlotKey as BlockKey) ?? [];
+          const blockHasActiveWork = block.items.length > 0 || assignedRecovery.length > 0;
+          const canCreateBacklog = block.blockIntent === "core_study" || block.blockIntent === "consolidation";
+          const displayStatus = getDisplayBlockStatus(block.progress.status, detail.state.trafficLight);
+          const defaultCompletionDate = block.progress.completedAt
+            ? toDateOnlyInTimeZone(block.progress.completedAt)
+            : detail.mappedDate ?? detail.originalPlannedDate ?? detail.todayDate;
 
           if (morningBlock && block.timeSlotKey === morningBlock.timeSlotKey) {
             return null;

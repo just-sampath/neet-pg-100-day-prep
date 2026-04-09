@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import { createEmptyUserState } from "@/lib/data/local-store";
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
-import { getScheduleDay } from "@/lib/domain/schedule";
+import { buildDailyRevisionPlan, getScheduleDay } from "@/lib/domain/schedule";
+import { buildEarlyFinishTailTrimPlan } from "@/lib/domain/early-finish";
 import { getEarlyFinishSuggestion } from "@/lib/domain/today";
 import type { UserState } from "@/lib/domain/types";
+import { keepOnlyDayAssignments, setBlockActualEnd, truncateScheduleToDay } from "./test-helpers/schedule-test-utils";
 
 function createSeededUserState() {
     const userState = createEmptyUserState();
@@ -297,5 +299,99 @@ describe("early finish suggestion", () => {
         if (result) {
             expect(result.plannedMinutes).toBeGreaterThan(0);
         }
+    });
+
+    it("uses recorded actual end when checking remaining time retrospectively", () => {
+        const userState = createSeededUserState();
+
+        const day = getScheduleDay(2, userState)!;
+        const theoryBlock = findTheoryBlock(2, userState);
+        if (!theoryBlock) return;
+
+        completeAllItems(userState, 2, theoryBlock.timeSlotKey);
+        setBlockActualEnd(userState, 2, theoryBlock.timeSlotKey, "09:00");
+
+        const tomorrowDay = getScheduleDay(3, userState) ?? null;
+        const result = getEarlyFinishSuggestion({
+            block: theoryBlock,
+            blockKey: theoryBlock.timeSlotKey,
+            blockEndTime: theoryBlock.timeSlotKey.split("-")[1],
+            effectiveNowIso: "2026-05-10T06:00:00.000Z",
+            todayDayNumber: 2,
+            todayScheduleDay: day,
+            tomorrowScheduleDay: tomorrowDay,
+            userState,
+        });
+
+        expect(result).not.toBeNull();
+        expect(result?.remainingMinutes).toBe(120);
+    });
+});
+
+describe("early finish trailing trim plan", () => {
+    it("plans trimming for a structural-only trailing day with no A/B/C or revision work", () => {
+        const userState = createSeededUserState();
+        const tailDay = getScheduleDay(100, userState)!;
+        const nonDequeBlock = tailDay.blocks.find(
+            (block) =>
+                block.trackable &&
+                !["block_a", "block_b", "block_c", "morning_revision"].includes(block.semanticBlockKey) &&
+                block.items.length > 0,
+        );
+        if (!nonDequeBlock) return;
+
+        keepOnlyDayAssignments(userState, 100, new Set([nonDequeBlock.items[0]!.itemId]));
+
+        const plan = buildEarlyFinishTailTrimPlan(userState);
+
+        expect(plan).not.toBeNull();
+        expect(plan?.trimDayNumbers).toEqual([100]);
+        expect(plan?.newTailDayNumber).toBe(99);
+        const tailBlockRows = Object.values(userState.schedule.blocks)
+            .filter((row) => row.dayNumber === 100)
+            .map((row) => ({ dayNumber: row.dayNumber, blockKey: row.blockKey }))
+            .sort((left, right) => left.blockKey.localeCompare(right.blockKey));
+        expect(plan?.trimBlockRows.toSorted((left, right) => left.blockKey.localeCompare(right.blockKey))).toEqual(tailBlockRows);
+    });
+
+    it("trims only the trailing suffix and leaves interior empty days untouched", () => {
+        const userState = createSeededUserState();
+        const tailDay = getScheduleDay(100, userState)!;
+        const nonDequeBlock = tailDay.blocks.find(
+            (block) =>
+                block.trackable &&
+                !["block_a", "block_b", "block_c", "morning_revision"].includes(block.semanticBlockKey) &&
+                block.items.length > 0,
+        );
+        if (!nonDequeBlock) return;
+
+        keepOnlyDayAssignments(userState, 98, new Set());
+        keepOnlyDayAssignments(userState, 100, new Set([nonDequeBlock.items[0]!.itemId]));
+
+        const plan = buildEarlyFinishTailTrimPlan(userState);
+
+        expect(plan).not.toBeNull();
+        expect(plan?.trimDayNumbers).toEqual([100]);
+        expect(plan?.trimDayNumbers).not.toContain(98);
+    });
+
+    it("retains a trailing day when revision work is still surfaced there", () => {
+        const userState = createSeededUserState();
+        truncateScheduleToDay(userState, 3);
+
+        const day1 = getScheduleDay(1, userState)!;
+        for (const block of day1.blocks.filter((entry) => entry.trackable && entry.items.length > 0)) {
+            completeAllItems(userState, 1, block.timeSlotKey);
+        }
+
+        keepOnlyDayAssignments(userState, 3, new Set());
+
+        const day3Date = userState.schedule.days["3"]!.mappedDate;
+        const revisionPlan = buildDailyRevisionPlan(day3Date, userState, userState.settings);
+        expect(revisionPlan.morningSessionPlanned).toBeGreaterThan(0);
+
+        const plan = buildEarlyFinishTailTrimPlan(userState);
+
+        expect(plan).toBeNull();
     });
 });

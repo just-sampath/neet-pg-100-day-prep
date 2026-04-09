@@ -25,6 +25,11 @@ import { HARD_BOUNDARY_DATE, MORNING_REVISION_SLOT_PLAN, NO_DUE_MORNING_REVISION
 import { runRepackAlgorithm } from "@/lib/domain/repack";
 import type { ExtensionContext } from "@/lib/domain/repack";
 import {
+  buildEarlyFinishRebalancePlan,
+  buildEarlyFinishTailTrimPlan,
+} from "@/lib/domain/early-finish";
+
+import {
   buildGtComparisonSummary,
   buildGtDashboardSummary,
   buildGtScoreTrend,
@@ -669,6 +674,176 @@ export function pullTopicForward(
   }
 
   invalidateRuntimeScheduleIndex(userState);
+}
+
+function normalizeEarlyFinishTouchedSlotOrders(
+  schedule: UserState["schedule"],
+  slotKeys: string[],
+  fixedRowIdsBySlot: Map<string, string[]>,
+  placementOrderBySlot: Map<string, Map<string, number>>,
+  nowIso: string,
+) {
+  let changed = false;
+
+  for (const slotKey of slotKeys) {
+    const slotRows = Object.values(schedule.topicAssignments)
+      .filter((row) => `${row.dayNumber}:${row.blockKey}` === slotKey);
+    const fixedRowIds = fixedRowIdsBySlot.get(slotKey) ?? [];
+    const fixedOrder = new Map(fixedRowIds.map((rowId, index) => [rowId, index] as const));
+    const placementOrder = placementOrderBySlot.get(slotKey) ?? new Map<string, number>();
+
+    slotRows.sort((left, right) => {
+      const leftFixed = fixedOrder.get(left.sourceItemId);
+      const rightFixed = fixedOrder.get(right.sourceItemId);
+      if (leftFixed !== undefined && rightFixed !== undefined) {
+        return leftFixed - rightFixed;
+      }
+      if (leftFixed !== undefined) {
+        return -1;
+      }
+      if (rightFixed !== undefined) {
+        return 1;
+      }
+
+      const leftPlaced = placementOrder.get(left.sourceItemId);
+      const rightPlaced = placementOrder.get(right.sourceItemId);
+      if (leftPlaced !== undefined && rightPlaced !== undefined) {
+        return leftPlaced - rightPlaced;
+      }
+      if (leftPlaced !== undefined) {
+        return -1;
+      }
+      if (rightPlaced !== undefined) {
+        return 1;
+      }
+
+      if (left.itemOrder !== right.itemOrder) {
+        return left.itemOrder - right.itemOrder;
+      }
+      return left.sourceItemId.localeCompare(right.sourceItemId);
+    });
+
+    for (let index = 0; index < slotRows.length; index += 1) {
+      const row = slotRows[index]!;
+      const nextOrder = index + 1;
+      if (row.itemOrder !== nextOrder) {
+        row.itemOrder = nextOrder;
+        row.updatedAt = nowIso;
+        changed = true;
+      }
+    }
+  }
+
+  return changed;
+}
+
+export function rebalanceEarlyFinishSchedule(
+  userState: UserState,
+  sourceItemId: string,
+  targetDayNumber: number,
+  targetBlockKey: BlockKey,
+  remainingMinutes: number,
+  referenceData?: LocalStore["referenceData"],
+) {
+  const plan = buildEarlyFinishRebalancePlan(
+    userState,
+    sourceItemId,
+    targetDayNumber,
+    targetBlockKey,
+    remainingMinutes,
+    referenceData,
+  );
+  if (!plan) {
+    return false;
+  }
+
+  if (plan.placements.some((placement) => !userState.schedule.topicAssignments[placement.sourceItemId])) {
+    return false;
+  }
+
+  const nowIso = new Date().toISOString();
+  const placementOrderBySlot = new Map<string, Map<string, number>>();
+
+  for (const placement of plan.placements) {
+    const row = userState.schedule.topicAssignments[placement.sourceItemId];
+    if (!row) {
+      return false;
+    }
+
+    row.dayNumber = placement.dayNumber;
+    row.blockKey = placement.blockKey;
+    row.itemOrder = placement.itemOrder;
+    row.updatedAt = nowIso;
+
+    if (placement.isRecovery && !row.isRecovery) {
+      row.isRecovery = true;
+      row.originalDayNumber = placement.originalDayNumber;
+      row.originalBlockKey = placement.originalBlockKey;
+    }
+
+    const key = `${placement.dayNumber}:${placement.blockKey}`;
+    const slotPlacementOrder = placementOrderBySlot.get(key) ?? new Map<string, number>();
+    slotPlacementOrder.set(placement.sourceItemId, placement.itemOrder);
+    placementOrderBySlot.set(key, slotPlacementOrder);
+  }
+
+  normalizeEarlyFinishTouchedSlotOrders(
+    userState.schedule,
+    plan.slotKeys,
+    plan.fixedRowIdsBySlot,
+    placementOrderBySlot,
+    nowIso,
+  );
+  trimTrailingScheduleDaysAfterEarlyFinish(userState, nowIso, referenceData);
+  invalidateRuntimeScheduleIndex(userState);
+  return true;
+}
+
+function trimTrailingScheduleDaysAfterEarlyFinish(
+  userState: UserState,
+  nowIso: string,
+  referenceData?: LocalStore["referenceData"],
+) {
+  const plan = buildEarlyFinishTailTrimPlan(userState, referenceData);
+  if (!plan) {
+    return false;
+  }
+
+  const trimmedDaySet = new Set(plan.trimDayNumbers);
+
+  for (const dayNumber of plan.trimDayNumbers) {
+    delete userState.schedule.days[String(dayNumber)];
+  }
+
+  for (const { dayNumber, blockKey } of plan.trimBlockRows) {
+    delete userState.schedule.blocks[`${dayNumber}:${blockKey}`];
+  }
+
+  for (const [key, row] of Object.entries(userState.schedule.topicAssignments)) {
+    if (trimmedDaySet.has(row.dayNumber)) {
+      delete userState.schedule.topicAssignments[key];
+    }
+  }
+
+  if (plan.newTailDayNumber !== null) {
+    for (const phase of Object.values(userState.schedule.phaseConfig)) {
+      const nextEndDay = Math.max(phase.currentStartDay - 1, Math.min(phase.currentEndDay, plan.newTailDayNumber));
+      if (nextEndDay !== phase.currentEndDay) {
+        phase.currentEndDay = nextEndDay;
+        phase.updatedAt = nowIso;
+      }
+    }
+  }
+
+  if (plan.trimmedExtensionDayCount > 0) {
+    const phaseThree = Object.values(userState.schedule.phaseConfig).find((phase) => phase.phaseNumber === 3);
+    if (phaseThree) {
+      phaseThree.extensionsUsed = Math.max(0, phaseThree.extensionsUsed - plan.trimmedExtensionDayCount);
+      phaseThree.updatedAt = nowIso;
+    }
+  }
+
+  return true;
 }
 
 export function upsertBacklogItem(
@@ -2610,6 +2785,43 @@ export function getScheduleListData(store: LocalStore, userId: string) {
         }];
       });
   });
+}
+
+export function getScheduleDayRouteData(store: LocalStore, userId: string, dayNumber: number) {
+  applyAutomations(store, userId);
+  const userState = store.userState[userId];
+  const directRow = userState.schedule.days[String(dayNumber)] ?? null;
+  const resolvedRuntimeDayNumber = directRow ? dayNumber : getRuntimeDayNumberForDisplayDay(dayNumber, userState);
+
+  if (!directRow && resolvedRuntimeDayNumber === null) {
+    const lastRuntimeDayNumber = Object.values(userState.schedule.days).reduce(
+      (max, row) => Math.max(max, row.dayNumber),
+      0,
+    );
+
+    if (lastRuntimeDayNumber > 0 && dayNumber > lastRuntimeDayNumber) {
+      return {
+        kind: "redirect" as const,
+        dayNumber: lastRuntimeDayNumber,
+      };
+    }
+
+    return {
+      kind: "not_found" as const,
+    };
+  }
+
+  const detail = getDayDetailData(store, userId, dayNumber);
+  if (!detail) {
+    return {
+      kind: "not_found" as const,
+    };
+  }
+
+  return {
+    kind: "detail" as const,
+    detail,
+  };
 }
 
 export function getDayDetailData(store: LocalStore, userId: string, dayNumber: number) {

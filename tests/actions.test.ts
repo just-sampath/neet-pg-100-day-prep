@@ -66,11 +66,53 @@ vi.mock("@/lib/data/local-store", async () => {
 });
 
 import { createEmptyUserState } from "@/lib/data/local-store";
-import { pullTopicForward, completeBlockItems, getHomeData } from "@/lib/data/app-state";
-import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
-import { getScheduleDay, getBlockProgress, buildDailyRevisionPlan, invalidateRuntimeScheduleIndex } from "@/lib/domain/schedule";
-import { submitGtAction, submitMcqBulkAction, submitMcqItemAction, updateTopicAction, updateBlockAction } from "@/lib/server/actions";
+import { rebalanceEarlyFinishSchedule, runEndOfDaySweep, pullTopicForward, completeBlockItems, getHomeData } from "@/lib/data/app-state";
+import { buildExtensionDayRows, ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
+import { getScheduleDay, getBlockProgress, buildDailyRevisionPlan, getScheduleDays, invalidateRuntimeScheduleIndex } from "@/lib/domain/schedule";
+import { acceptEarlyFinishAction, submitGtAction, submitMcqBulkAction, submitMcqItemAction, updateTopicAction, updateBlockAction } from "@/lib/server/actions";
 import { refresh } from "next/cache";
+import { buildAcceptEarlyFinishFormData, keepOnlyDayAssignments, setBlockActualEnd } from "./test-helpers/schedule-test-utils";
+import { addDaysToDateOnly } from "@/lib/utils/date";
+
+function getMaxRuntimeDayNumber(userState: LocalStore["userState"][string]) {
+  return Math.max(...Object.values(userState.schedule.days).map((row) => row.dayNumber));
+}
+
+function appendTailExtensionDay(userState: LocalStore["userState"][string]) {
+  const phaseThree = Object.values(userState.schedule.phaseConfig).find((phase) => phase.phaseNumber === 3);
+  if (!phaseThree) {
+    throw new Error("Missing phase 3 config");
+  }
+
+  const tailDayNumber = getMaxRuntimeDayNumber(userState);
+  const tailDayRow = userState.schedule.days[String(tailDayNumber)];
+  if (!tailDayRow) {
+    throw new Error(`Missing tail day ${tailDayNumber}`);
+  }
+
+  const nextDayNumber = tailDayNumber + 1;
+  const mappedDate = addDaysToDateOnly(tailDayRow.mappedDate, 1);
+  const nowIso = "2026-05-10T06:30:00.000Z";
+  const { dayRow, blockRows } = buildExtensionDayRows(
+    nextDayNumber,
+    phaseThree.phaseId,
+    "phase_3",
+    "Phase 3",
+    mappedDate,
+    nowIso,
+  );
+
+  userState.schedule.days[String(nextDayNumber)] = dayRow;
+  for (const block of blockRows) {
+    userState.schedule.blocks[`${block.dayNumber}:${block.blockKey}`] = block;
+  }
+
+  phaseThree.currentEndDay = nextDayNumber;
+  phaseThree.extensionsUsed += 1;
+  phaseThree.updatedAt = nowIso;
+  invalidateRuntimeScheduleIndex(userState);
+  return nextDayNumber;
+}
 
 describe("server actions", () => {
   beforeEach(() => {
@@ -663,6 +705,250 @@ describe("completeBlockItems after pullTopicForward", () => {
     for (const id of remainingIds) {
       expect(userState.schedule.topicAssignments[id].status).toBe("completed");
     }
+  });
+});
+
+describe("acceptEarlyFinishAction", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-01T06:30:00.000Z"));
+
+    testStore = {
+      version: 2,
+      users: {
+        "test-user": {
+          id: "test-user",
+          email: "aspirant@beside-you.local",
+          password: "beside-you-2026",
+          displayName: "Aspirant",
+        },
+      },
+      sessions: {},
+      userState: {
+        "test-user": createEmptyUserState(),
+      },
+      referenceData: getStaticReferenceData(),
+      dev: {
+        simulatedNowIso: "2026-05-10T06:30:00.000Z",
+      },
+    };
+
+    testStore.userState["test-user"].settings.dayOneDate = "2026-05-10";
+    ensureUserScheduleSeeded(testStore.userState["test-user"]);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.clearAllMocks();
+  });
+
+  it("rebalances downstream Day 1 blocks instead of leaving the source block empty", async () => {
+    const userState = testStore.userState["test-user"];
+    const day1 = getScheduleDay(1, userState, testStore.referenceData)!;
+    const blockA = day1.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+    const blockB = day1.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+
+    completeBlockItems(userState, 1, blockA.timeSlotKey, "2026-05-10T09:00:00.000Z", null, testStore.referenceData);
+    setBlockActualEnd(userState, 1, blockA.timeSlotKey, "09:00");
+
+    await acceptEarlyFinishAction(buildAcceptEarlyFinishFormData(blockB.items[0]!.itemId, 1, blockA.timeSlotKey));
+
+    const refreshedDay1 = getScheduleDay(1, userState, testStore.referenceData)!;
+    const refreshedBlockA = refreshedDay1.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+    const refreshedBlockB = refreshedDay1.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+    const refreshedBlockC = refreshedDay1.blocks.find((entry) => entry.semanticBlockKey === "block_c")!;
+
+    expect(refreshedBlockA.items.map((item) => item.itemId)).toEqual(["d001-0800-01", "d001-0800-02", "d001-1115-01"]);
+    expect(refreshedBlockB.items.map((item) => item.itemId)).toEqual(["d001-1500-01"]);
+    expect(refreshedBlockC.items.map((item) => item.itemId)).toEqual(["d002-0800-01"]);
+  });
+
+  it("keeps completed target topics ahead of the pulled topic after rebalancing", async () => {
+    const userState = testStore.userState["test-user"];
+    const day1 = getScheduleDay(1, userState, testStore.referenceData)!;
+    const blockA = day1.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+    const blockB = day1.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+
+    completeBlockItems(userState, 1, blockA.timeSlotKey, "2026-05-10T09:00:00.000Z", null, testStore.referenceData);
+    setBlockActualEnd(userState, 1, blockA.timeSlotKey, "09:00");
+
+    await acceptEarlyFinishAction(buildAcceptEarlyFinishFormData(blockB.items[0]!.itemId, 1, blockA.timeSlotKey));
+
+    const targetRows = Object.values(userState.schedule.topicAssignments)
+      .filter((row) => row.dayNumber === 1 && row.blockKey === blockA.timeSlotKey)
+      .sort((left, right) => left.itemOrder - right.itemOrder);
+
+    expect(targetRows.map((row) => row.sourceItemId)).toEqual(["d001-0800-01", "d001-0800-02", "d001-1115-01"]);
+    expect(targetRows.slice(0, 2).map((row) => row.status)).toEqual(["completed", "completed"]);
+    expect(targetRows[2]?.status).toBe("pending");
+  });
+
+  it("treats stale accepts as a no-op when the source row is no longer pending", async () => {
+    const userState = testStore.userState["test-user"];
+    const day1 = getScheduleDay(1, userState, testStore.referenceData)!;
+    const blockA = day1.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+    const blockB = day1.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+    const sourceRow = userState.schedule.topicAssignments[blockB.items[0]!.itemId]!;
+
+    completeBlockItems(userState, 1, blockA.timeSlotKey, "2026-05-10T09:00:00.000Z", null, testStore.referenceData);
+    setBlockActualEnd(userState, 1, blockA.timeSlotKey, "09:00");
+    sourceRow.status = "completed";
+    sourceRow.completedAt = "2026-05-10T10:00:00.000Z";
+
+    await acceptEarlyFinishAction(buildAcceptEarlyFinishFormData(sourceRow.sourceItemId, 1, blockA.timeSlotKey));
+
+    expect(sourceRow.dayNumber).toBe(1);
+    expect(sourceRow.blockKey).toBe(blockB.timeSlotKey);
+    expect(sourceRow.status).toBe("completed");
+    expect(getScheduleDay(1, userState, testStore.referenceData)!
+      .blocks.find((entry) => entry.semanticBlockKey === "block_a")!
+      .items.map((item) => item.itemId)).toEqual(["d001-0800-01", "d001-0800-02"]);
+  });
+
+  it("treats stale accepts as a no-op when the target block no longer has enough time", async () => {
+    const userState = testStore.userState["test-user"];
+    const day1 = getScheduleDay(1, userState, testStore.referenceData)!;
+    const blockA = day1.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+    const blockB = day1.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+    const sourceRow = userState.schedule.topicAssignments[blockB.items[0]!.itemId]!;
+
+    completeBlockItems(userState, 1, blockA.timeSlotKey, "2026-05-10T10:55:00.000Z", null, testStore.referenceData);
+    setBlockActualEnd(userState, 1, blockA.timeSlotKey, "10:55");
+
+    await acceptEarlyFinishAction(buildAcceptEarlyFinishFormData(sourceRow.sourceItemId, 1, blockA.timeSlotKey));
+
+    expect(sourceRow.dayNumber).toBe(1);
+    expect(sourceRow.blockKey).toBe(blockB.timeSlotKey);
+    expect(getScheduleDay(1, userState, testStore.referenceData)!
+      .blocks.find((entry) => entry.semanticBlockKey === "block_a")!
+      .items.map((item) => item.itemId)).toEqual(["d001-0800-01", "d001-0800-02"]);
+  });
+
+  it("cascades across day boundaries when a tomorrow topic is pulled forward", async () => {
+    const userState = testStore.userState["test-user"];
+    const dayPair = getScheduleDays(userState, testStore.referenceData).find((day) => {
+      const tomorrow = getScheduleDay(day.dayNumber + 1, userState, testStore.referenceData);
+      if (!tomorrow) {
+        return false;
+      }
+
+      const eligibleToday = day.blocks.filter((block) => block.trackable && ["block_a", "block_b", "block_c"].includes(block.semanticBlockKey) && block.items.length > 0);
+      const eligibleTomorrow = tomorrow.blocks.filter((block) => block.trackable && ["block_a", "block_b", "block_c"].includes(block.semanticBlockKey) && block.items.length > 0);
+
+      return eligibleToday.length > 0 && eligibleTomorrow.length >= 2 && eligibleTomorrow[0]?.items.length === 1;
+    });
+
+    if (!dayPair) {
+      return;
+    }
+
+    const tomorrow = getScheduleDay(dayPair.dayNumber + 1, userState, testStore.referenceData)!;
+    const todayEligible = dayPair.blocks.filter((block) => block.trackable && ["block_a", "block_b", "block_c"].includes(block.semanticBlockKey) && block.items.length > 0);
+    const tomorrowEligible = tomorrow.blocks.filter((block) => block.trackable && ["block_a", "block_b", "block_c"].includes(block.semanticBlockKey) && block.items.length > 0);
+    const targetBlock = todayEligible[todayEligible.length - 1]!;
+    const sourceBlock = tomorrowEligible[0]!;
+    const sourceItemId = sourceBlock.items[0]!.itemId;
+
+    completeBlockItems(userState, dayPair.dayNumber, targetBlock.timeSlotKey, "2026-05-10T09:00:00.000Z", null, testStore.referenceData);
+    setBlockActualEnd(userState, dayPair.dayNumber, targetBlock.timeSlotKey, "09:00");
+
+    await acceptEarlyFinishAction(buildAcceptEarlyFinishFormData(sourceItemId, dayPair.dayNumber, targetBlock.timeSlotKey));
+
+    const refreshedTomorrow = getScheduleDay(dayPair.dayNumber + 1, userState, testStore.referenceData)!;
+    const refreshedSourceBlock = refreshedTomorrow.blocks.find((block) => block.timeSlotKey === sourceBlock.timeSlotKey)!;
+
+    expect(refreshedSourceBlock.items.map((item) => item.itemId)).not.toContain(sourceItemId);
+    expect(refreshedSourceBlock.items.length).toBeGreaterThan(0);
+  });
+
+  it("trims an empty trailing runtime day immediately after a successful rebalance", async () => {
+    const userState = testStore.userState["test-user"];
+    const tailDayNumber = getMaxRuntimeDayNumber(userState);
+    const targetDayNumber = tailDayNumber - 1;
+    const targetDay = getScheduleDay(targetDayNumber, userState, testStore.referenceData)!;
+    const tailDay = getScheduleDay(tailDayNumber, userState, testStore.referenceData)!;
+    const targetEligibleBlocks = targetDay.blocks.filter(
+      (block) => block.trackable && ["block_a", "block_b", "block_c"].includes(block.semanticBlockKey) && block.items.length > 0,
+    );
+    const tailEligibleBlocks = tailDay.blocks.filter(
+      (block) => block.trackable && ["block_a", "block_b", "block_c"].includes(block.semanticBlockKey) && block.items.length > 0,
+    );
+
+    const targetBlock = targetEligibleBlocks[targetEligibleBlocks.length - 1]!;
+    const sourceBlock = tailEligibleBlocks[0]!;
+    const sourceItemId = sourceBlock.items[0]!.itemId;
+
+    keepOnlyDayAssignments(userState, tailDayNumber, new Set([sourceItemId]));
+
+    completeBlockItems(userState, targetDayNumber, targetBlock.timeSlotKey, "2026-05-10T09:00:00.000Z", null, testStore.referenceData);
+    setBlockActualEnd(userState, targetDayNumber, targetBlock.timeSlotKey, "09:00");
+
+    await acceptEarlyFinishAction(buildAcceptEarlyFinishFormData(sourceItemId, targetDayNumber, targetBlock.timeSlotKey));
+
+    expect(userState.schedule.days[String(tailDayNumber)]).toBeUndefined();
+    expect(Object.values(userState.schedule.blocks).some((row) => row.dayNumber === tailDayNumber)).toBe(false);
+    expect(Object.values(userState.schedule.topicAssignments).some((row) => row.dayNumber === tailDayNumber)).toBe(false);
+    expect(getMaxRuntimeDayNumber(userState)).toBe(targetDayNumber);
+    expect(Math.max(...Object.values(userState.schedule.phaseConfig).map((phase) => phase.currentEndDay))).toBe(targetDayNumber);
+  });
+
+  it("treats a moved topic as ordinary pending work when later automations run", async () => {
+    const userState = testStore.userState["test-user"];
+    const day1 = getScheduleDay(1, userState, testStore.referenceData)!;
+    const blockA = day1.blocks.find((entry) => entry.semanticBlockKey === "block_a")!;
+    const blockB = day1.blocks.find((entry) => entry.semanticBlockKey === "block_b")!;
+    const sourceItemId = blockB.items[0]!.itemId;
+
+    completeBlockItems(userState, 1, blockA.timeSlotKey, "2026-05-10T09:00:00.000Z", null, testStore.referenceData);
+    setBlockActualEnd(userState, 1, blockA.timeSlotKey, "09:00");
+
+    await acceptEarlyFinishAction(buildAcceptEarlyFinishFormData(sourceItemId, 1, blockA.timeSlotKey));
+
+    expect(userState.schedule.topicAssignments[sourceItemId]?.status).toBe("pending");
+
+    runEndOfDaySweep(userState, userState.settings, "2026-05-10", 1, 23 * 60 + 30, testStore.referenceData);
+
+    expect(userState.schedule.topicAssignments[sourceItemId]?.status).toBe("missed");
+    expect(userState.backlogItems[sourceItemId]).toMatchObject({
+      sourceTag: "end_of_day_sweep",
+      status: "pending",
+    });
+  });
+
+  it("reduces extensionsUsed when trimming an empty trailing extension day", async () => {
+    const userState = testStore.userState["test-user"];
+    const extensionDayNumber = appendTailExtensionDay(userState);
+    const day100 = getScheduleDay(extensionDayNumber - 1, userState, testStore.referenceData)!;
+    const extensionDay = getScheduleDay(extensionDayNumber, userState, testStore.referenceData)!;
+    const targetBlock = day100.blocks.filter(
+      (block) => block.trackable && ["block_a", "block_b", "block_c"].includes(block.semanticBlockKey) && block.items.length > 0,
+    ).at(-1)!;
+    const extensionBlockA = extensionDay.blocks.find((block) => block.semanticBlockKey === "block_a")!;
+    const sourceItemId = day100.blocks.find((block) => block.semanticBlockKey === "block_a")!.items[0]!.itemId;
+    const sourceRow = userState.schedule.topicAssignments[sourceItemId]!;
+
+    for (const item of targetBlock.items) {
+      delete userState.schedule.topicAssignments[item.itemId];
+    }
+    sourceRow.dayNumber = extensionDayNumber;
+    sourceRow.blockKey = extensionBlockA.timeSlotKey;
+    sourceRow.itemOrder = 1;
+    sourceRow.updatedAt = "2026-05-10T06:45:00.000Z";
+    invalidateRuntimeScheduleIndex(userState);
+
+    expect(rebalanceEarlyFinishSchedule(
+      userState,
+      sourceItemId,
+      extensionDayNumber - 1,
+      targetBlock.timeSlotKey,
+      180,
+      testStore.referenceData,
+    )).toBe(true);
+
+    expect(userState.schedule.days[String(extensionDayNumber)]).toBeUndefined();
+    const phaseThree = Object.values(userState.schedule.phaseConfig).find((phase) => phase.phaseNumber === 3)!;
+    expect(phaseThree.currentEndDay).toBe(extensionDayNumber - 1);
+    expect(phaseThree.extensionsUsed).toBe(0);
   });
 });
 

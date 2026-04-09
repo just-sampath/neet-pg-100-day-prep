@@ -7,6 +7,7 @@ import { getStaticReferenceData } from "@/lib/data/reference-data";
 import { ensureUserScheduleSeeded } from "@/lib/data/schedule-seed";
 import { getScheduleDay } from "@/lib/domain/schedule";
 import type { BlockKey, LocalStore, UserState } from "@/lib/domain/types";
+import { truncateScheduleToDay } from "./test-helpers/schedule-test-utils";
 
 const authMocks = vi.hoisted(() => ({
   requireCurrentUser: vi.fn(),
@@ -15,6 +16,15 @@ const authMocks = vi.hoisted(() => ({
 
 const localStoreMocks = vi.hoisted(() => ({
   readScheduleDayStore: vi.fn(),
+}));
+
+const navigationMocks = vi.hoisted(() => ({
+  redirect: vi.fn((href: string) => {
+    throw new Error(`REDIRECT:${href}`);
+  }),
+  notFound: vi.fn(() => {
+    throw new Error("NOT_FOUND");
+  }),
 }));
 
 const timeEditorCapture = vi.hoisted(
@@ -43,6 +53,11 @@ vi.mock("@/lib/data/local-store", async () => {
     readScheduleDayStore: localStoreMocks.readScheduleDayStore,
   };
 });
+
+vi.mock("next/navigation", () => ({
+  redirect: navigationMocks.redirect,
+  notFound: navigationMocks.notFound,
+}));
 
 vi.mock("@/components/app/morning-plan-panel", () => ({
   MorningPlanPanel: () => null,
@@ -120,5 +135,22 @@ describe("ScheduleDayPage", () => {
     expect(blockAEditor?.slots.find((slot) => slot.key === blockAKey)?.visible).toBe(false);
     expect(blockAEditor?.slots.find((slot) => slot.key === blockBKey)?.visible).toBe(false);
     expect(blockAEditor?.slots.find((slot) => slot.key === finalReviewKey)?.visible).toBe(false);
+  });
+
+  it("redirects trimmed day requests to the new last runtime day", async () => {
+    const userState = createEmptyUserState();
+    userState.settings.dayOneDate = "2026-05-01";
+    ensureUserScheduleSeeded(userState);
+    truncateScheduleToDay(userState, 2);
+    const store = createStore(userState);
+
+    localStoreMocks.readScheduleDayStore.mockImplementation(async (dayNumber: number, reader: (store: LocalStore) => unknown) => {
+      expect(dayNumber).toBe(3);
+      return reader(store);
+    });
+
+    await expect(ScheduleDayPage({ params: Promise.resolve({ day: "3" }) })).rejects.toThrow("REDIRECT:/schedule/2");
+    expect(navigationMocks.redirect).toHaveBeenCalledWith("/schedule/2");
+    expect(navigationMocks.notFound).not.toHaveBeenCalled();
   });
 });

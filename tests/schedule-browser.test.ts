@@ -180,6 +180,38 @@ describe("schedule browser and retroactive editing", () => {
     });
   }, 15_000);
 
+  it("shortens the browser list directly from runtime schedule days after tail trimming", () => {
+    const userState = createEmptyUserState();
+    userState.settings.dayOneDate = "2026-05-10";
+    ensureUserScheduleSeeded(userState);
+
+    const tailDayNumber = Math.max(...Object.values(userState.schedule.days).map((row) => row.dayNumber));
+    const targetDayNumber = tailDayNumber - 1;
+    delete userState.schedule.days[String(tailDayNumber)];
+    for (const [key, row] of Object.entries(userState.schedule.blocks)) {
+      if (row.dayNumber === tailDayNumber) {
+        delete userState.schedule.blocks[key];
+      }
+    }
+    for (const [key, row] of Object.entries(userState.schedule.topicAssignments)) {
+      if (row.dayNumber === tailDayNumber) {
+        delete userState.schedule.topicAssignments[key];
+      }
+    }
+    for (const phase of Object.values(userState.schedule.phaseConfig)) {
+      if (phase.currentEndDay === tailDayNumber) {
+        phase.currentEndDay = targetDayNumber;
+      }
+    }
+
+    expect(Math.max(...Object.values(userState.schedule.days).map((row) => row.dayNumber))).toBe(targetDayNumber);
+
+    const days = getScheduleListData(createStore(userState, "2026-05-10T06:30:00.000Z"), "local-user");
+
+    expect(days.at(-1)?.runtimeDayNumber).toBe(targetDayNumber);
+    expect(days.find((day) => day.runtimeDayNumber === tailDayNumber)).toBeUndefined();
+  });
+
   it("exposes retroactive completion only on past day detail views and returns semantic block items", () => {
     const userState = createEmptyUserState();
     userState.settings.dayOneDate = "2026-05-01";

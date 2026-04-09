@@ -18,13 +18,13 @@ import {
   applyOverrunCascadeShift,
   applyScheduleShiftToUserState,
   applyTrafficLightToDay,
+  rebalanceEarlyFinishSchedule,
   completeBlockItems,
   completeRevisionSession,
   completeTopicItem,
   getOrCreateProgress,
   moveBlockToBacklog,
   moveVisibleBlocksToBacklog,
-  pullTopicForward,
   runBlockOverrunCutoff,
   runEndOfDaySweep,
   runMidnightRepack,
@@ -52,6 +52,7 @@ import {
 } from "@/lib/domain/schedule";
 import { validateGtDraft } from "@/lib/domain/gt";
 import { validateMcqBulkDraft, validateMcqItemDraft } from "@/lib/domain/mcq";
+import { getEarlyFinishSuggestion } from "@/lib/domain/today";
 import type {
   BacklogBulkScope,
   BacklogMoveDirection,
@@ -747,7 +748,36 @@ export async function acceptEarlyFinishAction(formData: FormData) {
   await mutateScheduleStoreWithConflictHandling((store) => {
     const userState = store.userState[user.id];
     ensureUserScheduleSeeded(userState);
-    pullTopicForward(userState, sourceItemId, targetDayNumber, targetBlockKey);
+    const todayScheduleDay = getScheduleDay(targetDayNumber, userState, store.referenceData);
+    const block = todayScheduleDay?.blocks.find((entry) => entry.timeSlotKey === targetBlockKey) ?? null;
+    if (!todayScheduleDay || !block) {
+      return;
+    }
+
+    const suggestion = getEarlyFinishSuggestion({
+      block,
+      blockKey: targetBlockKey,
+      blockEndTime: targetBlockKey.split("-")[1] ?? "",
+      effectiveNowIso: getEffectiveNow(store).toISOString(),
+      todayDayNumber: targetDayNumber,
+      todayScheduleDay,
+      tomorrowScheduleDay: getScheduleDay(targetDayNumber + 1, userState, store.referenceData) ?? null,
+      userState,
+      referenceData: store.referenceData,
+    });
+
+    if (!suggestion || suggestion.sourceItemId !== sourceItemId) {
+      return;
+    }
+
+    rebalanceEarlyFinishSchedule(
+      userState,
+      sourceItemId,
+      targetDayNumber,
+      targetBlockKey,
+      suggestion.remainingMinutes,
+      store.referenceData,
+    );
   });
 
   refreshScheduleViews(targetDayNumber);

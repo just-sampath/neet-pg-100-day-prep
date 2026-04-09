@@ -254,6 +254,53 @@ export interface EarlyFinishSuggestion {
   originalDayNumber: number | null;
 }
 
+function getEarlyFinishRemainingMinutes({
+  block,
+  blockKey,
+  blockEndTime,
+  effectiveNowIso,
+  todayDayNumber,
+  userState,
+  referenceData,
+}: {
+  block: ScheduleDayPlan["blocks"][number];
+  blockKey: BlockKey;
+  blockEndTime: string;
+  effectiveNowIso: string;
+  todayDayNumber: number;
+  userState: UserState;
+  referenceData?: RuntimeReferenceData;
+}) {
+  if (!EARLY_FINISH_ELIGIBLE_BLOCKS.has(block.semanticBlockKey)) {
+    return null;
+  }
+
+  const allCompleted = block.items.length > 0 && block.items.every((item) => {
+    const progress = getTopicProgress(userState, item, todayDayNumber, blockKey);
+    return progress.status === "completed";
+  });
+  if (!allCompleted) {
+    return null;
+  }
+
+  const blockEndMinutes = timeValue(blockEndTime);
+  const blockProgress = getBlockProgress(userState, todayDayNumber, blockKey, referenceData);
+  const recordedActualEndMinutes = blockProgress.actualEnd
+    ? timeValue(blockProgress.actualEnd)
+    : null;
+  const referenceMinutes =
+    recordedActualEndMinutes !== null && recordedActualEndMinutes < blockEndMinutes
+      ? recordedActualEndMinutes
+      : getMinutesInTimeZone(effectiveNowIso, IST_TIME_ZONE);
+
+  if (blockEndMinutes <= referenceMinutes) {
+    return null;
+  }
+
+  const remainingMinutes = blockEndMinutes - referenceMinutes;
+  return remainingMinutes >= EARLY_FINISH_MIN_MINUTES ? remainingMinutes : null;
+}
+
 export function getEarlyFinishSuggestion({
   block,
   blockKey,
@@ -263,6 +310,7 @@ export function getEarlyFinishSuggestion({
   todayScheduleDay,
   tomorrowScheduleDay,
   userState,
+  referenceData,
 }: {
   block: ScheduleDayPlan["blocks"][number];
   blockKey: BlockKey;
@@ -272,34 +320,19 @@ export function getEarlyFinishSuggestion({
   todayScheduleDay: ScheduleDayPlan;
   tomorrowScheduleDay: ScheduleDayPlan | null;
   userState: UserState;
+  referenceData?: RuntimeReferenceData;
 }): EarlyFinishSuggestion | null {
-  // Guard: only for theory study blocks (Block A, B, C)
-  if (!EARLY_FINISH_ELIGIBLE_BLOCKS.has(block.semanticBlockKey)) {
-    return null;
-  }
-
-  // Guard: all items in the block must be completed
-  const allCompleted = block.items.length > 0 && block.items.every((item) => {
-    const progress = getTopicProgress(userState, item, todayDayNumber, blockKey);
-    return progress.status === "completed";
+  const remainingMinutes = getEarlyFinishRemainingMinutes({
+    block,
+    blockKey,
+    blockEndTime,
+    effectiveNowIso,
+    todayDayNumber,
+    userState,
+    referenceData,
   });
-  if (!allCompleted) {
-    return null;
-  }
 
-  // Calculate remaining time
-  const nowMinutes = getMinutesInTimeZone(effectiveNowIso, IST_TIME_ZONE);
-  const blockEndMinutes = timeValue(blockEndTime);
-
-  // Guard: block end time is in the past
-  if (blockEndMinutes <= nowMinutes) {
-    return null;
-  }
-
-  const remainingMinutes = blockEndMinutes - nowMinutes;
-
-  // Guard: not enough time
-  if (remainingMinutes < EARLY_FINISH_MIN_MINUTES) {
+  if (remainingMinutes === null) {
     return null;
   }
 

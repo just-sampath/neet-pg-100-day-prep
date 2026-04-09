@@ -605,6 +605,7 @@ export default async function TodayPage() {
                         todayScheduleDay,
                         tomorrowScheduleDay,
                         userState,
+                        referenceData,
                       }) : null;
                       return earlyFinishSuggestion ? (
                         <EarlyFinishSuggestionCard
