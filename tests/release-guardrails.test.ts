@@ -63,4 +63,11 @@ describe("release hardening guardrails", () => {
     expect(serviceWorker).not.toMatch(/addEventListener\(\s*"push"/u);
     expect(serviceWorker).not.toMatch(/addEventListener\(\s*"notificationclick"/u);
   });
+
+  it("loads Vercel Speed Insights from the root layout", () => {
+    const rootLayout = readFileSync(join(process.cwd(), "src/app/layout.tsx"), "utf8");
+
+    expect(rootLayout).toContain('import { SpeedInsights } from "@vercel/speed-insights/next";');
+    expect(rootLayout).toMatch(/\{children\}\s*<SpeedInsights\s*\/>/u);
+  });
 });

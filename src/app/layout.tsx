@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, JetBrains_Mono, Manrope } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { getCurrentUser } from "@/lib/auth/session";
 import { readStore } from "@/lib/data/local-store";
@@ -88,6 +89,7 @@ export default async function RootLayout({
           Skip to content
         </a>
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );

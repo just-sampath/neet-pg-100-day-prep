@@ -46,7 +46,7 @@ describe("DayOneLetterDialog", () => {
                 value: originalShowModal,
             });
         } else {
-            delete HTMLDialogElement.prototype.showModal;
+            Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
         }
 
         if (originalClose) {
@@ -55,7 +55,7 @@ describe("DayOneLetterDialog", () => {
                 value: originalClose,
             });
         } else {
-            delete HTMLDialogElement.prototype.close;
+            Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
         }
     });
 
