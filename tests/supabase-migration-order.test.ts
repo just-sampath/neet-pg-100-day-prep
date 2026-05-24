@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -7,6 +7,19 @@ const MIGRATIONS_DIR = join(process.cwd(), "supabase", "migrations");
 
 function readMigration(fileName: string) {
     return readFileSync(join(MIGRATIONS_DIR, fileName), "utf8");
+}
+
+function readAllMigrations() {
+    return readdirSync(MIGRATIONS_DIR)
+        .filter((entry) => entry.endsWith(".sql"))
+        .sort()
+        .map((entry) => readFileSync(join(MIGRATIONS_DIR, entry), "utf8"))
+        .join("\n");
+}
+
+function getLatestAtomicRpcDefinition(sql: string) {
+    const parts = sql.split(/create\s+or\s+replace\s+function\s+public\.apply_user_state_mutation_atomic\s*\(/i);
+    return parts.at(-1) ?? "";
 }
 
 describe("supabase migration ordering", () => {
@@ -27,5 +40,18 @@ describe("supabase migration ordering", () => {
 
         expect(helperIndex).toBeGreaterThanOrEqual(0);
         expect(rpcIndex).toBeGreaterThan(helperIndex);
+    });
+
+    it("uses a slot-safe schedule assignment delta helper in the latest atomic RPC", () => {
+        const sql = readAllMigrations();
+        const latestRpc = getLatestAtomicRpcDefinition(sql);
+
+        expect(sql).toMatch(/create\s+or\s+replace\s+function\s+public\._apply_schedule_topic_assignment_delta\s*\(/i);
+        expect(sql).toMatch(/row_number\(\)\s+over/i);
+        expect(sql).toMatch(/set\s+item_order\s*=\s*\(-30000\s*\+\s*changed\.parking_order\)::smallint/i);
+        expect(sql).toMatch(/on\s+conflict\s*\(\s*user_id\s*,\s*source_item_id\s*\)\s+do\s+update/i);
+        expect(sql).not.toMatch(/target\.day_number\s*=\s*changed\.day_number[\s\S]*target\.block_key\s*=\s*changed\.block_key[\s\S]*target\.item_order\s*=\s*changed\.item_order/i);
+        expect(latestRpc).toMatch(/perform\s+public\._apply_schedule_topic_assignment_delta\s*\(/i);
+        expect(latestRpc).not.toMatch(/'schedule_topic_assignments'::regclass[\s\S]*?'source_item_id'/i);
     });
 });
